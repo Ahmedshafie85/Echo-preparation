@@ -738,7 +738,9 @@ const Tasks = {
     ];
   },
   render(){
-    if(!S.tasks){ S.tasks = this.seed(); persist('tasks', S.tasks); }
+    if(!Array.isArray(S.tasks) || S.tasks.length===0){
+      S.tasks = this.seed(); persist('tasks', S.tasks);
+    }
     const wrap = document.getElementById('taskList');
     wrap.innerHTML = S.tasks.map(t=>`
       <div class="task ${t.done?'done':''}">
