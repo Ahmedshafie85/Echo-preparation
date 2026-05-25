@@ -19,8 +19,14 @@
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.js"></script>
-<!-- PDF.js for textbook MCQ extraction -->
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs" type="module"></script>
+<!-- PDF.js for textbook MCQ extraction (v5 ESM, worker via CDN) -->
+<script type="module">
+  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.84/build/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.84/build/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+  window.dispatchEvent(new Event('pdfjs-ready'));
+</script>
 
 <style>
 /* ============================================================
@@ -498,8 +504,10 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       <div class="field"><label>Anthropic API key</label><input type="password" id="setAnthropicKey" placeholder="sk-ant-..."></div>
       <div class="field"><label>Groq model</label>
         <select id="setGroqModel">
-          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
-          <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (default)</option>
+          <option value="meta-llama/llama-4-scout-17b-16e-instruct">llama-4-scout (newer, faster)</option>
+          <option value="meta-llama/llama-4-maverick-17b-128e-instruct">llama-4-maverick (newer, larger)</option>
+          <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (fastest, weaker)</option>
         </select>
       </div>
     </div>
@@ -1001,25 +1009,41 @@ const AI = {
   },
 
   async _anthropic(prompt, json){
-    /* NEXT SESSION — uncomment. NOTE: direct browser calls to the
-       Anthropic API need a CORS-enabled key/proxy when deployed to
-       GitHub Pages; confirm approach before enabling.
+    /* Direct browser → Anthropic. Requires the
+       'anthropic-dangerous-direct-browser-access: true' header so CORS
+       passes. Safe here because users supply their own API key in
+       Settings (bring-your-own-key pattern) and the key never leaves
+       their browser. */
+    const sys = 'You are an expert echocardiography board examiner. Always return strictly valid JSON when asked, with no markdown fences or commentary.';
     const r = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{ 'Content-Type':'application/json',
-                'x-api-key':S.settings.anthropicKey,
-                'anthropic-version':'2023-06-01' },
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':S.settings.anthropicKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
       body:JSON.stringify({
-        model:'claude-3-5-sonnet-20241022',
+        model:'claude-sonnet-4-6',
         max_tokens:4000,
+        system: sys + (json?' Return ONLY the raw JSON object, nothing else.':''),
         messages:[{role:'user',content:prompt}]
       })
     });
-    if(!r.ok) throw new Error('Anthropic '+r.status);
+    if(!r.ok){
+      let detail=''; try{ detail=(await r.json()).error?.message||''; }catch(e){}
+      if(r.status===401)
+        throw new Error('Anthropic key invalid — generate a fresh key at console.anthropic.com and update Settings');
+      if(r.status===429)
+        throw new Error('Anthropic rate limit reached — wait a moment and try again');
+      throw new Error('Anthropic '+r.status+(detail?': '+detail:''));
+    }
     const d = await r.json();
-    return d.content.map(b=>b.text||'').join('');
-    */
-    throw new Error('Anthropic stub — wire next session');
+    // Response is an array of content blocks; pull text from all text blocks.
+    return (d.content||[])
+      .filter(b=>b.type==='text')
+      .map(b=>b.text||'')
+      .join('');
   }
 };
 
@@ -1070,6 +1094,49 @@ Requirements:
 
 Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
 {"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","topic":"string"}]}`;
+}
+
+/* Build a prompt that turns extracted textbook/chapter text into MCQs. */
+function buildMcqFromTextPrompt(text, count, diff, style){
+  const styleNote = {
+    eacvi:'European EACVI / ESC guideline emphasis and terminology',
+    ascexam:'American ASE / ASCeXAM guideline emphasis and terminology',
+    mixed:'a mix of EACVI and ASCeXAM emphasis'
+  }[style] || 'mixed EACVI/ASCeXAM emphasis';
+  const diffNote = {
+    basic:'foundational recall level',
+    board:'true board-exam level — clinical vignettes requiring interpretation',
+    hard:'challenging level — subtle distinctions and integration across topics'
+  }[diff] || 'board-exam level';
+
+  // Cap source length defensively — most echo chapters fit, but huge PDFs
+  // would blow context. Tokens ≈ chars/4, so 60k chars ≈ 15k tokens.
+  const SOURCE_CAP = 60000;
+  const src = text.length > SOURCE_CAP
+    ? text.slice(0, SOURCE_CAP) + '\n\n[... source truncated for length ...]'
+    : text;
+
+  return `You are creating echocardiography board-exam MCQs grounded in the SOURCE TEXT below.
+
+Generate exactly ${count} single-best-answer MCQs.
+Difficulty: ${diffNote}
+Style: ${styleNote}
+
+Hard rules:
+- Every question must be answerable from facts present in the SOURCE TEXT (do not invent guideline cutoffs or numbers not in the text).
+- Each item: exactly 4 options, one unambiguously correct.
+- "explanation" cites the specific fact/section from the source that justifies the answer, plus briefly why key distractors are wrong.
+- "topic" is a short label (e.g., "Aortic stenosis grading", "Diastolic function").
+- "answer" is the 0-based index of the correct option.
+- Prefer clinical vignettes over rote recall when the source supports it.
+
+Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
+{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","topic":"string"}]}
+
+SOURCE TEXT:
+"""
+${src}
+"""`;
 }
 
 /* ============================================================
@@ -1292,26 +1359,146 @@ const Pdf = {
       else toast('Please drop a PDF file');
     });
   },
-  /* STUB — local text extraction wired next session via PDF.js.
-     The review-before-generate step is intentional so you can
-     verify extraction quality on image-heavy echo textbooks. */
   async handle(file){
-    document.getElementById('pdfStatus').innerHTML =
+    const statusEl = document.getElementById('pdfStatus');
+    const reviewEl = document.getElementById('pdfReview');
+    reviewEl.style.display = 'none';
+    reviewEl.innerHTML = '';
+
+    if(!window.pdfjsLib){
+      statusEl.innerHTML = `<div class="explain">PDF engine still loading — wait a second and try again.</div>`;
+      return;
+    }
+
+    statusEl.innerHTML =
       `<div style="display:flex;align-items:center;gap:10px;">
          <span class="spinner"></span>
-         <span class="faint">Reading "${file.name}" — text extraction wired next session.</span>
+         <span class="faint">Reading "${file.name}"… <span id="pdfProgress"></span></span>
        </div>`;
-    /* NEXT SESSION:
-       const buf = await file.arrayBuffer();
-       const pdf = await pdfjsLib.getDocument({data:buf}).promise;
-       loop pages → page.getTextContent() → join → show in #pdfReview
-       → user reviews/edits text → AI.complete(buildMcqFromTextPrompt(text))
-       → parse JSON → Bank.save each → toast */
-    setTimeout(()=>{
-      document.getElementById('pdfStatus').innerHTML =
-        `<div class="explain">PDF received. On-device text extraction and the
-          review-then-generate flow will be wired in the next session.</div>`;
-    },900);
+
+    try{
+      const buf = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({data:buf}).promise;
+      const numPages = pdf.numPages;
+      const pages = [];
+
+      for(let i=1; i<=numPages; i++){
+        document.getElementById('pdfProgress').textContent = `page ${i} / ${numPages}`;
+        const page = await pdf.getPage(i);
+        const tc   = await page.getTextContent();
+        // Items have a `.str`; concatenate with spaces, join lines on newlines.
+        // Use the transform y-coord to break lines so reading order is sane.
+        let lastY = null, line = [];
+        const lines = [];
+        for(const item of tc.items){
+          const y = item.transform?.[5];
+          if(lastY !== null && y !== undefined && Math.abs(y - lastY) > 2){
+            lines.push(line.join(' ').trim());
+            line = [];
+          }
+          if(item.str) line.push(item.str);
+          if(y !== undefined) lastY = y;
+        }
+        if(line.length) lines.push(line.join(' ').trim());
+        pages.push(lines.filter(Boolean).join('\n'));
+        // Release page resources
+        page.cleanup();
+      }
+
+      const fullText = pages.join('\n\n--- page break ---\n\n');
+      const charCount = fullText.length;
+
+      statusEl.innerHTML =
+        `<div class="explain">Extracted <strong>${charCount.toLocaleString()}</strong> characters from <strong>${numPages}</strong> pages. Review the text below, trim irrelevant sections, then generate MCQs.</div>`;
+
+      // Render review UI: editable textarea + count selector + generate button.
+      reviewEl.style.display = 'block';
+      reviewEl.innerHTML = `
+        <div class="card">
+          <div class="card-head"><h3>Review extracted text</h3></div>
+          <p class="faint" style="margin-bottom:10px;">
+            Edit or trim the text before generating questions. The first ~60,000 characters will be used.
+          </p>
+          <textarea id="pdfText"
+            style="width:100%;min-height:240px;resize:vertical;font-family:ui-monospace,monospace;font-size:13px;padding:10px;border-radius:8px;"
+          ></textarea>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:end;">
+            <div class="field" style="flex:1;min-width:120px;">
+              <label>Questions to generate</label>
+              <select id="pdfCount">
+                <option>5</option><option selected>10</option><option>15</option><option>20</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1;min-width:120px;">
+              <label>Style</label>
+              <select id="pdfStyle">
+                <option value="mixed" selected>Mixed</option>
+                <option value="eacvi">EACVI</option>
+                <option value="ascexam">ASCeXAM</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1;min-width:120px;">
+              <label>Difficulty</label>
+              <select id="pdfDiff">
+                <option value="basic">Basic</option>
+                <option value="board" selected>Board</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-block" id="pdfGenBtn" style="margin-top:14px;"
+            onclick="Pdf.generate()">Generate MCQs from this text</button>
+        </div>`;
+
+      // Defer setting the textarea value — large strings via innerHTML
+      // re-render are slow; assigning .value is fast.
+      document.getElementById('pdfText').value = fullText;
+
+    }catch(e){
+      console.error('PDF extract:', e);
+      statusEl.innerHTML =
+        `<div class="explain" style="color:var(--danger,#df8b82);">Could not read PDF: ${e.message || e}. Scanned/image PDFs without an OCR layer can't be extracted in the browser.</div>`;
+    }
+  },
+
+  async generate(){
+    const text  = document.getElementById('pdfText').value.trim();
+    const count = document.getElementById('pdfCount').value;
+    const style = document.getElementById('pdfStyle').value;
+    const diff  = document.getElementById('pdfDiff').value;
+
+    if(!text || text.length < 200){
+      toast('Not enough text to generate from'); return;
+    }
+    if(!S.settings.groqKey && !S.settings.anthropicKey){
+      toast('Add a Groq or Anthropic key in Settings first');
+      App.go('settings'); return;
+    }
+
+    const btn = document.getElementById('pdfGenBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating…';
+
+    try{
+      const prompt = buildMcqFromTextPrompt(text, count, diff, style);
+      const raw = await AI.complete(prompt, {json:true});
+      const parsed = extractJSON(raw);
+      let qs = (parsed.questions || []).filter(validMcq);
+      if(!qs.length) throw new Error('AI returned no usable questions — try a different section');
+      qs = qs.map(q=>({ ...q, topic:q.topic||'Textbook', style, source:'pdf' }));
+      App.go('mcq');
+      MCQ.startRunner(qs);
+      toast(`${qs.length} questions ready`);
+    }catch(e){
+      console.error('PDF→MCQ generation failed:', e);
+      toast(e.message || 'Generation failed');
+    }finally{
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
   }
 };
 
