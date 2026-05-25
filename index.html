@@ -510,6 +510,19 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         Firebase project <strong>echo-prep</strong> · collections namespaced <code>echoprep_*</code>.
         <span id="syncState"></span>
       </p>
+
+      <div id="signInBox" style="display:none;">
+        <div class="field"><label>Email</label><input type="email" id="syncEmail" placeholder="you@example.com" autocomplete="email"></div>
+        <div class="field"><label>Password</label><input type="password" id="syncPassword" placeholder="••••••••" autocomplete="current-password"></div>
+        <button class="btn btn-ghost btn-block" onclick="App.signIn()" style="margin-bottom:8px;">Sign in</button>
+        <p class="faint" style="font-size:12px;">Use the same email/password you registered with on the other EchoPrep app — your sync data is kept separate (in <code>echoprep_users</code>).</p>
+      </div>
+
+      <div id="signedInBox" style="display:none;">
+        <p class="faint" style="margin-bottom:10px;">Signed in as <strong id="syncUserEmail"></strong></p>
+        <button class="btn btn-ghost btn-block" onclick="App.signOut()" style="margin-bottom:8px;">Sign out</button>
+      </div>
+
       <button class="btn btn-ghost btn-block" onclick="App.saveSettings()">Save settings</button>
     </div>
 
@@ -569,12 +582,12 @@ input,select,textarea{font-family:inherit;font-size:14px;}
    from the Firebase console (Project settings → Web app).
    The other fields are derivable from the project id. */
 const FIREBASE_CONFIG = {
-  apiKey:            "REPLACE_WITH_WEB_API_KEY",
+  apiKey:            "AIzaSyAt8jyv7YVGLHuCKREoMgZintE6HSlZCjA",
   authDomain:        "echo-prep.firebaseapp.com",
   projectId:         "echo-prep",
-  storageBucket:     "echo-prep.appspot.com",
-  messagingSenderId: "REPLACE_WITH_SENDER_ID",
-  appId:             "REPLACE_WITH_APP_ID"
+  storageBucket:     "echo-prep.firebasestorage.app",
+  messagingSenderId: "868860955040",
+  appId:             "1:868860955040:web:a8d7a28d7ea9b90d6dbcc5"
 };
 
 /* ---- 1. Echo curriculum — dual-track domain model ----------
@@ -622,10 +635,29 @@ window.S = {
   bankFilter: 'all',
   vidFilter:  'all',
   fb:         null,   // firestore handle once initialised
+  uid:        null,   // anonymous auth uid once signed in
+  syncReady:  false,  // true after initial cloud pull completes
   current:    null    // active MCQ runner session
 };
 
-const persist = (k,v)=>localStorage.setItem('ep_'+k, JSON.stringify(v));
+/* Persist to local storage, and (debounced) mirror to Firestore if sync is up.
+   We only mirror the user-data keys, never API keys (those stay device-local). */
+const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats']);
+const _cloudTimers = {};
+function persist(k, v){
+  localStorage.setItem('ep_'+k, JSON.stringify(v));
+  if(SYNCABLE_KEYS.has(k)){
+    localStorage.setItem('ep_updated', Date.now().toString());
+  }
+  if(!S.syncReady || !S.fb || !S.uid) return;
+  if(!SYNCABLE_KEYS.has(k)) return;
+  // debounce per-key so rapid edits don't hammer Firestore
+  clearTimeout(_cloudTimers[k]);
+  _cloudTimers[k] = setTimeout(()=>{
+    S.fb.collection('echoprep_users').doc(S.uid).set({[k]: v, _updated: Date.now()}, {merge:true})
+      .catch(e=>console.warn('cloud sync ('+k+'):', e));
+  }, 800);
+}
 
 /* ============================================================
    APP — shell, navigation, theme, settings
@@ -690,7 +722,9 @@ const App = {
       : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
   },
 
-  /* ---- Firebase init (graceful if config not yet filled) ---- */
+  /* ---- Firebase init: wire up auth state listener ----
+     If config isn't set, fall back to local-only. Otherwise initialise
+     Firebase and let the auth state listener drive the sync UI. */
   initFirebase(){
     const el = document.getElementById('syncState');
     if(FIREBASE_CONFIG.apiKey.startsWith('REPLACE')){
@@ -700,10 +734,90 @@ const App = {
     try{
       firebase.initializeApp(FIREBASE_CONFIG);
       S.fb = firebase.firestore();
-      el && (el.textContent = ' — connected.');
+      // Set local-cache persistence so reads work offline too
+      S.fb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+
+      firebase.auth().onAuthStateChanged(user=>{
+        const signInBox  = document.getElementById('signInBox');
+        const signedInBox= document.getElementById('signedInBox');
+        if(user){
+          S.uid = user.uid;
+          document.getElementById('syncUserEmail').textContent = user.email || user.uid.slice(0,8)+'…';
+          signInBox.style.display    = 'none';
+          signedInBox.style.display  = 'block';
+          el.innerHTML = ' — <strong>connected</strong>.';
+          this.pullCloudThenEnableSync();
+        }else{
+          S.uid = null;
+          S.syncReady = false;
+          signInBox.style.display    = 'block';
+          signedInBox.style.display  = 'none';
+          el.textContent = ' — not signed in (using local storage).';
+        }
+      });
     }catch(e){
       el && (el.textContent = ' — init failed; using local storage.');
       console.warn('Firebase init:', e);
+    }
+  },
+
+  /* Sign in with the email/password registered on the shared echo-prep project. */
+  async signIn(){
+    const email = document.getElementById('syncEmail').value.trim();
+    const pw    = document.getElementById('syncPassword').value;
+    if(!email || !pw){ toast('Enter email and password'); return; }
+    try{
+      await firebase.auth().signInWithEmailAndPassword(email, pw);
+      document.getElementById('syncPassword').value = '';
+      toast('Signed in — syncing…');
+    }catch(e){
+      console.warn('signIn:', e);
+      toast('Sign-in failed: ' + (e.code || e.message));
+    }
+  },
+
+  async signOut(){
+    try{
+      await firebase.auth().signOut();
+      toast('Signed out — local storage only');
+    }catch(e){ console.warn('signOut:', e); }
+  },
+
+  /* On sign-in: pull cloud doc, merge with local (newest wins per timestamp),
+     re-render UI, then flip syncReady so subsequent edits push to cloud. */
+  async pullCloudThenEnableSync(){
+    if(!S.fb || !S.uid) return;
+    try{
+      const snap = await S.fb.collection('echoprep_users').doc(S.uid).get();
+      const cloud = snap.exists ? snap.data() : null;
+      const localUpdated = +localStorage.getItem('ep_updated') || 0;
+      const cloudUpdated = cloud?._updated || 0;
+
+      if(cloud && cloudUpdated >= localUpdated){
+        ['tasks','bank','videos','plan','stats'].forEach(k=>{
+          if(cloud[k] !== undefined){
+            localStorage.setItem('ep_'+k, JSON.stringify(cloud[k]));
+            const stateKey = (k==='bank') ? 'mcqBank' : k;
+            S[stateKey] = cloud[k];
+          }
+        });
+        Tasks.render(); Plan.render(); Bank.render();
+        Videos.render(); Dashboard.render();
+      }
+      S.syncReady = true;
+
+      if(!cloud || cloudUpdated < localUpdated){
+        const payload = {_updated: Date.now()};
+        ['tasks','bank','videos','plan','stats'].forEach(k=>{
+          const v = localStorage.getItem('ep_'+k);
+          if(v) payload[k] = JSON.parse(v);
+        });
+        S.fb.collection('echoprep_users').doc(S.uid).set(payload, {merge:true})
+          .catch(e=>console.warn('initial cloud push:', e));
+      }
+    }catch(e){
+      console.warn('cloud pull:', e);
+      toast('Cloud read failed — check Firestore rules');
     }
   },
 
