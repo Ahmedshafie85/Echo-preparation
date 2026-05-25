@@ -484,9 +484,16 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div class="card" style="margin-bottom:14px;">
       <div class="card-head"><h3>AI backend</h3><span class="badge-ai">Groq → Claude</span></div>
       <p class="faint" style="margin-bottom:12px;">
-        The app tries Groq first, then falls back to the Anthropic API if Groq fails or has no key.
-        Keys are stored in your browser only (never committed to the repo).
+        The app tries Groq first, then falls back to Anthropic if Groq fails or has no key.
+        Keys are saved <strong>in this browser only</strong> — never in the GitHub repo.
+        Each colleague enters their own key on their own device.
       </p>
+      <div class="explain" style="margin-top:0;margin-bottom:12px;font-size:12.5px;">
+        ⚠︎ Never paste your key into <code>index.html</code> or commit it — GitHub's
+        secret scanner will detect it and Groq will auto-revoke the key. If your key
+        stopped working, that is almost certainly why: generate a fresh one in the
+        Groq console and enter it here.
+      </div>
       <div class="field"><label>Groq API key</label><input type="password" id="setGroqKey" placeholder="gsk_..."></div>
       <div class="field"><label>Anthropic API key</label><input type="password" id="setAnthropicKey" placeholder="sk-ant-..."></div>
       <div class="field"><label>Groq model</label>
@@ -625,6 +632,7 @@ const persist = (k,v)=>localStorage.setItem('ep_'+k, JSON.stringify(v));
    ============================================================ */
 const App = {
   init(){
+    this.guardAgainstHardcodedKey();
     document.documentElement.setAttribute('data-theme', S.theme);
     this.updateThemeIcon();
     this.syncThemeColor();
@@ -639,6 +647,17 @@ const App = {
     Bank.render();
     Dashboard.render();
     Pdf.init();
+  },
+
+  /* Safeguard: if a real Groq/Anthropic key ever gets pasted into the
+     source of this file, warn loudly. Keys belong in Settings only. */
+  guardAgainstHardcodedKey(){
+    const src = document.documentElement.innerHTML;
+    if(/gsk_[A-Za-z0-9]{20,}/.test(src) || /sk-ant-[A-Za-z0-9_-]{20,}/.test(src)){
+      console.warn('%c⚠ API KEY DETECTED IN PAGE SOURCE','color:#df8b82;font-weight:700;font-size:14px;');
+      console.warn('Remove it immediately and revoke it — keys must only be entered in Settings, never committed to the repo.');
+      toast('⚠ An API key appears to be hardcoded — remove it from the file');
+    }
   },
 
   go(view){
@@ -857,6 +876,10 @@ const AI = {
     });
     if(!r.ok){
       let detail=''; try{ detail=(await r.json()).error?.message||''; }catch(e){}
+      if(r.status===401)
+        throw new Error('Groq key invalid or revoked — generate a fresh key in the Groq console and update Settings');
+      if(r.status===429)
+        throw new Error('Groq rate limit reached — wait a moment and try again');
       throw new Error('Groq '+r.status+(detail?': '+detail:''));
     }
     const d = await r.json();
