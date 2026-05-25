@@ -19,13 +19,37 @@
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.js"></script>
-<!-- PDF.js for textbook MCQ extraction (v5 ESM, worker via CDN) -->
+<!-- PDF.js for textbook MCQ extraction (v5 ESM with CDN fallback chain) -->
 <script type="module">
-  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.84/build/pdf.min.mjs';
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.84/build/pdf.worker.min.mjs';
-  window.pdfjsLib = pdfjsLib;
-  window.dispatchEvent(new Event('pdfjs-ready'));
+  const PDFJS_VERSION = '5.7.284';
+  const PDFJS_CDNS = [
+    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build`,
+    `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build`,
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`
+  ];
+
+  async function loadPdfJs(){
+    for(const base of PDFJS_CDNS){
+      try{
+        const lib = await import(`${base}/pdf.min.mjs`);
+        lib.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.mjs`;
+        return lib;
+      }catch(e){
+        console.warn('PDF.js failed to load from', base, '-', e.message);
+      }
+    }
+    throw new Error('All PDF.js CDNs blocked');
+  }
+
+  loadPdfJs()
+    .then(lib=>{
+      window.pdfjsLib = lib;
+      window.dispatchEvent(new Event('pdfjs-ready'));
+    })
+    .catch(err=>{
+      console.error('PDF.js load failed:', err);
+      window.dispatchEvent(new CustomEvent('pdfjs-failed', {detail: err.message}));
+    });
 </script>
 
 <style>
@@ -1361,26 +1385,29 @@ const Pdf = {
   },
   /* Wait for PDF.js module to finish loading. Modules load async, so on
      a slow connection it may not be ready when the user drops a file.
-     Returns a promise that resolves to the library or rejects on timeout. */
-  waitForPdfJs(timeoutMs=10000){
+     Returns a promise that resolves to the library or rejects on timeout
+     or explicit load failure (all CDNs blocked). */
+  waitForPdfJs(timeoutMs=15000){
     if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
     return new Promise((resolve, reject)=>{
-      const t = setTimeout(()=>{
+      let done = false;
+      const finish = (fn, val)=>{
+        if(done) return; done = true;
+        clearTimeout(t); clearInterval(poll);
         window.removeEventListener('pdfjs-ready', onReady);
-        reject(new Error('PDF engine failed to load — check your connection and reload the page'));
-      }, timeoutMs);
-      const onReady = ()=>{
-        clearTimeout(t);
-        resolve(window.pdfjsLib);
+        window.removeEventListener('pdfjs-failed', onFail);
+        fn(val);
       };
+      const t = setTimeout(()=>finish(reject,
+        new Error('PDF engine timed out loading (>15s) — check your connection and reload')), timeoutMs);
+      const onReady = ()=>finish(resolve, window.pdfjsLib);
+      const onFail  = (e)=>finish(reject,
+        new Error('PDF engine could not load: '+(e.detail||'all CDNs blocked')+' — check ad-blockers / network policy'));
       window.addEventListener('pdfjs-ready', onReady, {once:true});
-      // Fallback: poll once a second in case the event already fired before we attached
+      window.addEventListener('pdfjs-failed', onFail, {once:true});
+      // Defensive poll in case the event fired before listener attached
       const poll = setInterval(()=>{
-        if(window.pdfjsLib){
-          clearInterval(poll); clearTimeout(t);
-          window.removeEventListener('pdfjs-ready', onReady);
-          resolve(window.pdfjsLib);
-        }
+        if(window.pdfjsLib) finish(resolve, window.pdfjsLib);
       }, 500);
     });
   },
