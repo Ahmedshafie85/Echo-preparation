@@ -861,8 +861,19 @@ const App = {
     document.getElementById('setGroqKey').value       = s.groqKey     || '';
     document.getElementById('setAnthropicKey').value  = s.anthropicKey|| '';
     document.getElementById('setGroqModel').value     = s.groqModel   || 'llama-3.3-70b-versatile';
+
+    // Auto-save when the user clicks/tabs out of a field — fixes the
+    // footgun where users type a key but forget to hit Save.
+    ['setEacviDate','setAscexamDate','setGroqKey','setAnthropicKey','setGroqModel'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el || el.dataset.autoSaveBound) return;
+      el.dataset.autoSaveBound = '1';
+      el.addEventListener('blur', ()=>this.autoSaveSettings());
+      el.addEventListener('change', ()=>this.autoSaveSettings());
+    });
   },
-  saveSettings(){
+  /* Silent save (no toast) for blur-driven autosave. */
+  autoSaveSettings(){
     S.settings = {
       eacviDate:    document.getElementById('setEacviDate').value,
       ascexamDate:  document.getElementById('setAscexamDate').value,
@@ -872,6 +883,9 @@ const App = {
     };
     persist('settings', S.settings);
     Dashboard.render();
+  },
+  saveSettings(){
+    this.autoSaveSettings();
     toast('Settings saved');
   }
 };
@@ -987,28 +1001,40 @@ const Plan = {
    AI — backend fallback chain: Groq first, Anthropic fallback
    ============================================================ */
 const AI = {
+  /* Get a key value — prefer the saved settings, but fall back to the
+     live DOM input field if the user typed a key but hasn't saved yet.
+     This is the safety net for the "I typed it but forgot to save" case. */
+  _readKey(field){
+    const fromSettings = S.settings?.[field];
+    if(fromSettings) return fromSettings;
+    const id = field==='groqKey' ? 'setGroqKey' : field==='anthropicKey' ? 'setAnthropicKey' : null;
+    const el = id ? document.getElementById(id) : null;
+    return el ? el.value.trim() : '';
+  },
+
   /* Single entry point. Returns model text or throws.
      STUB: network calls commented; structure is final. */
   async complete(prompt, {json=false}={}){
-    const s = S.settings;
+    const groqKey      = this._readKey('groqKey');
+    const anthropicKey = this._readKey('anthropicKey');
     // 1) try Groq
-    if(s.groqKey){
+    if(groqKey){
       try{ return await this._groq(prompt, json); }
       catch(e){ console.warn('Groq failed, falling back:', e); }
     }
     // 2) fall back to Anthropic
-    if(s.anthropicKey){
+    if(anthropicKey){
       try{ return await this._anthropic(prompt, json); }
       catch(e){ console.warn('Anthropic failed:', e); }
     }
-    throw new Error('No working AI backend — add a key in Settings');
+    throw new Error('No working AI backend — add a key in Settings and click Save');
   },
 
   async _groq(prompt, json){
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{ 'Content-Type':'application/json',
-                'Authorization':'Bearer '+S.settings.groqKey },
+                'Authorization':'Bearer '+this._readKey('groqKey') },
       body:JSON.stringify({
         model:S.settings.groqModel || 'llama-3.3-70b-versatile',
         messages:[
@@ -1043,7 +1069,7 @@ const AI = {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key':S.settings.anthropicKey,
+        'x-api-key':this._readKey('anthropicKey'),
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
@@ -1183,7 +1209,7 @@ const MCQ = {
     const style = document.getElementById('mcqStyle').value;
     const count = document.getElementById('mcqCount').value;
 
-    if(!S.settings.groqKey && !S.settings.anthropicKey){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
       toast('Add a Groq API key in Settings first');
       App.go('settings'); return;
     }
@@ -1528,7 +1554,7 @@ const Pdf = {
     if(!text || text.length < 200){
       toast('Not enough text to generate from'); return;
     }
-    if(!S.settings.groqKey && !S.settings.anthropicKey){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
       toast('Add a Groq or Anthropic key in Settings first');
       App.go('settings'); return;
     }
