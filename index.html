@@ -1359,26 +1359,55 @@ const Pdf = {
       else toast('Please drop a PDF file');
     });
   },
+  /* Wait for PDF.js module to finish loading. Modules load async, so on
+     a slow connection it may not be ready when the user drops a file.
+     Returns a promise that resolves to the library or rejects on timeout. */
+  waitForPdfJs(timeoutMs=10000){
+    if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    return new Promise((resolve, reject)=>{
+      const t = setTimeout(()=>{
+        window.removeEventListener('pdfjs-ready', onReady);
+        reject(new Error('PDF engine failed to load — check your connection and reload the page'));
+      }, timeoutMs);
+      const onReady = ()=>{
+        clearTimeout(t);
+        resolve(window.pdfjsLib);
+      };
+      window.addEventListener('pdfjs-ready', onReady, {once:true});
+      // Fallback: poll once a second in case the event already fired before we attached
+      const poll = setInterval(()=>{
+        if(window.pdfjsLib){
+          clearInterval(poll); clearTimeout(t);
+          window.removeEventListener('pdfjs-ready', onReady);
+          resolve(window.pdfjsLib);
+        }
+      }, 500);
+    });
+  },
+
   async handle(file){
     const statusEl = document.getElementById('pdfStatus');
     const reviewEl = document.getElementById('pdfReview');
     reviewEl.style.display = 'none';
     reviewEl.innerHTML = '';
 
-    if(!window.pdfjsLib){
-      statusEl.innerHTML = `<div class="explain">PDF engine still loading — wait a second and try again.</div>`;
-      return;
-    }
-
     statusEl.innerHTML =
       `<div style="display:flex;align-items:center;gap:10px;">
          <span class="spinner"></span>
-         <span class="faint">Reading "${file.name}"… <span id="pdfProgress"></span></span>
+         <span class="faint">Reading "${file.name}"… <span id="pdfProgress">loading engine</span></span>
        </div>`;
+
+    let pdfjsLib;
+    try{
+      pdfjsLib = await this.waitForPdfJs();
+    }catch(e){
+      statusEl.innerHTML = `<div class="explain" style="color:var(--danger,#df8b82);">${e.message}</div>`;
+      return;
+    }
 
     try{
       const buf = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({data:buf}).promise;
+      const pdf = await pdfjsLib.getDocument({data:buf}).promise;
       const numPages = pdf.numPages;
       const pages = [];
 
