@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c1118">
+<meta name="theme-color" content="#16161a" id="themeColorMeta">
 <title>EchoPrep Studio — TTE / TEE / 4D Echo Board Prep</title>
 <link rel="manifest" href="data:application/json,{%22name%22:%22EchoPrep%20Studio%22,%22short_name%22:%22EchoPrep%22,%22display%22:%22standalone%22,%22background_color%22:%22%230c1118%22,%22theme_color%22:%22%230c1118%22,%22icons%22:[]}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,24 +29,29 @@
 :root{
   --font-display:'Fraunces',Georgia,serif;
   --font-body:'Inter',-apple-system,system-ui,sans-serif;
-  --accent:#2dd4bf; --accent-deep:#0d9488; --accent-soft:rgba(45,212,191,.14);
-  --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --info:#60a5fa;
   --radius:18px; --radius-sm:12px;
   --ease:cubic-bezier(.22,.61,.36,1);
 }
+/* NIGHT — warm charcoal base, warm off-white text (no pure black/white,
+   slightly desaturated teal so the accent doesn't vibrate on dark). */
 [data-theme="night"]{
-  --bg:#0c1118; --bg-2:#0f1620; --surface:rgba(22,30,42,.72);
-  --surface-solid:#161e2a; --line:rgba(255,255,255,.07);
-  --line-strong:rgba(255,255,255,.13);
-  --text:#e8edf4; --text-dim:#9aa7b8; --text-faint:#5f6c7e;
-  --glow:rgba(45,212,191,.16);
+  --bg:#16161a; --bg-2:#1d1d22; --surface:rgba(38,38,44,.72);
+  --surface-solid:#26262c; --line:rgba(255,250,240,.08);
+  --line-strong:rgba(255,250,240,.15);
+  --text:#ece8e1; --text-dim:#a7a39b; --text-faint:#6f6b63;
+  --accent:#5ec9b8; --accent-deep:#3a9d8e; --accent-soft:rgba(94,201,184,.13);
+  --ok:#6cc398; --warn:#e0b15c; --bad:#df8b82; --info:#7fa8d4;
+  --glow:rgba(94,201,184,.12);
 }
+/* DAY — warm paper off-white, dark warm-grey text (e-reader friendly). */
 [data-theme="day"]{
-  --bg:#f4f6f9; --bg-2:#eaeef3; --surface:rgba(255,255,255,.82);
-  --surface-solid:#ffffff; --line:rgba(15,30,50,.09);
-  --line-strong:rgba(15,30,50,.16);
-  --text:#16202e; --text-dim:#54627a; --text-faint:#9aa7b8;
-  --glow:rgba(13,148,136,.12);
+  --bg:#f3efe6; --bg-2:#ebe6da; --surface:rgba(252,250,244,.86);
+  --surface-solid:#fcfaf4; --line:rgba(60,52,38,.10);
+  --line-strong:rgba(60,52,38,.18);
+  --text:#33302a; --text-dim:#6b665c; --text-faint:#9a948a;
+  --accent:#2f9e8c; --accent-deep:#1f7f70; --accent-soft:rgba(47,158,140,.13);
+  --ok:#3f9f74; --warn:#b5872f; --bad:#c4665c; --info:#4d7aa8;
+  --glow:rgba(47,158,140,.10);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
@@ -622,6 +627,7 @@ const App = {
   init(){
     document.documentElement.setAttribute('data-theme', S.theme);
     this.updateThemeIcon();
+    this.syncThemeColor();
     document.getElementById('todayDate').textContent =
       new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'});
     this.initFirebase();
@@ -652,6 +658,11 @@ const App = {
     document.documentElement.setAttribute('data-theme', S.theme);
     localStorage.setItem('ep_theme', S.theme);
     this.updateThemeIcon();
+    this.syncThemeColor();
+  },
+  syncThemeColor(){
+    const meta = document.getElementById('themeColorMeta');
+    if(meta) meta.content = S.theme==='night' ? '#16161a' : '#f3efe6';
   },
   updateThemeIcon(){
     const ico = document.getElementById('themeIco');
@@ -829,23 +840,27 @@ const AI = {
   },
 
   async _groq(prompt, json){
-    /* NEXT SESSION — uncomment:
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{ 'Content-Type':'application/json',
                 'Authorization':'Bearer '+S.settings.groqKey },
       body:JSON.stringify({
-        model:S.settings.groqModel,
-        messages:[{role:'user',content:prompt}],
+        model:S.settings.groqModel || 'llama-3.3-70b-versatile',
+        messages:[
+          {role:'system',content:'You are an expert echocardiography board examiner. Always return strictly valid JSON when asked, with no markdown fences or commentary.'},
+          {role:'user',content:prompt}
+        ],
         ...(json?{response_format:{type:'json_object'}}:{}),
-        temperature:0.4
+        temperature:0.45,
+        max_tokens:4000
       })
     });
-    if(!r.ok) throw new Error('Groq '+r.status);
+    if(!r.ok){
+      let detail=''; try{ detail=(await r.json()).error?.message||''; }catch(e){}
+      throw new Error('Groq '+r.status+(detail?': '+detail:''));
+    }
     const d = await r.json();
-    return d.choices[0].message.content;
-    */
-    throw new Error('Groq stub — wire next session');
+    return d.choices?.[0]?.message?.content || '';
   },
 
   async _anthropic(prompt, json){
@@ -871,19 +886,53 @@ const AI = {
   }
 };
 
-/* ---- prompt builders (final shape, used by stubs) ---- */
+/* ---- safe JSON extraction from model output ----------------
+   LLMs occasionally wrap JSON in ```fences``` or stray prose
+   even when told not to. This pulls the first {...} object out. */
+function extractJSON(raw){
+  if(!raw) throw new Error('Empty AI response');
+  let t = raw.trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  try{ return JSON.parse(t); }catch(e){}
+  const s=t.indexOf('{'), e=t.lastIndexOf('}');
+  if(s>=0 && e>s){
+    try{ return JSON.parse(t.slice(s,e+1)); }catch(e2){}
+  }
+  throw new Error('Could not parse AI response as JSON');
+}
+
+/* ---- validate one MCQ object from the model --------------- */
+function validMcq(q){
+  return q && typeof q.q==='string' && q.q.length>5
+      && Array.isArray(q.options) && q.options.length>=2
+      && Number.isInteger(q.answer) && q.answer>=0 && q.answer<q.options.length;
+}
 function buildMcqPrompt(domain, topics, style, count, diff){
   const styleNote = {
-    eacvi:'European EACVI EACVI/ESC guideline emphasis',
-    ascexam:'American ASE / ASCeXAM emphasis',
-    mixed:'mixed EACVI and ASCeXAM emphasis'
+    eacvi:'European EACVI / ESC guideline emphasis and terminology',
+    ascexam:'American ASE / ASCeXAM guideline emphasis and terminology',
+    mixed:'a mix of EACVI and ASCeXAM emphasis'
   }[style];
-  return `Generate ${count} single-best-answer echocardiography MCQs.
-Domain: ${domain}. Sub-topics: ${topics.join(', ')}.
-Exam style: ${styleNote}. Difficulty: ${diff}.
-Each question must mimic real board exam phrasing.
-Return ONLY valid JSON: {"questions":[{"q":"","options":["","","",""],
-"answer":0,"explanation":"","topic":""}]}`;
+  const diffNote = {
+    basic:'foundational recall level',
+    board:'true board-exam level — clinical vignettes requiring interpretation',
+    hard:'challenging level — subtle distinctions and integration across topics'
+  }[diff];
+  return `Generate exactly ${count} single-best-answer multiple-choice questions for echocardiography board preparation.
+
+Domain: ${domain}
+Sub-topics to draw from: ${topics.join(', ')}
+Guideline emphasis: ${styleNote}
+Difficulty: ${diffNote}
+
+Requirements:
+- Each question must read like a real board exam item (clinical vignette where appropriate).
+- Exactly 4 options each, only one unambiguously correct.
+- Use current guideline cutoffs and terminology.
+- The "explanation" must say why the correct answer is right AND briefly why key distractors are wrong.
+- "answer" is the 0-based index of the correct option.
+
+Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
+{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","topic":"string"}]}`;
 }
 
 /* ============================================================
@@ -899,25 +948,39 @@ const MCQ = {
     document.querySelectorAll('#mcqDiff .chip').forEach(c=>
       c.classList.toggle('active', c.dataset.d===d));
   },
-  /* STUB — generates via AI next session; for now seeds a demo item */
+  /* Generates a question set via the AI fallback chain (Groq first). */
   async generate(){
     const domId = document.getElementById('mcqDomain').value;
     const dom   = DOMAINS.find(d=>d.id===domId);
     const style = document.getElementById('mcqStyle').value;
     const count = document.getElementById('mcqCount').value;
-    const prompt = buildMcqPrompt(dom.name, dom.topics, style, count, S.mcqDiff);
-    console.log('MCQ prompt ready:\n', prompt);
 
-    /* NEXT SESSION:
-       const raw = await AI.complete(prompt,{json:true});
-       const qs  = JSON.parse(raw).questions;  */
-    toast('AI generation wired next session — loading a demo question');
-    this.startRunner([{
-      q:'Demo: Which measurement is the recommended first step in the ASE diastolic function algorithm in a patient with normal LV EF?',
-      options:['Mitral E/A ratio','Septal e\u2032 velocity','Average E/e\u2032','LA volume index'],
-      answer:0, explanation:'Skeleton demo item. Real AI-generated questions arrive next session once the Groq→Anthropic chain is wired.',
-      topic:dom.name, style
-    }]);
+    if(!S.settings.groqKey && !S.settings.anthropicKey){
+      toast('Add a Groq API key in Settings first');
+      App.go('settings'); return;
+    }
+
+    const prompt = buildMcqPrompt(dom.name, dom.topics, style, count, S.mcqDiff);
+    const btn = document.querySelector('#mcqSetup .btn-primary');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating…';
+
+    try{
+      const raw = await AI.complete(prompt, {json:true});
+      const parsed = extractJSON(raw);
+      let qs = (parsed.questions || []).filter(validMcq);
+      if(!qs.length) throw new Error('AI returned no usable questions — try again');
+      qs = qs.map(q=>({ ...q, topic:q.topic||dom.name, style }));
+      this.startRunner(qs);
+      toast(`${qs.length} questions ready`);
+    }catch(e){
+      console.error('MCQ generation failed:', e);
+      toast(e.message || 'Generation failed — check your API key');
+    }finally{
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
   },
   startRunner(qs){
     S.current = { qs, i:0, picked:null, score:0 };
