@@ -19,38 +19,6 @@
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.js"></script>
-<!-- PDF.js for textbook MCQ extraction (v5 ESM with CDN fallback chain) -->
-<script type="module">
-  const PDFJS_VERSION = '5.7.284';
-  const PDFJS_CDNS = [
-    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build`,
-    `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build`,
-    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`
-  ];
-
-  async function loadPdfJs(){
-    for(const base of PDFJS_CDNS){
-      try{
-        const lib = await import(`${base}/pdf.min.mjs`);
-        lib.GlobalWorkerOptions.workerSrc = `${base}/pdf.worker.min.mjs`;
-        return lib;
-      }catch(e){
-        console.warn('PDF.js failed to load from', base, '-', e.message);
-      }
-    }
-    throw new Error('All PDF.js CDNs blocked');
-  }
-
-  loadPdfJs()
-    .then(lib=>{
-      window.pdfjsLib = lib;
-      window.dispatchEvent(new Event('pdfjs-ready'));
-    })
-    .catch(err=>{
-      console.error('PDF.js load failed:', err);
-      window.dispatchEvent(new CustomEvent('pdfjs-failed', {detail: err.message}));
-    });
-</script>
 
 <style>
 /* ============================================================
@@ -385,28 +353,52 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div class="section-title"><h2>Study plan</h2>
       <span class="faint">EACVI + ASCeXAM</span></div>
 
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>Exam tracks</h3></div>
-      <p class="faint" style="margin-bottom:12px;">Both tracks run in parallel. Tap a domain to see its sub-topics and schedule.</p>
-      <div class="chip-row" id="trackFilter">
-        <button class="chip active" data-track="all" onclick="Plan.filter('all')">All domains</button>
-        <button class="chip" data-track="eacvi" onclick="Plan.filter('eacvi')">EACVI focus</button>
-        <button class="chip" data-track="ascexam" onclick="Plan.filter('ascexam')">ASCeXAM focus</button>
-      </div>
-    </div>
-
-    <div class="stack" id="domainList"><!-- rendered --></div>
-
-    <div class="card" style="margin-top:14px;">
-      <div class="card-head"><h3>Generate a study schedule</h3><span class="badge-ai">⚡ AI</span></div>
+    <div class="card" id="planSetup" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Build your day-by-day plan</h3><span class="badge-ai">⚡ AI</span></div>
       <p class="faint" style="margin-bottom:12px;">
-        Builds a day-by-day plan from now until your exam date, weighted by domain difficulty and your accuracy.
+        Generates a dated schedule from today to your exam. Each day has a focus topic,
+        checkable study tasks, a video to watch, and a guideline reference to read.
       </p>
+      <div class="split">
+        <div class="field"><label>Target exam</label>
+          <select id="planExam">
+            <option value="eacvi">EACVI</option>
+            <option value="ascexam">ASCeXAM</option>
+            <option value="both">Both (mixed)</option>
+          </select>
+        </div>
+        <div class="field"><label>Study days / week</label>
+          <select id="planDpw"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option></select>
+        </div>
+      </div>
       <button class="btn btn-primary btn-block" onclick="Plan.generate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
-        Generate plan with AI
+        Generate study plan
       </button>
     </div>
+
+    <div id="planProgress" style="display:none;margin-bottom:14px;"></div>
+    <div class="stack" id="planDays"><!-- rendered --></div>
+  </section>
+
+  <!-- ===================== ASK AN EXPERT ===================== -->
+  <section class="view" id="view-expert">
+    <div class="section-title"><h2>Ask an expert</h2><span class="badge-ai">⚡ AI</span></div>
+    <div class="card" style="margin-bottom:14px;">
+      <p class="faint" style="margin-bottom:12px;">
+        Ask any echocardiography question. Answers are written at consultant level
+        and cite the relevant guideline or literature. Not a substitute for clinical
+        judgement on real patients.
+      </p>
+      <div class="field"><label>Your question</label>
+        <textarea id="expertQ" placeholder="e.g. How do I distinguish constrictive pericarditis from restrictive cardiomyopathy on echo?"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="Expert.ask()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Ask
+      </button>
+    </div>
+    <div id="expertThread" class="stack"></div>
   </section>
 
   <!-- ===================== MCQ ENGINE ===================== -->
@@ -453,27 +445,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     </div>
 
     <div id="mcqRunner" style="display:none;"><!-- rendered --></div>
-  </section>
-
-  <!-- ===================== PDF EXTRACTOR ===================== -->
-  <section class="view" id="view-pdf">
-    <div class="section-title"><h2>Textbook extractor</h2><span class="badge-ai">⚡ AI</span></div>
-    <div class="card">
-      <p class="faint" style="margin-bottom:14px;">
-        Upload an echo PDF (Otto, Armstrong, EACVI textbook, lecture notes).
-        Text is extracted locally with PDF.js — you review it, then AI turns it into exam MCQs.
-      </p>
-      <div class="dropzone" id="pdfDrop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" style="width:40px;height:40px;margin-bottom:8px;">
-          <path d="M12 16V4M5 11l7-7 7 7M4 20h16"/>
-        </svg>
-        <div style="font-weight:600;">Drop a PDF here or tap to browse</div>
-        <div class="faint" style="margin-top:3px;">Processed on-device · only extracted text is sent to AI</div>
-        <input type="file" id="pdfInput" accept="application/pdf" hidden>
-      </div>
-      <div id="pdfStatus" style="margin-top:14px;"></div>
-    </div>
-    <div id="pdfReview" style="display:none;margin-top:14px;"><!-- rendered --></div>
   </section>
 
   <!-- ===================== VIDEO LIBRARY ===================== -->
@@ -562,7 +533,7 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       <div class="card-head"><h3>About</h3></div>
       <p class="faint">
         EchoPrep Studio — single-file PWA · repo <code>Ahmedshafie85/Echo-preparation</code>.
-        Skeleton build · AI &amp; PDF calls are stubbed and ready to wire.
+        Day-by-day study plan, AI MCQs with references, expert Q&amp;A, and video library.
       </p>
     </div>
   </section>
@@ -583,9 +554,9 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 3-3 3M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg></span>
     <span>MCQ</span>
   </button>
-  <button class="navitem" data-view="pdf" onclick="App.go('pdf')">
-    <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6v20h12V8z"/><path d="M14 2v6h6"/></svg></span>
-    <span>Extract</span>
+  <button class="navitem" data-view="expert" onclick="App.go('expert')">
+    <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    <span>Expert</span>
   </button>
   <button class="navitem" data-view="video" onclick="App.go('video')">
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg></span>
@@ -661,6 +632,7 @@ window.S = {
   mcqBank:    JSON.parse(localStorage.getItem('ep_bank')    || '[]'),
   videos:     JSON.parse(localStorage.getItem('ep_videos')  || '[]'),
   plan:       JSON.parse(localStorage.getItem('ep_plan')    || 'null'),
+  expert:     JSON.parse(localStorage.getItem('ep_expert')  || '[]'),
   stats:      JSON.parse(localStorage.getItem('ep_stats')   || '{"streak":0,"mcqDone":0,"correct":0}'),
   mcqDiff:    'board',
   planTrack:  'all',
@@ -674,7 +646,7 @@ window.S = {
 
 /* Persist to local storage, and (debounced) mirror to Firestore if sync is up.
    We only mirror the user-data keys, never API keys (those stay device-local). */
-const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats']);
+const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert']);
 const _cloudTimers = {};
 function persist(k, v){
   localStorage.setItem('ep_'+k, JSON.stringify(v));
@@ -709,8 +681,8 @@ const App = {
     MCQ.initSetup();
     Videos.render();
     Bank.render();
+    Expert.render();
     Dashboard.render();
-    Pdf.init();
   },
 
   /* Safeguard: if a real Groq/Anthropic key ever gets pasted into the
@@ -826,7 +798,7 @@ const App = {
       const cloudUpdated = cloud?._updated || 0;
 
       if(cloud && cloudUpdated >= localUpdated){
-        ['tasks','bank','videos','plan','stats'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert'].forEach(k=>{
           if(cloud[k] !== undefined){
             localStorage.setItem('ep_'+k, JSON.stringify(cloud[k]));
             const stateKey = (k==='bank') ? 'mcqBank' : k;
@@ -834,13 +806,13 @@ const App = {
           }
         });
         Tasks.render(); Plan.render(); Bank.render();
-        Videos.render(); Dashboard.render();
+        Videos.render(); Expert.render(); Dashboard.render();
       }
       S.syncReady = true;
 
       if(!cloud || cloudUpdated < localUpdated){
         const payload = {_updated: Date.now()};
-        ['tasks','bank','videos','plan','stats'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert'].forEach(k=>{
           const v = localStorage.getItem('ep_'+k);
           if(v) payload[k] = JSON.parse(v);
         });
@@ -906,13 +878,26 @@ const Dashboard = {
     if(S.settings.eacviDate)   dates.push(['EACVI', S.settings.eacviDate]);
     if(S.settings.ascexamDate) dates.push(['ASCeXAM', S.settings.ascexamDate]);
     const el = document.getElementById('examCountdown');
-    if(!dates.length){ el.textContent = 'Set your exam date in Settings'; return; }
-    dates.sort((a,b)=>new Date(a[1])-new Date(b[1]));
-    const [name,d] = dates[0];
-    const days = Math.ceil((new Date(d)-new Date())/864e5);
-    el.textContent = days>0
-      ? `${days} days to ${name} · keep the streak going`
-      : `${name} exam date reached`;
+    if(!dates.length){
+      el.textContent = 'Set your exam date in Settings';
+    }else{
+      dates.sort((a,b)=>new Date(a[1])-new Date(b[1]));
+      const [name,d] = dates[0];
+      const days = Math.ceil((new Date(d)-new Date())/864e5);
+      el.textContent = days>0
+        ? `${days} days to ${name} · keep the streak going`
+        : `${name} exam date reached`;
+    }
+
+    // plan hint — today's session topic if a plan exists
+    const hint = document.getElementById('planTodayHint');
+    if(hint){
+      const todayStr = new Date().toISOString().slice(0,10);
+      const today = S.plan?.days?.find(x=>x.date===todayStr);
+      hint.textContent = today
+        ? `Today: ${today.topic}`
+        : (S.plan?.days?.length ? 'View your study schedule.' : 'Build your day-by-day schedule.');
+    }
   }
 };
 
@@ -962,44 +947,145 @@ const Tasks = {
    PLAN — dual-track domain list + AI schedule generator
    ============================================================ */
 const Plan = {
-  filter(track){
-    S.planTrack = track;
-    document.querySelectorAll('#trackFilter .chip').forEach(c=>
-      c.classList.toggle('active', c.dataset.track===track));
-    this.render();
+  /* Generate a dated, checkable study plan via AI. */
+  async generate(){
+    const exam = document.getElementById('planExam').value;
+    const dpw  = parseInt(document.getElementById('planDpw').value,10);
+    const examDate = exam==='ascexam' ? S.settings.ascexamDate
+                   : exam==='eacvi'   ? S.settings.eacviDate
+                   : (S.settings.eacviDate || S.settings.ascexamDate);
+    if(!examDate){
+      toast('Set your exam date in Settings first'); App.go('settings'); return;
+    }
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    }
+    const daysLeft = Math.max(1, Math.ceil((new Date(examDate)-new Date())/864e5));
+    const sessions = Math.max(3, Math.min(60, Math.round(daysLeft*dpw/7)));
+
+    const btn = document.querySelector('#planSetup .btn-primary');
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Building plan…';
+    try{
+      const raw = await AI.complete(buildPlanPrompt(exam, sessions, DOMAINS), {json:true});
+      const parsed = extractJSON(raw);
+      let days = (parsed.days||[]).filter(d=>d && d.topic && Array.isArray(d.tasks));
+      if(!days.length) throw new Error('AI returned no plan — try again');
+      // attach real calendar dates + checkable task objects
+      const start = new Date(); start.setHours(0,0,0,0);
+      days = days.slice(0, sessions).map((d,i)=>{
+        const date = new Date(start); date.setDate(start.getDate()+Math.round(i*7/dpw));
+        return {
+          n:i+1,
+          date:date.toISOString().slice(0,10),
+          topic:d.topic, domain:d.domain||'',
+          tasks:(d.tasks||[]).slice(0,6).map((t,j)=>({id:j,text:String(t),done:false})),
+          video:d.video_search||d.topic,
+          reference:d.reference||''
+        };
+      });
+      S.plan = { exam, created:Date.now(), days };
+      persist('plan', S.plan);
+      this.render();
+      toast(`${days.length}-session plan ready`);
+    }catch(e){
+      console.error('plan generate:', e);
+      toast(e.message || 'Plan generation failed');
+    }finally{
+      btn.disabled = false; btn.innerHTML = orig;
+    }
   },
+
+  toggleTask(dayN, taskId){
+    const day = S.plan?.days.find(d=>d.n===dayN);
+    if(!day) return;
+    const t = day.tasks.find(x=>x.id===taskId);
+    if(t){ t.done=!t.done; persist('plan', S.plan); this.render(); Dashboard.render(); }
+  },
+
   render(){
-    const list = document.getElementById('domainList');
-    const doms = DOMAINS.filter(d=>
-      S.planTrack==='all' || d.tracks.includes(S.planTrack));
-    list.innerHTML = doms.map(d=>`
+    const setup = document.getElementById('planSetup');
+    const wrap  = document.getElementById('planDays');
+    const prog  = document.getElementById('planProgress');
+    if(!S.plan || !S.plan.days?.length){
+      prog.style.display='none';
+      wrap.innerHTML='';
+      if(setup) setup.querySelector('.btn-primary').innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg> Generate study plan';
+      return;
+    }
+    const allTasks = S.plan.days.flatMap(d=>d.tasks);
+    const done = allTasks.filter(t=>t.done).length;
+    const pct  = allTasks.length ? Math.round(100*done/allTasks.length) : 0;
+    prog.style.display='block';
+    prog.innerHTML = `
       <div class="card">
+        <div class="card-head"><h3>Plan progress</h3>
+          <button class="chip" onclick="Plan.discard()">New plan</button></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <p class="faint" style="margin-top:8px;">${done} / ${allTasks.length} tasks complete · ${pct}%</p>
+      </div>`;
+
+    const todayStr = new Date().toISOString().slice(0,10);
+    wrap.innerHTML = S.plan.days.map(d=>{
+      const dn = d.tasks.filter(t=>t.done).length;
+      const isToday = d.date===todayStr;
+      const dom = DOMAINS.find(x=>x.id===d.domain);
+      return `
+      <div class="card" style="${isToday?'border-color:var(--accent);':''}">
         <div class="card-head">
-          <h3 style="font-size:15px;">${d.name}</h3>
-          <div style="display:flex;gap:5px;">
-            ${d.tracks.map(t=>`<span class="tracktag ${t}">${t==='eacvi'?'EACVI':'ASCeXAM'}</span>`).join('')}
+          <div>
+            <span class="eyebrow">Day ${d.n} · ${new Date(d.date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}${isToday?' · TODAY':''}</span>
+            <h3 style="font-size:15px;margin-top:3px;">${d.topic}</h3>
           </div>
+          <span class="faint">${dn}/${d.tasks.length}</span>
+        </div>
+        <div style="margin:4px 0 12px;">
+          ${d.tasks.map(t=>`
+            <div class="task ${t.done?'done':''}" style="padding:9px 0;">
+              <button class="checkbox ${t.done?'done':''}" onclick="Plan.toggleTask(${d.n},${t.id})">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
+              </button>
+              <div class="task-body"><div style="font-size:13.5px;">${t.text}</div></div>
+            </div>`).join('')}
         </div>
         <div class="chip-row">
-          ${d.topics.map(t=>`<span class="chip" style="cursor:default;font-size:12px;">${t}</span>`).join('')}
+          <a class="chip" target="_blank" rel="noopener"
+             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' echocardiography')}">▶ Watch video</a>
+          ${dom?`<button class="chip" onclick="MCQ.fromDomain('${dom.id}')">⚡ Drill MCQs</button>`:''}
         </div>
-      </div>`).join('');
+        ${d.reference?`<div class="explain" style="margin-top:10px;font-size:12.5px;">
+          <strong>Reference:</strong> ${d.reference}</div>`:''}
+      </div>`;
+    }).join('');
   },
-  /* STUB — wired next session: builds schedule from today→exam date */
-  generate(){
-    if(!S.settings.eacviDate && !S.settings.ascexamDate){
-      toast('Set an exam date in Settings first'); App.go('settings'); return;
-    }
-    toast('AI schedule generation — wiring next session');
-    /* NEXT SESSION:
-       AI.complete(buildPlanPrompt(DOMAINS, S.settings, S.stats))
-       → parse JSON day-by-day plan → S.plan → persist → render */
+
+  discard(){
+    if(!confirm('Discard the current plan and build a new one?')) return;
+    S.plan=null; persist('plan',null);
+    this.render();
   }
 };
 
 /* ============================================================
    AI — backend fallback chain: Groq first, Anthropic fallback
    ============================================================ */
+
+/* Strict system prompt — applied to every AI call. The accuracy rules
+   here are the main defence against hallucinated guideline details. */
+const STRICT_SYSTEM_PROMPT =
+`You are an expert echocardiography board examiner and consultant cardiologist.
+
+ACCURACY RULES — follow these strictly:
+- State only well-established, current echocardiography facts and guideline content.
+- Do NOT invent or guess specific numbers: guideline years, figure/table numbers, page numbers, exact cutoff values, or citation details. If you are not confident of an exact detail, give the general fact and name the guideline body and topic instead of a precise locator.
+- Prefer naming a guideline by its issuing body and subject (e.g. "ASE guideline on diastolic function assessment") over citing a specific figure number you are unsure of.
+- It is better to be less specific and correct than precise and wrong.
+- If a question or request falls outside well-established knowledge, say so rather than fabricating an answer.
+- Use correct, current terminology and standard guideline cutoffs only when you are confident they are right.
+
+When asked for JSON, return strictly valid JSON with no markdown fences and no commentary.`;
+
 const AI = {
   /* Get a key value — prefer the saved settings, but fall back to the
      live DOM input field if the user typed a key but hasn't saved yet.
@@ -1013,24 +1099,31 @@ const AI = {
   },
 
   /* Single entry point. Returns model text or throws.
-     STUB: network calls commented; structure is final. */
-  async complete(prompt, {json=false}={}){
+     temperature defaults LOW (0.15) — these are factual medical tasks
+     where creativity = hallucination. Callers can override if needed. */
+  async complete(prompt, {json=false, temperature=0.15}={}){
     const groqKey      = this._readKey('groqKey');
     const anthropicKey = this._readKey('anthropicKey');
+    if(!groqKey && !anthropicKey){
+      throw new Error('No working AI backend — add a key in Settings and click Save');
+    }
+    let lastError = null;
     // 1) try Groq
     if(groqKey){
-      try{ return await this._groq(prompt, json); }
-      catch(e){ console.warn('Groq failed, falling back:', e); }
+      try{ return await this._groq(prompt, json, temperature); }
+      catch(e){ console.warn('Groq failed, falling back:', e); lastError = e; }
     }
     // 2) fall back to Anthropic
     if(anthropicKey){
-      try{ return await this._anthropic(prompt, json); }
-      catch(e){ console.warn('Anthropic failed:', e); }
+      try{ return await this._anthropic(prompt, json, temperature); }
+      catch(e){ console.warn('Anthropic failed:', e); lastError = e; }
     }
-    throw new Error('No working AI backend — add a key in Settings and click Save');
+    // All configured backends failed — surface the real error, not a misleading
+    // "no key" message.
+    throw lastError || new Error('All AI backends failed');
   },
 
-  async _groq(prompt, json){
+  async _groq(prompt, json, temperature=0.15){
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{ 'Content-Type':'application/json',
@@ -1038,11 +1131,11 @@ const AI = {
       body:JSON.stringify({
         model:S.settings.groqModel || 'llama-3.3-70b-versatile',
         messages:[
-          {role:'system',content:'You are an expert echocardiography board examiner. Always return strictly valid JSON when asked, with no markdown fences or commentary.'},
+          {role:'system',content:STRICT_SYSTEM_PROMPT},
           {role:'user',content:prompt}
         ],
         ...(json?{response_format:{type:'json_object'}}:{}),
-        temperature:0.45,
+        temperature,
         max_tokens:4000
       })
     });
@@ -1050,6 +1143,8 @@ const AI = {
       let detail=''; try{ detail=(await r.json()).error?.message||''; }catch(e){}
       if(r.status===401)
         throw new Error('Groq key invalid or revoked — generate a fresh key in the Groq console and update Settings');
+      if(r.status===413 || /too large|TPM|tokens per minute/i.test(detail))
+        throw new Error('Source text too long for Groq free tier (12k tokens/min). Trim the textarea more aggressively, or wait 60 seconds and retry.');
       if(r.status===429)
         throw new Error('Groq rate limit reached — wait a moment and try again');
       throw new Error('Groq '+r.status+(detail?': '+detail:''));
@@ -1058,13 +1153,13 @@ const AI = {
     return d.choices?.[0]?.message?.content || '';
   },
 
-  async _anthropic(prompt, json){
+  async _anthropic(prompt, json, temperature=0.15){
     /* Direct browser → Anthropic. Requires the
        'anthropic-dangerous-direct-browser-access: true' header so CORS
        passes. Safe here because users supply their own API key in
        Settings (bring-your-own-key pattern) and the key never leaves
        their browser. */
-    const sys = 'You are an expert echocardiography board examiner. Always return strictly valid JSON when asked, with no markdown fences or commentary.';
+    const sys = STRICT_SYSTEM_PROMPT;
     const r = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
@@ -1076,6 +1171,7 @@ const AI = {
       body:JSON.stringify({
         model:'claude-sonnet-4-6',
         max_tokens:4000,
+        temperature,
         system: sys + (json?' Return ONLY the raw JSON object, nothing else.':''),
         messages:[{role:'user',content:prompt}]
       })
@@ -1140,53 +1236,49 @@ Requirements:
 - Exactly 4 options each, only one unambiguously correct.
 - Use current guideline cutoffs and terminology.
 - The "explanation" must say why the correct answer is right AND briefly why key distractors are wrong.
+- "reference" MUST cite the guideline or authoritative source supporting the answer. Name the issuing body and subject of the guideline (e.g. "ASE guideline on diastolic function assessment"). Include a specific figure/table number ONLY if you are confident it is correct — otherwise omit the locator. Never fabricate a citation detail.
 - "answer" is the 0-based index of the correct option.
+- Only write questions whose correct answer rests on well-established, non-controversial echocardiography knowledge. Do not build a question around a number or cutoff you are unsure of.
 
 Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
-{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","topic":"string"}]}`;
+{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","reference":"string","topic":"string"}]}`;
 }
 
-/* Build a prompt that turns extracted textbook/chapter text into MCQs. */
-function buildMcqFromTextPrompt(text, count, diff, style){
-  const styleNote = {
-    eacvi:'European EACVI / ESC guideline emphasis and terminology',
-    ascexam:'American ASE / ASCeXAM guideline emphasis and terminology',
-    mixed:'a mix of EACVI and ASCeXAM emphasis'
-  }[style] || 'mixed EACVI/ASCeXAM emphasis';
-  const diffNote = {
-    basic:'foundational recall level',
-    board:'true board-exam level — clinical vignettes requiring interpretation',
-    hard:'challenging level — subtle distinctions and integration across topics'
-  }[diff] || 'board-exam level';
+/* ---- plan prompt: dated day-by-day study schedule --------- */
+function buildPlanPrompt(exam, sessions, domains){
+  const examNote = {
+    eacvi:'the EACVI echocardiography certification exam',
+    ascexam:'the ASCeXAM (American) echocardiography board exam',
+    both:'both the EACVI and ASCeXAM echocardiography exams'
+  }[exam] || 'echocardiography board exams';
+  return `Build a ${sessions}-session study plan for a cardiologist preparing for ${examNote}.
+Cover this curriculum across the sessions, progressing logically and revisiting hard topics:
+${domains.map(d=>`- ${d.id}: ${d.name} (${d.topics.join('; ')})`).join('\n')}
 
-  // Cap source length defensively — most echo chapters fit, but huge PDFs
-  // would blow context. Tokens ≈ chars/4, so 60k chars ≈ 15k tokens.
-  const SOURCE_CAP = 60000;
-  const src = text.length > SOURCE_CAP
-    ? text.slice(0, SOURCE_CAP) + '\n\n[... source truncated for length ...]'
-    : text;
+For each session provide:
+- "topic": the focused subject of that day
+- "domain": the matching domain id from the list above (one of: ${domains.map(d=>d.id).join(', ')})
+- "tasks": 3-5 concrete, checkable study actions for that day
+- "video_search": a precise search phrase to find a teaching video on the topic
+- "reference": the guideline or textbook chapter to read for that topic. Name the issuing body and subject (e.g. "ASE guideline on chamber quantification"); add a chapter number only if confident. Do not invent edition years or chapter numbers.
 
-  return `You are creating echocardiography board-exam MCQs grounded in the SOURCE TEXT below.
+Return ONLY valid JSON, no markdown, exactly:
+{"days":[{"topic":"string","domain":"string","tasks":["string"],"video_search":"string","reference":"string"}]}`;
+}
 
-Generate exactly ${count} single-best-answer MCQs.
-Difficulty: ${diffNote}
-Style: ${styleNote}
+/* ---- expert prompt: consultant-level answer with refs ----- */
+function buildExpertPrompt(question){
+  return `You are a consultant cardiologist and echocardiography expert answering a colleague's question.
+Question: "${question}"
 
-Hard rules:
-- Every question must be answerable from facts present in the SOURCE TEXT (do not invent guideline cutoffs or numbers not in the text).
-- Each item: exactly 4 options, one unambiguously correct.
-- "explanation" cites the specific fact/section from the source that justifies the answer, plus briefly why key distractors are wrong.
-- "topic" is a short label (e.g., "Aortic stenosis grading", "Diastolic function").
-- "answer" is the 0-based index of the correct option.
-- Prefer clinical vignettes over rote recall when the source supports it.
+Answer at a consultant / board-examiner level: precise, current, and clinically grounded.
+Use correct echo terminology and current guideline cutoffs. Be thorough but focused.
+Then list the specific references that support your answer — name guidelines (with year and
+section where possible) and key textbooks/papers. Do not invent reference details you are unsure of;
+if unsure of an exact citation, name the guideline body and topic generally.
 
-Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
-{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","topic":"string"}]}
-
-SOURCE TEXT:
-"""
-${src}
-"""`;
+Return ONLY valid JSON, no markdown, exactly:
+{"answer":"string","references":["string","string"]}`;
 }
 
 /* ============================================================
@@ -1201,6 +1293,12 @@ const MCQ = {
     S.mcqDiff = d;
     document.querySelectorAll('#mcqDiff .chip').forEach(c=>
       c.classList.toggle('active', c.dataset.d===d));
+  },
+  /* Generate a quick set straight from a domain id (used by Plan). */
+  async fromDomain(domId){
+    App.go('mcq');
+    document.getElementById('mcqDomain').value = domId;
+    await this.generate();
   },
   /* Generates a question set via the AI fallback chain (Groq first). */
   async generate(){
@@ -1225,7 +1323,7 @@ const MCQ = {
       const parsed = extractJSON(raw);
       let qs = (parsed.questions || []).filter(validMcq);
       if(!qs.length) throw new Error('AI returned no usable questions — try again');
-      qs = qs.map(q=>({ ...q, topic:q.topic||dom.name, style }));
+      qs = qs.map(q=>({ ...q, topic:q.topic||dom.name, reference:q.reference||'', style }));
       this.startRunner(qs);
       toast(`${qs.length} questions ready`);
     }catch(e){
@@ -1283,6 +1381,8 @@ const MCQ = {
     document.getElementById('mcqAfter').innerHTML = `
       <div class="explain">
         <strong>${right?'✓ Correct':'✕ Incorrect'}.</strong> ${q.explanation}
+        ${q.reference?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">
+          <strong>Reference:</strong> ${q.reference}</div>`:''}
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="MCQ.next()">
         ${c.i+1<c.qs.length?'Next question':'Finish set'}
@@ -1335,7 +1435,10 @@ const Bank = {
       <div class="card">
         <div class="faint" style="margin-bottom:6px;">${q.topic||'—'}</div>
         <p style="font-weight:500;font-size:14px;margin-bottom:8px;">${q.q}</p>
-        <div class="explain" style="margin-top:0;">${'ABCD'[q.answer]}. ${q.options[q.answer]}</div>
+        <div class="explain" style="margin-top:0;">
+          <strong>${'ABCD'[q.answer]}.</strong> ${q.options[q.answer]}
+          ${q.reference?`<div style="margin-top:6px;font-size:12px;color:var(--text-dim);">Ref: ${q.reference}</div>`:''}
+        </div>
       </div>`).join('');
   },
   filter(id){ S.bankFilter=id; this.render(); }
@@ -1386,201 +1489,85 @@ const Videos = {
 };
 
 /* ============================================================
-   PDF — textbook MCQ extractor (PDF.js text extraction)
+   EXPERT — AI consultant-level Q&A with references
    ============================================================ */
-const Pdf = {
-  init(){
-    const drop = document.getElementById('pdfDrop');
-    const input = document.getElementById('pdfInput');
-    if(!drop) return;
-    drop.addEventListener('click',()=>input.click());
-    input.addEventListener('change',e=>{
-      if(e.target.files[0]) this.handle(e.target.files[0]);
-    });
-    ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{
-      e.preventDefault(); drop.classList.add('over');
-    }));
-    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{
-      e.preventDefault(); drop.classList.remove('over');
-    }));
-    drop.addEventListener('drop',e=>{
-      const f = e.dataTransfer.files[0];
-      if(f && f.type==='application/pdf') this.handle(f);
-      else toast('Please drop a PDF file');
-    });
-  },
-  /* Wait for PDF.js module to finish loading. Modules load async, so on
-     a slow connection it may not be ready when the user drops a file.
-     Returns a promise that resolves to the library or rejects on timeout
-     or explicit load failure (all CDNs blocked). */
-  waitForPdfJs(timeoutMs=15000){
-    if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-    return new Promise((resolve, reject)=>{
-      let done = false;
-      const finish = (fn, val)=>{
-        if(done) return; done = true;
-        clearTimeout(t); clearInterval(poll);
-        window.removeEventListener('pdfjs-ready', onReady);
-        window.removeEventListener('pdfjs-failed', onFail);
-        fn(val);
-      };
-      const t = setTimeout(()=>finish(reject,
-        new Error('PDF engine timed out loading (>15s) — check your connection and reload')), timeoutMs);
-      const onReady = ()=>finish(resolve, window.pdfjsLib);
-      const onFail  = (e)=>finish(reject,
-        new Error('PDF engine could not load: '+(e.detail||'all CDNs blocked')+' — check ad-blockers / network policy'));
-      window.addEventListener('pdfjs-ready', onReady, {once:true});
-      window.addEventListener('pdfjs-failed', onFail, {once:true});
-      // Defensive poll in case the event fired before listener attached
-      const poll = setInterval(()=>{
-        if(window.pdfjsLib) finish(resolve, window.pdfjsLib);
-      }, 500);
-    });
-  },
-
-  async handle(file){
-    const statusEl = document.getElementById('pdfStatus');
-    const reviewEl = document.getElementById('pdfReview');
-    reviewEl.style.display = 'none';
-    reviewEl.innerHTML = '';
-
-    statusEl.innerHTML =
-      `<div style="display:flex;align-items:center;gap:10px;">
-         <span class="spinner"></span>
-         <span class="faint">Reading "${file.name}"… <span id="pdfProgress">loading engine</span></span>
-       </div>`;
-
-    let pdfjsLib;
+const Expert = {
+  async ask(){
+    const q = document.getElementById('expertQ').value.trim();
+    if(!q){ toast('Type a question first'); return; }
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    }
+    const btn = document.querySelector('#view-expert .btn-primary');
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Thinking…';
+    const thread = document.getElementById('expertThread');
+    // optimistic question card
+    const pendId = 'pend'+Date.now();
+    thread.insertAdjacentHTML('afterbegin', `
+      <div class="card" id="${pendId}">
+        <div class="eyebrow">Your question</div>
+        <p style="font-weight:500;margin:6px 0 10px;">${q}</p>
+        <div style="display:flex;align-items:center;gap:9px;" class="faint">
+          <span class="spinner"></span> Consulting…
+        </div>
+      </div>`);
     try{
-      pdfjsLib = await this.waitForPdfJs();
+      const raw = await AI.complete(buildExpertPrompt(q), {json:true});
+      const a = extractJSON(raw);
+      const answer = a.answer || 'No answer returned.';
+      const refs = Array.isArray(a.references) ? a.references : [];
+      const card = document.getElementById(pendId);
+      card.innerHTML = `
+        <div class="eyebrow">Your question</div>
+        <p style="font-weight:500;margin:6px 0 12px;">${q}</p>
+        <div class="eyebrow" style="color:var(--text-dim);">Expert answer</div>
+        <div style="font-size:14px;line-height:1.6;margin:6px 0 12px;white-space:pre-wrap;">${answer}</div>
+        ${refs.length?`<div class="explain" style="margin-top:0;">
+          <strong>References</strong>
+          <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;">
+            ${refs.map(r=>`<li style="margin-bottom:3px;">${r}</li>`).join('')}
+          </ul></div>`:''}`;
+      // persist to thread history
+      S.expert = S.expert || [];
+      S.expert.unshift({ id:Date.now(), q, answer, refs });
+      if(S.expert.length>100) S.expert.pop();
+      persist('expert', S.expert);
+      document.getElementById('expertQ').value='';
+      toast('Answered');
     }catch(e){
-      statusEl.innerHTML = `<div class="explain" style="color:var(--danger,#df8b82);">${e.message}</div>`;
+      console.error('expert ask:', e);
+      const card = document.getElementById(pendId);
+      if(card) card.querySelector('.faint').innerHTML =
+        `<span style="color:var(--bad);">${e.message||'Failed — try again'}</span>`;
+      toast(e.message || 'Failed');
+    }finally{
+      btn.disabled = false; btn.innerHTML = orig;
+    }
+  },
+
+  render(){
+    const thread = document.getElementById('expertThread');
+    if(!thread) return;
+    const hist = S.expert || [];
+    if(!hist.length){
+      thread.innerHTML = `<div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <div>No questions yet. Ask anything about echo — answers cite guidelines.</div></div>`;
       return;
     }
-
-    try{
-      const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({data:buf}).promise;
-      const numPages = pdf.numPages;
-      const pages = [];
-
-      for(let i=1; i<=numPages; i++){
-        document.getElementById('pdfProgress').textContent = `page ${i} / ${numPages}`;
-        const page = await pdf.getPage(i);
-        const tc   = await page.getTextContent();
-        // Items have a `.str`; concatenate with spaces, join lines on newlines.
-        // Use the transform y-coord to break lines so reading order is sane.
-        let lastY = null, line = [];
-        const lines = [];
-        for(const item of tc.items){
-          const y = item.transform?.[5];
-          if(lastY !== null && y !== undefined && Math.abs(y - lastY) > 2){
-            lines.push(line.join(' ').trim());
-            line = [];
-          }
-          if(item.str) line.push(item.str);
-          if(y !== undefined) lastY = y;
-        }
-        if(line.length) lines.push(line.join(' ').trim());
-        pages.push(lines.filter(Boolean).join('\n'));
-        // Release page resources
-        page.cleanup();
-      }
-
-      const fullText = pages.join('\n\n--- page break ---\n\n');
-      const charCount = fullText.length;
-
-      statusEl.innerHTML =
-        `<div class="explain">Extracted <strong>${charCount.toLocaleString()}</strong> characters from <strong>${numPages}</strong> pages. Review the text below, trim irrelevant sections, then generate MCQs.</div>`;
-
-      // Render review UI: editable textarea + count selector + generate button.
-      reviewEl.style.display = 'block';
-      reviewEl.innerHTML = `
-        <div class="card">
-          <div class="card-head"><h3>Review extracted text</h3></div>
-          <p class="faint" style="margin-bottom:10px;">
-            Edit or trim the text before generating questions. The first ~60,000 characters will be used.
-          </p>
-          <textarea id="pdfText"
-            style="width:100%;min-height:240px;resize:vertical;font-family:ui-monospace,monospace;font-size:13px;padding:10px;border-radius:8px;"
-          ></textarea>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:end;">
-            <div class="field" style="flex:1;min-width:120px;">
-              <label>Questions to generate</label>
-              <select id="pdfCount">
-                <option>5</option><option selected>10</option><option>15</option><option>20</option>
-              </select>
-            </div>
-            <div class="field" style="flex:1;min-width:120px;">
-              <label>Style</label>
-              <select id="pdfStyle">
-                <option value="mixed" selected>Mixed</option>
-                <option value="eacvi">EACVI</option>
-                <option value="ascexam">ASCeXAM</option>
-              </select>
-            </div>
-            <div class="field" style="flex:1;min-width:120px;">
-              <label>Difficulty</label>
-              <select id="pdfDiff">
-                <option value="basic">Basic</option>
-                <option value="board" selected>Board</option>
-                <option value="hard">Hard</option>
-              </select>
-            </div>
-          </div>
-
-          <button class="btn btn-primary btn-block" id="pdfGenBtn" style="margin-top:14px;"
-            onclick="Pdf.generate()">Generate MCQs from this text</button>
-        </div>`;
-
-      // Defer setting the textarea value — large strings via innerHTML
-      // re-render are slow; assigning .value is fast.
-      document.getElementById('pdfText').value = fullText;
-
-    }catch(e){
-      console.error('PDF extract:', e);
-      statusEl.innerHTML =
-        `<div class="explain" style="color:var(--danger,#df8b82);">Could not read PDF: ${e.message || e}. Scanned/image PDFs without an OCR layer can't be extracted in the browser.</div>`;
-    }
-  },
-
-  async generate(){
-    const text  = document.getElementById('pdfText').value.trim();
-    const count = document.getElementById('pdfCount').value;
-    const style = document.getElementById('pdfStyle').value;
-    const diff  = document.getElementById('pdfDiff').value;
-
-    if(!text || text.length < 200){
-      toast('Not enough text to generate from'); return;
-    }
-    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq or Anthropic key in Settings first');
-      App.go('settings'); return;
-    }
-
-    const btn = document.getElementById('pdfGenBtn');
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Generating…';
-
-    try{
-      const prompt = buildMcqFromTextPrompt(text, count, diff, style);
-      const raw = await AI.complete(prompt, {json:true});
-      const parsed = extractJSON(raw);
-      let qs = (parsed.questions || []).filter(validMcq);
-      if(!qs.length) throw new Error('AI returned no usable questions — try a different section');
-      qs = qs.map(q=>({ ...q, topic:q.topic||'Textbook', style, source:'pdf' }));
-      App.go('mcq');
-      MCQ.startRunner(qs);
-      toast(`${qs.length} questions ready`);
-    }catch(e){
-      console.error('PDF→MCQ generation failed:', e);
-      toast(e.message || 'Generation failed');
-    }finally{
-      btn.disabled = false;
-      btn.innerHTML = orig;
-    }
+    thread.innerHTML = hist.map(h=>`
+      <div class="card">
+        <div class="eyebrow">Your question</div>
+        <p style="font-weight:500;margin:6px 0 12px;">${h.q}</p>
+        <div class="eyebrow" style="color:var(--text-dim);">Expert answer</div>
+        <div style="font-size:14px;line-height:1.6;margin:6px 0 12px;white-space:pre-wrap;">${h.answer}</div>
+        ${(h.refs&&h.refs.length)?`<div class="explain" style="margin-top:0;">
+          <strong>References</strong>
+          <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;">
+            ${h.refs.map(r=>`<li style="margin-bottom:3px;">${r}</li>`).join('')}
+          </ul></div>`:''}
+      </div>`).join('');
   }
 };
 
