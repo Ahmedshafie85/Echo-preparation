@@ -333,6 +333,78 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   text-transform:uppercase;display:block;margin-bottom:6px;}
 .rich .pitfalls li::before{background:var(--warn);}
 
+/* Ordered lists (methodology, algorithm steps) */
+.rich ol.ord{margin:0 0 12px 0;padding-left:0;list-style:none;counter-reset:step;}
+.rich ol.ord li{
+  font-size:13.5px;line-height:1.6;padding:6px 0 6px 32px;
+  position:relative;counter-increment:step;
+}
+.rich ol.ord li::before{
+  content:counter(step,decimal-leading-zero);
+  position:absolute;left:0;top:6px;
+  width:24px;height:22px;display:grid;place-items:center;
+  font-family:var(--font-body);font-size:10.5px;font-weight:600;
+  color:var(--accent);background:var(--accent-soft);
+  border-radius:5px;letter-spacing:.04em;
+}
+.rich ol.ord.algo li::before{background:rgba(127,168,212,.16);color:var(--info);}
+
+/* Learning objectives — first-class callout */
+.rich .lo-block{
+  background:linear-gradient(135deg,var(--accent-soft),transparent 70%);
+  border:1px solid var(--accent);border-radius:var(--radius-sm);
+  padding:14px 16px;margin:0 0 16px;
+}
+.rich .lo-block .lo-label{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;margin-bottom:8px;
+}
+.rich ol.lo-list{margin:0;padding-left:0;list-style:none;counter-reset:lo;}
+.rich ol.lo-list li{
+  font-size:13.5px;line-height:1.55;padding:5px 0 5px 30px;
+  position:relative;counter-increment:lo;color:var(--text);
+}
+.rich ol.lo-list li::before{
+  content:"L"counter(lo,decimal-leading-zero);
+  position:absolute;left:0;top:5px;
+  font-family:var(--font-body);font-size:10px;font-weight:700;
+  color:var(--accent);letter-spacing:.04em;
+}
+
+/* Recent evidence / trials block */
+.rich .evidence-block{
+  background:rgba(127,168,212,.08);
+  border-left:3px solid var(--info);
+  border-radius:var(--radius-sm);padding:12px 14px;margin:4px 0 12px;
+}
+.rich .evidence-block .ev-label{
+  color:var(--info);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;font-weight:700;margin-bottom:6px;
+}
+.rich .evidence-block li::before{background:var(--info);}
+
+/* Video-of-the-Day sync block */
+.votd-sync{
+  background:var(--bg-2);border:1px solid var(--line);
+  border-radius:var(--radius-sm);padding:11px 13px;margin-top:10px;
+}
+.votd-sync .vs-label{
+  font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;margin-bottom:6px;
+}
+.votd-sync ul{margin:0;padding:0;list-style:none;}
+.votd-sync ul li{
+  font-size:12.5px;line-height:1.5;padding:3px 0 3px 16px;
+  position:relative;color:var(--text-dim);
+}
+.votd-sync ul li::before{
+  content:"◇";position:absolute;left:0;top:3px;color:var(--accent);font-size:10px;
+}
+.votd-source{
+  display:inline-block;font-size:10.5px;color:var(--text-faint);
+  margin-top:6px;font-style:italic;
+}
+
 /* ---------- Video library — channel grid + curated topic cards ---------- */
 .channel-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;
@@ -375,21 +447,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .domain-section .ds-head::after{
   content:"";flex:1;height:1px;background:var(--line);
 }
-
-/* ---------- News/list items ---------- */
-.news-item{
-  padding:12px 0;border-bottom:1px solid var(--line);
-}
-.news-item:last-child{border-bottom:none;padding-bottom:0;}
-.news-item .ni-head{
-  font-weight:600;font-size:14px;line-height:1.35;margin-bottom:3px;
-}
-.news-item .ni-area{
-  display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;
-  background:var(--accent-soft);color:var(--accent);font-weight:600;
-  letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;
-}
-.news-item .ni-body{font-size:13px;line-height:1.6;color:var(--text);}
 
 /* ---------- Compact hero stats — moved inline ---------- */
 .statbar{
@@ -553,9 +610,9 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div class="section-title"><h2>Continue studying</h2></div>
     <div class="split">
       <div class="card" style="cursor:pointer;" onclick="App.go('mcq')">
-        <span class="badge-ai">⚡ AI</span>
+        <span class="badge-ai" style="background:rgba(108,195,152,.16);color:var(--ok);">✓ Verified</span>
         <h3 style="margin:9px 0 4px;">Quick MCQ drill</h3>
-        <p class="faint">Exam-style questions on any domain.</p>
+        <p class="faint">Clinician-checked board questions, plus optional AI extras.</p>
       </div>
       <div class="card" style="cursor:pointer;" onclick="App.go('plan')">
         <span class="eyebrow">Plan</span>
@@ -620,10 +677,18 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
   <!-- ===================== MCQ ENGINE ===================== -->
   <section class="view" id="view-mcq">
-    <div class="section-title"><h2>MCQ practice</h2><span class="badge-ai">⚡ Groq → Claude</span></div>
+    <div class="section-title"><h2>MCQ practice</h2><span class="badge-ai">⚡ Verified bank + Claude</span></div>
 
     <div class="card" id="mcqSetup">
       <div class="card-head"><h3>New question set</h3></div>
+      <div class="field">
+        <label>Question source</label>
+        <select id="mcqSource">
+          <option value="verified">Verified bank (clinician-checked — recommended)</option>
+          <option value="mixed">Verified bank + AI-generated extras</option>
+          <option value="ai">AI-generated only (Claude, anchored to reference values)</option>
+        </select>
+      </div>
       <div class="field">
         <label>Domain</label>
         <select id="mcqDomain"></select>
@@ -669,35 +734,32 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div class="section-title"><h2>Echo learning library</h2></div>
 
     <div class="tabs">
-      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Learn</button>
+      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Video of the day</button>
       <button data-vtab="channels" onclick="VideoView.tab('channels')">Channels</button>
-      <button data-vtab="news" onclick="VideoView.tab('news')">News</button>
       <button data-vtab="saved" onclick="VideoView.tab('saved')">Saved</button>
     </div>
 
-    <!-- TAB: Learn — curated topic-by-domain library with best-channel pointers -->
+    <!-- TAB: Video of the Day — synced to today's Topic of the Day -->
     <div class="tab-panel active" id="vtab-learn">
 
-      <!-- Pick of the day -->
+      <!-- Video of the day, synced to topic + objectives -->
       <div class="card" style="margin-bottom:14px;">
         <div class="card-head">
-          <h3>Pick of the day</h3><span class="badge-ai">⚡ AI</span>
+          <h3>Video of the day</h3><span class="badge-ai">⚡ AI</span>
+          <span class="grow"></span>
+          <button class="btn-refresh" id="votdRefreshBtn" onclick="VideoExtras.loadVotd()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+            New video
+          </button>
         </div>
         <div id="votdBody"><div class="empty" style="padding:18px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 8l6 4-6 4z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
-          <div>A high-yield topic to watch today, with the best teaching sources.</div></div></div>
-        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
+          <div id="votdEmptyText">Generate today's Topic on the Home tab — the matching teaching video will appear here, synced to today's learning objectives.</div></div></div>
+        <button class="btn btn-primary btn-block" id="votdGenBtn" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
-          <span id="votdBtnLabel">Pick today's video topic</span>
+          <span id="votdBtnLabel">Pick today's video</span>
         </button>
       </div>
-
-      <!-- Curated by domain -->
-      <div class="section-title" style="margin-top:8px;">
-        <h2 style="font-size:17px;">By domain · curated</h2>
-        <span class="faint">Tap to open the best teaching for that topic</span>
-      </div>
-      <div id="curatedList"><!-- rendered --></div>
     </div>
 
     <!-- TAB: Channels — trusted sources grid -->
@@ -709,20 +771,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
           channels, leading courses, case libraries, and Mayo Clinic teaching.
         </p>
         <div class="channel-grid" id="channelList"></div>
-      </div>
-    </div>
-
-    <!-- TAB: News -->
-    <div class="tab-panel" id="vtab-news">
-      <div class="card" style="margin-bottom:14px;">
-        <div class="card-head"><h3>What's new in echo</h3><span class="badge-ai">⚡ AI</span></div>
-        <div id="newsBody"><div class="empty" style="padding:18px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
-          <div>Recent developments in echocardiography guidelines and practice.</div></div></div>
-        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadNews()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-          <span id="newsBtnLabel">Get echo updates</span>
-        </button>
       </div>
     </div>
 
@@ -762,11 +810,12 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     </div>
 
     <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>AI backend</h3><span class="badge-ai">Groq → Claude</span></div>
+      <div class="card-head"><h3>AI backend</h3><span class="badge-ai">Claude → Groq</span></div>
       <p class="faint" style="margin-bottom:12px;">
-        The app tries Groq first, then falls back to Anthropic if Groq fails or has no key.
-        Keys are saved <strong>in this browser only</strong> — never in the GitHub repo.
-        Each colleague enters their own key on their own device.
+        The app uses <strong>Claude</strong> for all clinical content — it is held to a
+        verified set of ASE/EACVI reference values on every call. Groq is an optional
+        fast fallback. Keys are saved <strong>in this browser only</strong> — never in
+        the GitHub repo. Each colleague enters their own key on their own device.
       </p>
       <div class="explain" style="margin-top:0;margin-bottom:12px;font-size:12.5px;">
         ⚠︎ Never paste your key into <code>index.html</code> or commit it — GitHub's
@@ -793,8 +842,8 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </div>
       <div class="field"><label>Preferred backend</label>
         <select id="setPreferred">
-          <option value="groq">Groq first, Anthropic fallback (default — fastest, free tier)</option>
-          <option value="anthropic">Anthropic first, Groq fallback (higher quality content)</option>
+          <option value="anthropic">Claude first, Groq fallback (recommended — clinical depth &amp; accuracy)</option>
+          <option value="groq">Groq first, Claude fallback (faster, free tier — lower clinical accuracy)</option>
         </select>
       </div>
     </div>
@@ -912,6 +961,376 @@ const DOMAINS = [
     topics:['Effusion & tamponade','Constriction','Constriction vs restriction'] },
   { id:'haemo',  name:'Hemodynamics & special situations', tracks:['eacvi','ascexam'],
     topics:['Intracardiac pressures','Prosthetic valves','Endocarditis criteria','Stress echo'] }
+];
+
+/* ---- 1b. VERIFIED MCQ BANK --------------------------------
+   Hand-written board-style questions. Every answer, explanation
+   and cutoff is checked against the GROUND_TRUTH reference values
+   and grounded in published guidelines and two board-review texts:
+     • Klein AL et al. Clinical Echocardiography Review — A Self-
+       Assessment Tool, 2nd ed (2017).
+     • Questions, Tricks, and Tips for the Echocardiography Board,
+       2nd ed (2020).
+   These form the spine of MCQ practice: a set is drawn from here
+   FIRST, and the AI only generates additional questions on demand.
+   Schema: { domain, q, options[4], answer (0-based), explanation,
+             reference, diff: 'basic'|'board'|'hard' }
+   ----------------------------------------------------------- */
+const VERIFIED_MCQS = [
+  /* ---- LV systolic & diastolic ---- */
+  { domain:'lv', diff:'board',
+    q:'A 70-year-old man undergoes TTE for dyspnoea. LVEF by biplane Simpson\u2019s is 58%. How should LV systolic function be reported?',
+    options:['Normal LV systolic function','Mildly reduced LV systolic function','Moderately reduced LV systolic function','Hyperdynamic LV'],
+    answer:0,
+    explanation:'By ASE chamber-quantification reference ranges the normal LVEF for men is 52\u201372%. An EF of 58% lies comfortably within the normal range, so it is reported as normal systolic function. Mildly reduced begins at 41\u201351% in men. 58% is not hyperdynamic.',
+    reference:'ASE guideline on cardiac chamber quantification (Lang et al.)' },
+  { domain:'lv', diff:'board',
+    q:'Which 2D method does the ASE recommend as the primary technique for quantifying LV volumes and ejection fraction?',
+    options:['Teichholz M-mode formula','Biplane method of discs (Simpson\u2019s)','Visual ("eyeball") estimation','Fractional shortening'],
+    answer:1,
+    explanation:'The ASE recommends the biplane method of discs (modified Simpson\u2019s rule) from apical 4- and 2-chamber views as the primary 2D method. The Teichholz formula assumes a normal LV geometry and is unreliable with regional wall-motion abnormality. Fractional shortening shares the same geometric limitation.',
+    reference:'ASE guideline on cardiac chamber quantification' },
+  { domain:'lv', diff:'hard',
+    q:'In the ASE/EACVI algorithm for diastolic function in a patient with NORMAL LVEF, which set of four variables is used to detect elevated LA pressure?',
+    options:['E/A ratio, deceleration time, IVRT, LV mass','Septal/lateral e\u2032, average E/e\u2032, TR velocity, LA volume index','Pulmonary vein S/D, Valsalva E/A, colour M-mode Vp, LA strain','Mitral inflow A-wave duration, Ar-A duration, E/A, IVRT'],
+    answer:1,
+    explanation:'In a patient with preserved EF the four-variable approach uses: annular e\u2032 (septal <7, lateral <10 cm/s), average E/e\u2032 >14, peak TR velocity >2.8 m/s, and LA volume index >34 mL/m\u00b2. With \u22653 of 4 positive, LAP is elevated; \u22641 positive is normal; 2 of 4 is indeterminate.',
+    reference:'ASE/EACVI recommendations for the evaluation of LV diastolic function' },
+  { domain:'lv', diff:'board',
+    q:'A patient has LVEF 45%. Mitral inflow shows E/A 2.4 with a short deceleration time. What grade of diastolic dysfunction does this most likely represent?',
+    options:['Grade I (impaired relaxation)','Grade II (pseudonormal)','Grade III (restrictive filling)','Normal diastolic function'],
+    answer:2,
+    explanation:'A high E/A ratio (>2) with a short deceleration time is the restrictive filling pattern of grade III diastolic dysfunction, reflecting markedly elevated LA pressure and reduced LV compliance. Grade I shows E/A <0.8; grade II shows a "pseudonormal" E/A 0.8\u20132 that unmasks with Valsalva.',
+    reference:'ASE/EACVI recommendations for LV diastolic function assessment' },
+  { domain:'lv', diff:'hard',
+    q:'Normal LV global longitudinal strain (GLS) is best described as:',
+    options:['A positive value greater than +20%','A negative value more negative than approximately \u221220%','Any value between 0 and \u221210%','Identical across all vendor platforms'],
+    answer:1,
+    explanation:'GLS is a negative number; a normal LV is typically more negative than about \u221220% (i.e. a magnitude of ~18\u201320% or greater). Less negative than \u221216% is clearly abnormal. GLS is vendor-dependent, so it should be interpreted as a magnitude and ideally tracked on the same platform.',
+    reference:'EACVI/ASE consensus on deformation imaging (strain)' },
+
+  /* ---- RV function ---- */
+  { domain:'rv', diff:'basic',
+    q:'What TAPSE value is the accepted lower limit of normal, below which RV systolic dysfunction is suggested?',
+    options:['10 mm','17 mm','25 mm','30 mm'],
+    answer:1,
+    explanation:'TAPSE (tricuspid annular plane systolic excursion) measured by M-mode through the lateral tricuspid annulus has a normal lower limit of 17 mm. A value <17 mm is highly suggestive of RV systolic dysfunction.',
+    reference:'ASE guideline on right-heart assessment in adults' },
+  { domain:'rv', diff:'board',
+    q:'A patient has a peak TR velocity of 3.4 m/s. The IVC is 1.5 cm and collapses >50% with sniff. What is the estimated RV systolic pressure?',
+    options:['~16 mmHg','~49 mmHg','~61 mmHg','~30 mmHg'],
+    answer:1,
+    explanation:'RVSP = 4\u00d7(TR velocity)\u00b2 + RA pressure. 4\u00d7(3.4)\u00b2 = 4\u00d711.56 \u2248 46 mmHg. A small, well-collapsing IVC indicates a low RA pressure of ~3 mmHg, giving an RVSP of approximately 49 mmHg.',
+    reference:'ASE guideline on right-heart assessment (simplified Bernoulli equation)' },
+  { domain:'rv', diff:'board',
+    q:'Which echo parameter of RV systolic function is LEAST affected by overall cardiac translation and load, making RV free-wall strain attractive?',
+    options:['TAPSE','RV S\u2032 by tissue Doppler','RV free-wall longitudinal strain','Fractional area change'],
+    answer:2,
+    explanation:'TAPSE and tissue-Doppler S\u2032 are angle-dependent and influenced by overall heart motion/translation. RV free-wall longitudinal strain is relatively less load- and translation-dependent; abnormal is generally a magnitude less than ~20% (less negative than \u221220%).',
+    reference:'EACVI/ASE consensus on RV deformation imaging' },
+
+  /* ---- Valvular ---- */
+  { domain:'valve', diff:'board',
+    q:'Which combination of findings defines SEVERE aortic stenosis?',
+    options:['Peak velocity 3.2 m/s, mean gradient 25 mmHg, AVA 1.3 cm\u00b2','Peak velocity 4.2 m/s, mean gradient 48 mmHg, AVA 0.8 cm\u00b2','Peak velocity 2.6 m/s, mean gradient 18 mmHg, AVA 1.6 cm\u00b2','Peak velocity 3.8 m/s, mean gradient 38 mmHg, AVA 1.1 cm\u00b2'],
+    answer:1,
+    explanation:'Severe AS is defined by peak jet velocity \u22654 m/s, mean gradient \u226540 mmHg, and aortic valve area \u22641.0 cm\u00b2. Option B meets all three. Option D is moderate AS. Options A and C are mild\u2013moderate.',
+    reference:'ASE/EACVI recommendations on the echocardiographic assessment of valve stenosis' },
+  { domain:'valve', diff:'hard',
+    q:'A patient has AVA 0.9 cm\u00b2 but mean gradient only 28 mmHg and LVEF 35%. What is the most appropriate next step?',
+    options:['Report mild AS and reassure','Dobutamine stress echocardiography','Immediate surgical referral without further testing','Repeat echo in 3 years'],
+    answer:1,
+    explanation:'This is classic low-flow, low-gradient AS with reduced LVEF. AVA suggests severe disease but the low gradient may reflect low transvalvular flow rather than a non-severe valve. Low-dose dobutamine stress echo distinguishes true-severe AS from pseudo-severe AS and assesses contractile/flow reserve.',
+    reference:'ASE/EACVI recommendations on valve stenosis assessment; ACC/AHA valvular heart disease guideline' },
+  { domain:'valve', diff:'board',
+    q:'Which finding indicates SEVERE primary mitral regurgitation by quantitative criteria?',
+    options:['EROA 0.15 cm\u00b2, regurgitant volume 25 mL','Vena contracta 0.4 cm','EROA 0.45 cm\u00b2, regurgitant volume 65 mL, vena contracta 0.8 cm','Regurgitant fraction 30%'],
+    answer:2,
+    explanation:'Severe primary MR is defined by EROA \u22650.40 cm\u00b2, regurgitant volume \u226560 mL, regurgitant fraction \u226550%, and vena contracta \u22650.7 cm. Option C meets these thresholds. The other options describe mild\u2013moderate MR.',
+    reference:'ASE recommendations for noninvasive evaluation of native valvular regurgitation' },
+  { domain:'valve', diff:'board',
+    q:'A descending/abdominal aortic Doppler shows holodiastolic flow reversal. This is a recognised sign of:',
+    options:['Severe aortic regurgitation','Severe mitral stenosis','Coarctation of the aorta only','Normal physiology in young patients'],
+    answer:0,
+    explanation:'Holodiastolic (pan-diastolic) flow reversal in the descending thoracic and especially the abdominal aorta is a recognised supportive sign of severe aortic regurgitation. Brief early-diastolic reversal can be normal; it is the holodiastolic pattern in the abdominal aorta that signals severe AR.',
+    reference:'ASE recommendations for evaluation of native valvular regurgitation' },
+  { domain:'valve', diff:'hard',
+    q:'Which mitral valve area defines severe mitral stenosis?',
+    options:['\u22642.5 cm\u00b2','\u22641.5 cm\u00b2','\u22643.0 cm\u00b2','\u22644.0 cm\u00b2'],
+    answer:1,
+    explanation:'Severe MS is defined by a mitral valve area \u22641.5 cm\u00b2 (very severe \u22641.0 cm\u00b2). The mean transmitral gradient is supportive but heart-rate dependent, so valve area is the primary criterion.',
+    reference:'ASE/EACVI recommendations on valve stenosis assessment' },
+
+  /* ---- Pericardial ---- */
+  { domain:'peri', diff:'hard',
+    q:'Which echo finding most reliably distinguishes constrictive pericarditis from restrictive cardiomyopathy?',
+    options:['Reduced LVEF','Respirophasic ventricular septal shift with preserved/elevated medial e\u2032','Dilated left atrium','Pericardial effusion'],
+    answer:1,
+    explanation:'Constriction shows respirophasic septal shift (ventricular interdependence) and a preserved or even elevated medial mitral e\u2032 ("annulus paradoxus") plus hepatic-vein expiratory diastolic flow reversal. Restrictive cardiomyopathy has a low e\u2032 from intrinsic myocardial disease. Reduced EF, LA dilation and effusion do not discriminate.',
+    reference:'ASE recommendations on multimodality imaging in pericardial disease' },
+  { domain:'peri', diff:'board',
+    q:'A patient with a large pericardial effusion shows early diastolic collapse of the right ventricle and >25% respiratory variation in mitral inflow. These findings indicate:',
+    options:['Constrictive pericarditis','Cardiac tamponade','Normal respiratory variation','Restrictive cardiomyopathy'],
+    answer:1,
+    explanation:'RV diastolic collapse is a specific echo sign of tamponade physiology, and exaggerated respirophasic mitral inflow variation (>25%) reflects ventricular interdependence under raised intrapericardial pressure. RA systolic collapse and IVC plethora support the diagnosis.',
+    reference:'ASE recommendations on echocardiographic evaluation of pericardial disease' },
+
+  /* ---- Cardiomyopathies & masses ---- */
+  { domain:'cmp', diff:'board',
+    q:'In hypertrophic cardiomyopathy, which resting or provoked LV outflow tract gradient is the threshold generally considered relevant to septal reduction therapy in symptomatic patients?',
+    options:['\u226510 mmHg','\u226550 mmHg','\u2265100 mmHg','\u2265150 mmHg'],
+    answer:1,
+    explanation:'A peak instantaneous LVOT gradient \u226530 mmHg (rest or provoked) defines obstruction; \u226550 mmHg is the threshold typically required, alongside drug-refractory symptoms, before septal reduction therapy (myectomy or alcohol septal ablation) is considered.',
+    reference:'AHA/ACC guideline for the diagnosis and treatment of HCM' },
+  { domain:'cmp', diff:'hard',
+    q:'Which echo feature most suggests cardiac amyloidosis rather than hypertensive LV hypertrophy?',
+    options:['Increased wall thickness with HIGH QRS voltage','Increased wall thickness with apical-sparing ("cherry-on-top") longitudinal strain pattern','Dilated LV cavity with low EF','Isolated basal septal bulge'],
+    answer:1,
+    explanation:'Cardiac amyloid characteristically shows increased wall thickness with a relative apical-sparing pattern on longitudinal strain (the "cherry-on-top" bull\u2019s-eye), often with discordantly LOW ECG voltages. A basal septal bulge is typical of hypertensive remodelling.',
+    reference:'ASE/EACVI consensus and multimodality imaging recommendations for cardiac amyloidosis' },
+
+  /* ---- Ultrasound physics ---- */
+  { domain:'phys', diff:'basic',
+    q:'According to the Doppler equation, the measured Doppler shift is maximised when the angle of insonation between the ultrasound beam and blood flow is:',
+    options:['90 degrees','0 degrees (parallel)','45 degrees','It is independent of angle'],
+    answer:1,
+    explanation:'The Doppler shift is proportional to the cosine of the insonation angle. cos(0\u00b0)=1, so alignment parallel to flow gives the maximal, most accurate shift; cos(90\u00b0)=0 gives no detectable shift. This is why velocities are underestimated when the beam is not aligned with flow.',
+    reference:'ASE guideline on Doppler echocardiography physics and instrumentation' },
+  { domain:'phys', diff:'board',
+    q:'Which artifact is produced when ultrasound reflects back and forth between two strong specular reflectors, producing equally-spaced lines deep to the true structure?',
+    options:['Side-lobe artifact','Reverberation artifact','Mirror-image artifact','Acoustic shadowing'],
+    answer:1,
+    explanation:'Reverberation artifact arises from repeated back-and-forth reflection between two strong reflectors; the machine interprets the delayed echoes as deeper structures, producing equally spaced parallel lines. Side-lobe and mirror-image artifacts have different mechanisms; shadowing is signal dropout deep to a strong attenuator.',
+    reference:'ASE guideline on ultrasound physics and instrumentation' },
+
+  /* ---- TTE protocol ---- */
+  { domain:'tte', diff:'basic',
+    q:'In the parasternal long-axis view, the LV internal dimension and septal/posterior wall thickness should be measured:',
+    options:['At end-systole','At end-diastole, perpendicular to the long axis at the mitral leaflet tips level','At mid-systole at the papillary muscle level','At any point in the cycle'],
+    answer:1,
+    explanation:'ASE recommends measuring LV internal diameter and wall thickness at end-diastole, on the parasternal long-axis view, perpendicular to the LV long axis at or just below the mitral leaflet tips. 2D-guided linear measurement is preferred over M-mode when the M-line is oblique.',
+    reference:'ASE guideline on cardiac chamber quantification' },
+  { domain:'tte', diff:'board',
+    q:'Which TTE finding is the recommended primary measure of left atrial size?',
+    options:['LA antero-posterior diameter on PLAX','LA volume index by biplane method','LA area in the apical 4-chamber view alone','M-mode LA dimension'],
+    answer:1,
+    explanation:'LA volume index (biplane area-length or discs method, indexed to BSA) is the recommended primary measure of LA size; normal is \u226434 mL/m\u00b2. The single antero-posterior diameter underestimates LA enlargement because the atrium remodels asymmetrically.',
+    reference:'ASE guideline on cardiac chamber quantification' },
+
+  /* ---- TEE ---- */
+  { domain:'tee', diff:'board',
+    q:'Before cardioversion of atrial fibrillation, the principal role of transoesophageal echocardiography is to:',
+    options:['Measure LVEF accurately','Exclude left atrial appendage thrombus','Grade mitral regurgitation','Assess aortic atheroma burden'],
+    answer:1,
+    explanation:'TEE before cardioversion is performed chiefly to exclude thrombus in the left atrium and LA appendage, allowing earlier cardioversion without prolonged pre-procedural anticoagulation. The LAA is far better visualised by TEE than TTE.',
+    reference:'ASE guideline on performing a comprehensive transoesophageal echocardiographic examination' },
+  { domain:'tee', diff:'hard',
+    q:'Which TEE view is generally best for assessing all segments of the mitral valve using a single multiplane sweep?',
+    options:['Deep transgastric long-axis view','Mid-oesophageal views with rotation through ~0\u2013150\u00b0','Transgastric basal short-axis view only','Upper-oesophageal aortic arch view'],
+    answer:1,
+    explanation:'A multiplane sweep through the mid-oesophageal window (rotating roughly 0\u00b0 to 150\u00b0: 4-chamber, mitral commissural, 2-chamber, long-axis) interrogates all mitral scallops systematically. The transgastric basal short-axis adds an en-face view but is not sufficient alone.',
+    reference:'ASE/SCA guideline for a comprehensive TEE examination' },
+
+  /* ---- 3D / 4D ---- */
+  { domain:'4d', diff:'board',
+    q:'A recognised advantage of 3D echocardiography over 2D for LV volume and EF measurement is that it:',
+    options:['Requires lower frame rates','Avoids geometric assumptions about LV shape','Is unaffected by image quality','Eliminates the need for ECG gating'],
+    answer:1,
+    explanation:'3D echocardiography measures LV volumes directly from the cast of the cavity, avoiding the geometric assumptions inherent in 2D biplane methods; it correlates better with CMR. It still depends on adequate image quality and usually on multi-beat ECG-gated acquisition.',
+    reference:'ASE/EACVI recommendations for 3D echocardiography acquisition and analysis' },
+
+  /* ---- Congenital ---- */
+  { domain:'chd', diff:'board',
+    q:'On TTE, which feature most reliably distinguishes an ostium secundum atrial septal defect from a patent foramen ovale?',
+    options:['Presence of a right-to-left shunt on bubble study','A fixed structural defect with persistent left-to-right colour flow and RV volume overload','Location in the inferior septum','Association with a cleft mitral valve'],
+    answer:1,
+    explanation:'A secundum ASD is a true fixed structural deficiency of the fossa ovalis with persistent left-to-right shunting and resultant RV/RA volume overload. A PFO is a potential flap-valve communication that usually shunts only transiently (e.g. on Valsalva) and does not cause sustained RV volume overload. A cleft mitral valve is associated with primum, not secundum, ASD.',
+    reference:'ASE guideline on multimodality imaging of atrial septal defects and shunts' },
+
+  /* ---- Hemodynamics & special situations ---- */
+  { domain:'haemo', diff:'board',
+    q:'How is right atrial pressure estimated when the IVC is dilated (>2.1 cm) and collapses less than 50% with a sniff?',
+    options:['~3 mmHg','~8 mmHg','~15 mmHg','~25 mmHg'],
+    answer:2,
+    explanation:'A dilated IVC (>2.1 cm) with <50% inspiratory collapse indicates a high RA pressure, estimated at ~15 mmHg. A small IVC (\u22642.1 cm) with >50% collapse indicates ~3 mmHg; intermediate findings give ~8 mmHg.',
+    reference:'ASE guideline on right-heart assessment in adults' },
+  { domain:'haemo', diff:'hard',
+    q:'On a normally functioning bileaflet mechanical mitral prosthesis, small amounts of regurgitation seen on colour Doppler immediately after valve closure are:',
+    options:['Always pathological and indicate dehiscence','Normal "washing" / built-in closing regurgitant jets','Diagnostic of prosthetic endocarditis','An indication for urgent reoperation'],
+    answer:1,
+    explanation:'Bileaflet mechanical valves are designed with small built-in regurgitant ("washing") jets that reduce stasis and thrombus risk. These are normal, characteristically symmetrical and intra-prosthetic. Pathological regurgitation is paravalvular, eccentric, or large.',
+    reference:'ASE guideline on echocardiographic evaluation of prosthetic valves' },
+  { domain:'haemo', diff:'board',
+    q:'Echocardiography contributes to the modified Duke criteria for infective endocarditis chiefly by identifying:',
+    options:['Reduced LVEF','Oscillating intracardiac vegetations, abscess, or new prosthetic dehiscence','Diastolic dysfunction','Increased LV mass'],
+    answer:1,
+    explanation:'Echo is a major-criterion modality in the modified Duke criteria when it shows an oscillating vegetation, a periannular abscess, or new partial dehiscence of a prosthetic valve (and new valvular regurgitation). It does not contribute through EF, diastolic function, or LV mass.',
+    reference:'Modified Duke criteria; ESC guideline on infective endocarditis' },
+
+  /* ---- additional 3D/4D ---- */
+  { domain:'4d', diff:'hard',
+    q:'For 3D echocardiographic assessment of the mitral valve, which acquisition mode is generally preferred to maximise spatial and temporal resolution of the full valve apparatus?',
+    options:['Live single-beat narrow-sector imaging only','Multi-beat ECG-gated full-volume acquisition','2D zoom with colour only','Continuous-wave Doppler sweep'],
+    answer:1,
+    explanation:'Multi-beat ECG-gated full-volume acquisition stitches several cardiac cycles to deliver the higher volume rate and spatial resolution needed to display the entire mitral apparatus. Its main limitation is stitch artifact with arrhythmia or poor breath-holding, where single-beat acquisition is the fallback.',
+    reference:'ASE/EACVI recommendations on 3D echocardiography acquisition and analysis' },
+  { domain:'4d', diff:'board',
+    q:'Compared with 2D biplane Simpson\u2019s, 3D echocardiographic LV ejection fraction characteristically:',
+    options:['Overestimates EF substantially','Shows closer agreement with cardiac MRI','Cannot be used when wall-motion abnormalities are present','Requires contrast in all cases'],
+    answer:1,
+    explanation:'3D echo measures LV volumes without geometric assumptions and shows closer agreement and less systematic underestimation versus cardiac MRI than 2D biplane methods. It remains image-quality dependent.',
+    reference:'ASE/EACVI recommendations for 3D echocardiography' },
+
+  /* ---- additional congenital ---- */
+  { domain:'chd', diff:'board',
+    q:'A cleft of the anterior mitral leaflet is most characteristically associated with which atrial septal defect?',
+    options:['Ostium secundum ASD','Ostium primum ASD (partial AV septal defect)','Sinus venosus ASD','Coronary sinus ASD'],
+    answer:1,
+    explanation:'A cleft anterior mitral leaflet is a hallmark of an ostium primum ASD (partial atrioventricular septal defect), reflecting the common AV-canal embryology. Secundum and sinus venosus defects do not carry this association.',
+    reference:'ASE guideline on multimodality imaging of atrial septal defects; AHA/ACC ACHD guideline' },
+  { domain:'chd', diff:'hard',
+    q:'A sinus venosus atrial septal defect is frequently missed on standard TTE because it:',
+    options:['Is located in the muscular septum','Lies high near the SVC\u2013RA junction and is often associated with partial anomalous pulmonary venous return','Causes only right-to-left shunting','Never produces RV volume overload'],
+    answer:1,
+    explanation:'A superior sinus venosus defect sits high near the SVC\u2013RA junction, outside the true septum, and is poorly seen on standard transthoracic windows; it is commonly associated with partial anomalous pulmonary venous drainage of the right upper pulmonary vein. Unexplained RV volume overload should prompt TEE or CMR.',
+    reference:'ASE guideline on multimodality imaging of intracardiac shunts' },
+
+  /* ---- additional physics ---- */
+  { domain:'phys', diff:'board',
+    q:'Aliasing on colour or pulsed-wave Doppler occurs when the measured velocity exceeds:',
+    options:['The Nyquist limit (half the pulse repetition frequency)','The transducer centre frequency','The frame rate','The dynamic range'],
+    answer:0,
+    explanation:'Pulsed Doppler samples intermittently, so it can unambiguously display velocities only up to the Nyquist limit, which equals half the pulse repetition frequency. Above this, the signal wraps (aliases). Shifting the baseline, lowering the frequency, or switching to continuous-wave Doppler addresses it.',
+    reference:'ASE guideline on Doppler echocardiography physics' },
+
+  /* ---- additional TTE ---- */
+  { domain:'tte', diff:'board',
+    q:'When measuring the LV outflow tract diameter for stroke-volume and aortic valve area calculation, the correct approach is to measure:',
+    options:['In the apical 5-chamber view at the leaflet tips','In the parasternal long-axis, mid-systole, in the inner-edge-to-inner-edge plane just proximal to the aortic annulus','In the parasternal short-axis at the aortic valve','At end-diastole in any view'],
+    answer:1,
+    explanation:'LVOT diameter is measured in the parasternal long-axis view in mid-systole, inner-edge to inner-edge, immediately proximal to (or at) the aortic annulus, in the same location where the LVOT pulsed-Doppler sample is taken. Because area uses the diameter squared, errors here are amplified in the AVA calculation.',
+    reference:'ASE/EACVI recommendations on the echocardiographic assessment of aortic stenosis' },
+
+  /* ---- additional pericardial ---- */
+  { domain:'peri', diff:'board',
+    q:'In a patient with constrictive pericarditis, hepatic vein Doppler classically shows:',
+    options:['Prominent systolic forward flow only','Expiratory diastolic flow reversal','No respiratory variation at all','Continuous high-velocity flow'],
+    answer:1,
+    explanation:'In constriction, intrathoracic\u2013intracardiac pressure dissociation produces prominent expiratory diastolic flow reversal in the hepatic veins, the mirror of the inspiratory reversal seen in many other conditions. This is a useful discriminator alongside the respirophasic septal shift and preserved medial e\u2032.',
+    reference:'ASE recommendations on multimodality imaging in pericardial disease' },
+
+  /* ---- additional cardiomyopathy ---- */
+  { domain:'cmp', diff:'board',
+    q:'In suspected hypertrophic cardiomyopathy, which manoeuvre is used during echo to provoke or augment a latent LV outflow tract gradient?',
+    options:['Sustained handgrip','Valsalva strain phase (or amyl nitrite / exercise)','Passive leg raise','Deep inspiration'],
+    answer:1,
+    explanation:'The Valsalva strain phase reduces preload and afterload, augmenting dynamic LVOT obstruction; amyl nitrite and exercise are alternatives. Handgrip raises afterload and tends to REDUCE the gradient, so it is not used to provoke obstruction.',
+    reference:'AHA/ACC guideline on the diagnosis and treatment of HCM' },
+
+  /* ============================================================
+     Questions below are grounded in two board-review references:
+     • Klein AL et al. Clinical Echocardiography Review — A Self-
+       Assessment Tool, 2nd ed (2017).
+     • Questions, Tricks, and Tips for the Echocardiography Board,
+       2nd ed (2020).
+     Cutoffs cross-checked against current ASE/EACVI guidelines.
+     ============================================================ */
+
+  /* ---- physics (book-grounded) ---- */
+  { domain:'phys', diff:'board',
+    q:'A comet-tail (ring-down) artifact seen deep to a metallic prosthetic valve arises because:',
+    options:['The beam is refracted at a tissue interface','Strong, closely-spaced reverberations merge into a continuous bright trail','The Doppler angle exceeds 60 degrees','Side lobes detect off-axis reflectors'],
+    answer:1,
+    explanation:'A comet-tail / ring-down artifact is a form of reverberation: closely spaced, strong reflections (e.g. from metal or gas) merge into a continuous tapering bright trail extending away from the structure. Refraction and side-lobe artifacts have distinct mechanisms; Doppler angle is unrelated.',
+    reference:'ASE guideline on ultrasound physics; Klein, Clinical Echocardiography Review (artifacts chapter)' },
+  { domain:'phys', diff:'hard',
+    q:'Which statement about harmonic imaging is most accurate?',
+    options:['It always increases near-field artifact','It improves endocardial border definition and reduces near-field artifact','It increases the transmit frequency to improve resolution','It eliminates the need for contrast in all studies'],
+    answer:1,
+    explanation:'Tissue harmonic imaging receives at twice the transmit frequency; harmonics are generated within tissue, so near-field clutter from the body wall is reduced and endocardial definition improves. It does not raise the transmit frequency and does not abolish the need for contrast when borders remain poorly seen.',
+    reference:'ASE guideline on ultrasound physics; Questions, Tricks & Tips for the Echo Board (physics chapter)' },
+
+  /* ---- TTE measurement (book-grounded) ---- */
+  { domain:'tte', diff:'board',
+    q:'Per ASE recommendations, 2D-derived LV linear chamber dimensions should be measured using which convention?',
+    options:['Leading-edge to leading-edge','Inner-edge (blood-tissue interface) to inner-edge','Trailing-edge to trailing-edge','Mid-wall to mid-wall'],
+    answer:1,
+    explanation:'The current ASE chamber-quantification recommendation for 2D linear measurements is the blood-tissue interface (inner-edge to inner-edge) convention. The older leading-edge-to-leading-edge convention belonged to the M-mode era. Consistent technique is essential for serial comparison.',
+    reference:'ASE guideline on cardiac chamber quantification; Klein, Clinical Echocardiography Review' },
+
+  /* ---- LV (book-grounded) ---- */
+  { domain:'lv', diff:'hard',
+    q:'Which index of LV systolic function is the LEAST dependent on loading conditions?',
+    options:['Ejection fraction','Fractional shortening','Peak dP/dt derived from the MR jet','End-systolic volume'],
+    answer:2,
+    explanation:'Peak dP/dt, the maximal rate of LV pressure rise estimated from the early MR continuous-wave signal, is comparatively less load-dependent and reflects contractility more directly. Ejection fraction, fractional shortening and end-systolic volume are all influenced by preload and afterload.',
+    reference:'Klein, Clinical Echocardiography Review (LV systolic function chapter)' },
+  { domain:'lv', diff:'board',
+    q:'A patient is in atrial fibrillation. What is the recommended approach to measuring LV ejection fraction and Doppler indices?',
+    options:['Use a single representative beat after a short RR interval','Average measurements over multiple consecutive beats','Cardiovert first, then scan','Use only M-mode'],
+    answer:1,
+    explanation:'In atrial fibrillation, beat-to-beat variation in filling alters EF and Doppler velocities, so ASE recommends averaging over multiple consecutive cardiac cycles (commonly 5 or more). Choosing one short-RR beat introduces systematic error.',
+    reference:'ASE guideline on chamber quantification; Questions, Tricks & Tips for the Echo Board' },
+
+  /* ---- valve (book-grounded) ---- */
+  { domain:'valve', diff:'hard',
+    q:'Mitral inflow pressure half-time is used to estimate mitral valve area in mitral stenosis. A LONGER pressure half-time indicates:',
+    options:['A larger valve area (less severe stenosis)','A smaller valve area (more severe stenosis)','Severe mitral regurgitation','Normal valve function'],
+    answer:1,
+    explanation:'Mitral valve area by the empirical formula is 220 divided by the pressure half-time, so a longer half-time corresponds to a smaller area and more severe stenosis. The method is unreliable immediately after balloon valvuloplasty and with significant AR or abnormal LV/LA compliance.',
+    reference:'ASE/EACVI recommendations on valve stenosis; Klein, Clinical Echocardiography Review' },
+  { domain:'valve', diff:'board',
+    q:'In aortic stenosis, the dimensionless index (velocity ratio) is useful because it:',
+    options:['Requires accurate LVOT diameter measurement','Is independent of the LVOT cross-sectional area measurement','Only applies to bicuspid valves','Measures regurgitation severity'],
+    answer:1,
+    explanation:'The dimensionless index is the ratio of LVOT velocity-time integral to aortic-jet VTI. Because it is a ratio of two velocities measured at the same site, it does not require the error-prone LVOT diameter. A value \u22640.25 supports severe AS.',
+    reference:'ASE/EACVI recommendations on the assessment of aortic stenosis; Questions, Tricks & Tips for the Echo Board' },
+
+  /* ---- RV / hemodynamics (book-grounded) ---- */
+  { domain:'rv', diff:'board',
+    q:'On the apical 4-chamber view, which two tricuspid valve leaflets are typically imaged?',
+    options:['Anterior and posterior','Septal and anterior','Septal and posterior','All three leaflets equally'],
+    answer:1,
+    explanation:'The standard apical 4-chamber view typically displays the septal and anterior tricuspid leaflets. The posterior leaflet is better seen in the RV inflow view. Knowing leaflet-to-view mapping is a recurring board point.',
+    reference:'Klein, Clinical Echocardiography Review (tricuspid valve chapter)' },
+
+  /* ---- pericardial (book-grounded) ---- */
+  { domain:'peri', diff:'hard',
+    q:'In a patient with a large pericardial effusion, which chamber-collapse finding is the MOST SPECIFIC for tamponade physiology?',
+    options:['Right atrial systolic collapse','Right ventricular diastolic collapse','Left atrial collapse','IVC plethora alone'],
+    answer:1,
+    explanation:'RA systolic collapse is sensitive but not specific. RV diastolic collapse is more specific for haemodynamically significant tamponade, and its duration correlates with severity. IVC plethora supports raised pressure but is non-specific.',
+    reference:'ASE recommendations on pericardial disease imaging; Klein, Clinical Echocardiography Review (pericardial chapter)' },
+
+  /* ---- TEE (book-grounded) ---- */
+  { domain:'tee', diff:'board',
+    q:'During TEE, the structure lying immediately ANTERIOR to the oesophagus, and therefore closest to the transducer in the mid-oesophageal window, is the:',
+    options:['Right ventricle','Left atrium','Left ventricular apex','Aortic arch'],
+    answer:1,
+    explanation:'The oesophagus runs directly behind the left atrium, so in mid-oesophageal views the LA is the nearest, best-resolved chamber — which is why TEE excels at LA appendage, mitral valve and interatrial septum assessment. The LV apex is far-field and often foreshortened on TEE.',
+    reference:'ASE/SCA guideline for comprehensive TEE; Questions, Tricks & Tips for the Echo Board' },
+
+  /* ---- cardiomyopathy / masses (book-grounded) ---- */
+  { domain:'cmp', diff:'board',
+    q:'A small, highly mobile mass attached to the aortic valve, under 1 cm, with no destructive features is most likely a:',
+    options:['Myxoma','Papillary fibroelastoma','Rhabdomyoma','Vegetation of bacterial endocarditis'],
+    answer:1,
+    explanation:'Papillary fibroelastomas are small (<1 cm), mobile tumours with a predilection for valvular surfaces, especially the aortic valve, and are usually found incidentally. Myxomas favour the left atrium; rhabdomyomas occur in young children; a vegetation is suggested by valve destruction and the clinical context of infection.',
+    reference:'Klein, Clinical Echocardiography Review (cardiac masses chapter)' },
+  { domain:'cmp', diff:'hard',
+    q:'Which echo feature most favours a cardiac thrombus over a cardiac tumour at the LV apex?',
+    options:['Location adjacent to an akinetic or aneurysmal segment with low-flow swirling','A broad-based attachment to the interatrial septum','Intense vascularity on contrast study','A stalk arising from a valve leaflet'],
+    answer:0,
+    explanation:'An apical thrombus characteristically overlies a region of akinesis/dyskinesis (e.g. post-anterior-MI aneurysm) with adjacent low-flow "smoke". On contrast echo a thrombus is avascular (filling defect), whereas vascular tumours enhance. Septal attachment suggests myxoma; a valvular stalk suggests fibroelastoma.',
+    reference:'Klein, Clinical Echocardiography Review; ASE guideline on contrast echocardiography' },
+
+  /* ---- congenital (book-grounded) ---- */
+  { domain:'chd', diff:'board',
+    q:'In an adult with unexplained right ventricular volume overload and a normal-appearing fossa ovalis on TTE, the next most appropriate step is to:',
+    options:['Reassure and discharge','Look specifically for a sinus venosus defect and anomalous pulmonary venous return, with TEE or CMR if needed','Start diuretics empirically','Repeat TTE in 5 years'],
+    answer:1,
+    explanation:'Unexplained RV volume overload demands a search for a left-to-right shunt. A sinus venosus ASD with partial anomalous pulmonary venous return is easily missed on TTE because the defect lies outside the true septum near the SVC\u2013RA junction; TEE or CMR is the appropriate next test.',
+    reference:'ASE guideline on imaging of intracardiac shunts; AHA/ACC ACHD guideline' }
 ];
 
 /* ---- 2. Global state --------------------------------------
@@ -1143,7 +1562,7 @@ const App = {
     set('setAnthropicKey',  s.anthropicKey);
     set('setGroqModel',     s.groqModel     || 'llama-3.3-70b-versatile');
     set('setAnthropicModel',s.anthropicModel|| 'claude-opus-4-7');
-    set('setPreferred',     s.preferred     || 'groq');
+    set('setPreferred',     s.preferred     || 'anthropic');
 
     // Auto-save when the user clicks/tabs out of a field — fixes the
     // footgun where users type a key but forget to hit Save.
@@ -1166,7 +1585,7 @@ const App = {
       anthropicKey:   (v('setAnthropicKey')||'').trim(),
       groqModel:      v('setGroqModel')      || 'llama-3.3-70b-versatile',
       anthropicModel: v('setAnthropicModel') || 'claude-opus-4-7',
-      preferred:      v('setPreferred')      || 'groq'
+      preferred:      v('setPreferred')      || 'anthropic'
     };
     persist('settings', S.settings);
     Dashboard.render();
@@ -1426,29 +1845,101 @@ const Plan = {
 };
 
 /* ============================================================
-   AI — backend fallback chain: Groq first, Anthropic fallback
+   AI — backend chain. Claude (Anthropic) is the primary backend;
+   Groq is an optional fast fallback. Clinical depth requires Claude.
    ============================================================ */
 
-/* Strict system prompt — applied to every AI call. The accuracy rules
-   here are the main defence against hallucinated guideline details. */
-const STRICT_SYSTEM_PROMPT =
-`You are an expert echocardiography board examiner and consultant cardiologist preparing a senior cardiology fellow for the EACVI / ASCeXAM board exams.
+/* ------------------------------------------------------------
+   GROUND_TRUTH — verified reference values, injected VERBATIM
+   into every AI call. This is the single most important accuracy
+   safeguard: it gives the model concrete anchors instead of asking
+   it to recall numbers from memory (which is how 58% LVEF drifted
+   to "mildly reduced"). Only stable, board-tested, non-controversial
+   values are listed. Contested or version-volatile cutoffs are
+   deliberately left out — for those the model is told to stay
+   qualitative rather than guess.
+   Source standards: ASE chamber quantification (Lang 2015),
+   ASE diastolic function (2016 + 2025 update), ASE native valve
+   regurgitation (2017), ASE right-heart, ASE/EACVI stenosis.
+   ------------------------------------------------------------ */
+const GROUND_TRUTH = `VERIFIED ECHO REFERENCE VALUES — treat every value below as authoritative. Never contradict these. If a value you would otherwise give conflicts with this list, this list wins.
 
-CURRENT-GUIDELINE AWARENESS — use the most up-to-date guidelines you know of:
-- Diastolic function: the 2025 ASE update (Nagueh et al., J Am Soc Echocardiogr 2025;38:537-569) SUPERSEDES the 2016 ASE/EACVI document. The 2025 update introduces a two-step algorithm, age-specific e' cutoffs, left atrial reservoir strain (LARS) thresholds (~18% favors elevated LAP), pulmonary vein S/D ratio (≤0.67), and refined LAVI/E/e' integration. The lowest-flag cutoffs are now: average e' ≤6.5 cm/s (or septal ≤6, lateral ≤7); average E/e' >14 still favors elevated LAP; LAVI >34 mL/m² still abnormal. Do NOT use the old 2009-era schema of "E/e' <8 normal, 9-12 mild, 13-15 moderate, >15 severe" — that is outdated.
-- Right heart: 2025 ASE right-heart update graduates TRV, RA area, RV basal diameter, and RVSP into severity grades; PH threshold is now mPAP >20 mmHg (aligning with 2022 ESC/ERS).
-- Valvular heart disease: 2020 ACC/AHA + 2021 ESC/EACTS valvular guidelines; ASE 2017 native valve regurgitation; ASE 2024 right-heart guideline; EACVI multimodality imaging documents.
-- Cardiac amyloidosis, HCM, CHD: use 2023 ACC/AHA HCM guideline, 2023 ESC cardiomyopathies guideline, 2018 AHA/ACC ACHD guideline.
-- When citing, always name the issuing body and the topic of the guideline. State the year ONLY if you are confident.
+LV SYSTOLIC FUNCTION (ASE chamber quantification):
+- Normal LVEF: men 52–72%, women 54–74%. An LVEF of 52% (men) / 54% (women) or higher is NORMAL — it is NOT "mildly reduced".
+- Mildly reduced LVEF: men 41–51%, women 41–53%.
+- Moderately reduced LVEF: 30–40%.
+- Severely reduced LVEF: <30%.
+- HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50% (universal HF definition).
+- Biplane Simpson's (method of discs) is the recommended 2D method for LV volumes/EF.
+
+LV DIASTOLIC FUNCTION:
+- Use the 2016 ASE/EACVI algorithm as the baseline; note the 2025 ASE update where relevant.
+- Four variables to identify diastolic dysfunction / elevated LAP: septal e' <7 cm/s, lateral e' <10 cm/s; average E/e' >14; TR velocity >2.8 m/s; LA volume index >34 mL/m².
+- ≥3 of 4 positive = elevated LAP; ≤1 positive = normal; 2 positive = indeterminate.
+- Do NOT use the obsolete "E/e' <8 normal, 9–12 mild, 13–15 moderate, >15 severe" tiered schema.
+
+CHAMBER DIMENSIONS (ASE):
+- LA volume index normal ≤34 mL/m².
+- LV wall thickness (septum/posterior wall) normal ≤10 mm (men), ≤9 mm (women) approx; LVH if increased LV mass index.
+- Aortic root (sinuses of Valsalva) indexed normal generally <2.1 cm/m².
+
+RIGHT HEART (ASE):
+- TAPSE normal ≥17 mm; <17 mm indicates RV systolic dysfunction.
+- RV S' (tissue Doppler) normal ≥9.5 cm/s.
+- RV fractional area change (FAC) normal >35%.
+- RV basal diameter normal ≤41 mm.
+- RV free-wall longitudinal strain: abnormal if less negative than about −20% (i.e. magnitude <20%).
+- Estimated RVSP = 4×(TR velocity)² + RA pressure. RA pressure: IVC ≤2.1 cm and >50% collapse → ~3 mmHg; IVC >2.1 cm and <50% collapse → ~15 mmHg; intermediate → ~8 mmHg.
+
+AORTIC STENOSIS (ASE/EACVI):
+- Severe AS: peak velocity ≥4 m/s, mean gradient ≥40 mmHg, aortic valve area ≤1.0 cm² (indexed ≤0.6 cm²/m²).
+- Moderate AS: peak velocity 3–3.9 m/s, mean gradient 20–39 mmHg, AVA 1.0–1.5 cm².
+- Very severe AS: peak velocity ≥5 m/s, mean gradient ≥60 mmHg.
+- Low-flow low-gradient AS: AVA ≤1.0 cm² with mean gradient <40 mmHg — assess flow state and use dobutamine stress echo if LVEF reduced.
+
+MITRAL STENOSIS:
+- Severe MS: mitral valve area ≤1.5 cm² (very severe ≤1.0 cm²). Mean gradient is rate-dependent and supportive, not primary.
+
+MITRAL REGURGITATION (ASE native valve regurgitation):
+- Severe primary MR: effective regurgitant orifice area (EROA) ≥0.40 cm², regurgitant volume ≥60 mL, regurgitant fraction ≥50%, vena contracta ≥0.7 cm.
+- Severe secondary MR: ASE uses the same EROA ≥0.40 cm² / RVol ≥60 mL threshold; be aware some bodies cite lower secondary cutoffs.
+
+AORTIC REGURGITATION:
+- Severe AR: vena contracta >0.6 cm, regurgitant volume ≥60 mL, regurgitant fraction ≥50%, EROA ≥0.30 cm², pressure half-time <200 ms, holodiastolic flow reversal in the descending/abdominal aorta.
+
+TRICUSPID REGURGITATION:
+- Severe TR: vena contracta ≥0.7 cm, EROA ≥0.40 cm², regurgitant volume ≥45 mL, systolic flow reversal in hepatic veins, dense triangular early-peaking CW signal.
+
+PERICARDIAL DISEASE:
+- Tamponade echo signs: RA systolic collapse (sensitive), RV diastolic collapse (specific), IVC plethora, >25% respirophasic variation in mitral inflow / >40% in tricuspid inflow.
+- Constriction: respirophasic ventricular septal shift, preserved/elevated medial e' ("annulus paradoxus"), hepatic vein expiratory diastolic flow reversal.
+
+GLOBAL LONGITUDINAL STRAIN:
+- Normal LV GLS is more negative than about −20% (magnitude ≥18–20% by most vendors); less negative than −16% is clearly abnormal. GLS is vendor-dependent — interpret as a magnitude.
+
+HCM:
+- LV outflow tract obstruction: peak instantaneous gradient ≥30 mmHg at rest or with provocation is significant; ≥50 mmHg is the threshold relevant to septal reduction therapy.`;
+
+/* Strict system prompt — applied to every AI call. GROUND_TRUTH is
+   embedded directly so the model always has verified anchors. */
+const STRICT_SYSTEM_PROMPT =
+`You are an expert echocardiography board examiner and consultant cardiologist preparing a senior cardiology fellow for the EACVI / ASCeXAM board exams. Your audience is a practising cardiologist — write at full consultant depth, never simplified.
+
+${GROUND_TRUTH}
+
+CURRENT-GUIDELINE AWARENESS:
+- Diastolic function: the 2025 ASE update (Nagueh et al., JASE 2025) refines the 2016 ASE/EACVI algorithm — two-step approach, age-specific e' values, LA reservoir strain (~18% favors elevated LAP), pulmonary vein S/D ratio. Use the 2016 four-variable algorithm as the dependable baseline and mention the 2025 refinement where relevant.
+- Right heart: 2025 ASE right-heart update; pulmonary hypertension threshold is now mPAP >20 mmHg (2022 ESC/ERS).
+- Valvular disease: 2020 ACC/AHA and 2021 ESC/EACTS valvular guidelines; ASE 2017 native valve regurgitation.
+- HCM: 2024 AHA/ACC HCM guideline. Cardiomyopathies: 2023 ESC guideline. ACHD: 2018 AHA/ACC guideline.
+- When citing, name the issuing body and the subject. State a year only if confident.
 
 ACCURACY RULES — non-negotiable:
-- State only well-established, current echocardiography facts and guideline content.
-- Do NOT invent specific numbers: guideline years, figure/table numbers, page numbers, exact cutoff values, or citation details. If you are not confident of an exact detail, give the general fact and name the guideline body and topic instead of a precise locator.
-- Prefer naming a guideline by its issuing body and subject (e.g. "ASE 2025 update on diastolic function") over citing a specific figure number you are unsure of.
+- The VERIFIED ECHO REFERENCE VALUES above override your own recollection. Use them exactly.
+- For any value NOT in that list: if you are not fully confident, give the qualitative direction and name the guideline body rather than inventing a precise number, figure number, or page.
 - It is better to be less specific and correct than precise and wrong.
-- If a question or request falls outside well-established knowledge, say so rather than fabricating an answer.
-- Use correct, current terminology and standard guideline cutoffs only when you are confident they are right.
-- If you reference a cutoff that you know was superseded, briefly note the update (e.g. "the 2016 cutoff was X; the 2025 ASE update revised this to Y").
+- Every numeric cutoff in a question's correct answer must be consistent with the verified list.
+- If a request falls outside well-established knowledge, say so rather than fabricating.
 
 When asked for JSON, return strictly valid JSON with no markdown fences and no commentary.`;
 
@@ -1473,7 +1964,7 @@ const AI = {
     if(!groqKey && !anthropicKey){
       throw new Error('No working AI backend — add a key in Settings and click Save');
     }
-    const preferred = S.settings?.preferred || 'groq';
+    const preferred = S.settings?.preferred || 'anthropic';
     const order = preferred === 'anthropic'
       ? [['anthropic', anthropicKey], ['groq', groqKey]]
       : [['groq', groqKey], ['anthropic', anthropicKey]];
@@ -1581,6 +2072,18 @@ function validMcq(q){
       && Array.isArray(q.options) && q.options.length>=2
       && Number.isInteger(q.answer) && q.answer>=0 && q.answer<q.options.length;
 }
+
+/* ---- shuffle a question's options, keeping `answer` correct --
+   Returns a NEW question object; the original is untouched so the
+   verified bank itself is never mutated. */
+function shuffleOptions(q){
+  const idx = q.options.map((_,i)=>i).sort(()=>Math.random()-0.5);
+  return {
+    ...q,
+    options: idx.map(i=>q.options[i]),
+    answer:  idx.indexOf(q.answer)
+  };
+}
 function buildMcqPrompt(domain, topics, style, count, diff){
   const styleNote = {
     eacvi:'European EACVI / ESC guideline emphasis and terminology',
@@ -1602,14 +2105,15 @@ Difficulty: ${diffNote}
 Requirements:
 - Each question must read like a real board exam item (clinical vignette where appropriate).
 - Exactly 4 options each, only one unambiguously correct.
-- Use current guideline cutoffs and terminology.
-- The "explanation" must say why the correct answer is right AND briefly why key distractors are wrong.
-- "reference" MUST cite the guideline or authoritative source supporting the answer. Name the issuing body and subject of the guideline (e.g. "ASE guideline on diastolic function assessment"). Include a specific figure/table number ONLY if you are confident it is correct — otherwise omit the locator. Never fabricate a citation detail.
+- Every numeric value, cutoff, or grade in the stem, the correct answer, and the explanation MUST be consistent with the VERIFIED ECHO REFERENCE VALUES you were given. Do not use any cutoff that conflicts with that list.
+- Do NOT build a question whose correct answer depends on a number you are unsure of. If in doubt, write the question around a value that IS in the verified list.
+- The "explanation" must say why the correct answer is right AND briefly why the key distractors are wrong, citing the relevant numeric cutoff.
+- "reference" MUST name the issuing body and subject of the supporting guideline (e.g. "ASE guideline on chamber quantification"). Include a figure/table number ONLY if certain — otherwise omit it. Never fabricate a citation.
 - "answer" is the 0-based index of the correct option.
-- Only write questions whose correct answer rests on well-established, non-controversial echocardiography knowledge. Do not build a question around a number or cutoff you are unsure of.
+- "domain" is the matching domain id where possible.
 
 Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
-{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","reference":"string","topic":"string"}]}`;
+{"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","reference":"string","topic":"string","domain":"string"}]}`;
 }
 
 /* ---- plan prompt: dated day-by-day study schedule --------- */
@@ -1637,19 +2141,47 @@ Return ONLY valid JSON, no markdown, exactly:
 {"days":[{"topic":"string","domain":"string","tasks":["string"],"video_search":"string","reference":"string"}]}`;
 }
 
-/* ---- expert prompt: consultant-level answer with refs ----- */
+/* ---- expert prompt: structured consultant-level answer ----- */
 function buildExpertPrompt(question){
-  return `You are a consultant cardiologist and echocardiography expert answering a colleague's question.
+  return `You are a senior consultant echocardiographer answering a colleague's question for a board-prep app. The reader is a practising cardiologist — answer at full consultant / board-examiner depth and DO NOT oversimplify.
+
 Question: "${question}"
 
-Answer at a consultant / board-examiner level: precise, current, and clinically grounded.
-Use correct echo terminology and current guideline cutoffs. Be thorough but focused.
-Then list the specific references that support your answer — name guidelines (with year and
-section where possible) and key textbooks/papers. Do not invent reference details you are unsure of;
-if unsure of an exact citation, name the guideline body and topic generally.
+SOURCING & DEPTH REQUIREMENTS:
+- Anchor the bedside framework in the EACVI Echo Handbook (Lancellotti P, Cosyns B, eds; OUP, 2016) — concise structured bedside reference.
+- Layer in the MOST RECENT relevant guideline, e.g.:
+   * Diastolic function / HFpEF -> 2025 ASE update (Nagueh et al., JASE 2025; 38(7):537-569) — three primary variables (e' velocity, E/e', TR velocity); LARS <=18% as tiebreaker; LAVI >34 mL/m^2; phenotype-specific mini-algorithms (AF, MAC, valve disease, transplant, PH). Do NOT cite the 2016 tiered E/e' cutoffs as current.
+   * Right heart / pulmonary hypertension -> 2025 ASE right-heart guideline.
+   * Strain echo -> 2025 ASE/EACVI clinical consensus on strain (Sept 2025 JASE).
+   * Echo reporting standardization -> 2025 ASE (July 2025 JASE).
+   * Valve disease severity -> 2021 ESC/EACTS VHD + EACVI recommendations.
+   * Cardiomyopathies -> 2023 ESC cardiomyopathy guidelines.
+- Where current evidence shifted practice, name the trial / registry (e.g. EARLY-TAVR, PARTNER 3, RESHAPE-HF2, DanGer Shock) WITHOUT fabricating specific numbers. If unsure of a result, describe the direction of evidence qualitatively.
+- Use the VERIFIED ECHO REFERENCE VALUES given to you elsewhere — never contradict them. If the question hinges on a cutoff and you are unsure of the current number, name the parameter and the qualitative direction rather than fabricating.
 
-Return ONLY valid JSON, no markdown, exactly:
-{"answer":"string","references":["string","string"]}`;
+DEPTH FLOOR:
+- Each major claim must be specific and clinically actionable (acquisition technique, exact cutoff, named criterion, named trial). No generic "use Doppler" or "look at the LV".
+- Pitfalls must explain WHY they mislead, not just name them.
+
+Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
+{
+  "answer": "2 to 5 paragraphs of substantive consultant-level prose. Use real cutoffs, named criteria, and acquisition-aware language. Where a recent guideline applies, weave it in (e.g. '...per the 2025 ASE diastolic update...'). For algorithm questions, walk through the decision path. Plain text, no markdown.",
+  "key_points": [
+    "3-6 crisp take-home points, each a complete clinical statement with specifics (numbers, named criteria, or named scoring system)"
+  ],
+  "pitfalls": [
+    "2-4 common errors or traps relevant to this question, each explaining WHY it misleads and how to avoid it (omit field with empty array if genuinely not applicable)"
+  ],
+  "recent_evidence": [
+    "if any post-2023 trial, registry, or guideline update is directly relevant, name it and describe its direction WITHOUT fabricating numbers. Use empty array if not applicable.",
+    "next item"
+  ],
+  "references": [
+    "EACVI Echo Handbook (Lancellotti & Cosyns, OUP 2016) — relevant chapter if applicable",
+    "the most recent guideline anchoring this answer (issuing body, year, lead author if known)",
+    "any other primary references. Do NOT fabricate page numbers, figure numbers, or DOIs."
+  ]
+}`;
 }
 
 /* ============================================================
@@ -1658,48 +2190,104 @@ Return ONLY valid JSON, no markdown, exactly:
 const MCQ = {
   initSetup(){
     const sel = document.getElementById('mcqDomain');
-    sel.innerHTML = DOMAINS.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    if(!sel) return;
+    sel.innerHTML = '<option value="all">All domains (mixed)</option>' +
+      DOMAINS.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
   },
   setDiff(d){
     S.mcqDiff = d;
     document.querySelectorAll('#mcqDiff .chip').forEach(c=>
       c.classList.toggle('active', c.dataset.d===d));
   },
-  /* Generate a quick set straight from a domain id (used by Plan). */
+  /* Generate a quick set straight from a domain id (used by Plan / Weak). */
   async fromDomain(domId){
     App.go('mcq');
-    document.getElementById('mcqDomain').value = domId;
+    const dsel = document.getElementById('mcqDomain');
+    if(dsel) dsel.value = domId;
     await this.generate();
   },
-  /* Generates a question set via the AI fallback chain (Groq first). */
-  async generate(){
-    const domId = document.getElementById('mcqDomain').value;
-    const dom   = DOMAINS.find(d=>d.id===domId);
-    const style = document.getElementById('mcqStyle').value;
-    const count = document.getElementById('mcqCount').value;
 
+  /* Pull questions from the verified bank. Shuffled; domain-scoped
+     unless 'all'. Difficulty filter is soft — if too few match, the
+     difficulty constraint is relaxed so a set can always be built.
+     Each question's OPTIONS are also shuffled so the correct answer
+     does not sit in a predictable position (the authored bank skews
+     heavily to one index; this removes that tell). */
+  fromVerifiedBank(domId, diff, count){
+    let pool = VERIFIED_MCQS.filter(q=> domId==='all' || q.domain===domId);
+    let scoped = pool.filter(q=> !diff || q.diff===diff);
+    if(scoped.length < count) scoped = pool;          // relax difficulty
+    const shuffled = scoped.slice().sort(()=>Math.random()-0.5);
+    return shuffled.slice(0, count).map(q=>shuffleOptions({
+      ...q,
+      topic: (DOMAINS.find(d=>d.id===q.domain)?.name) || q.domain,
+      style: 'verified',
+      source: 'verified'
+    }));
+  },
+
+  /* Hybrid generator. Source = verified | mixed | ai.
+     - verified : entirely from the clinician-checked bank (no API call)
+     - mixed    : verified bank first, AI tops up the remainder
+     - ai       : entirely AI-generated, anchored to GROUND_TRUTH */
+  async generate(){
+    const domId  = document.getElementById('mcqDomain').value;
+    const source = (document.getElementById('mcqSource')||{}).value || 'verified';
+    const dom    = DOMAINS.find(d=>d.id===domId);   // null when 'all'
+    const domName = dom ? dom.name : 'all echo domains';
+    const style  = document.getElementById('mcqStyle').value;
+    const count  = parseInt(document.getElementById('mcqCount').value,10) || 10;
+    const btn    = document.querySelector('#mcqSetup .btn-primary');
+    const orig   = btn.innerHTML;
+
+    /* ---- pure verified bank: instant, no network ---- */
+    if(source==='verified'){
+      const qs = this.fromVerifiedBank(domId, S.mcqDiff, count);
+      if(!qs.length){
+        toast('No verified questions for that domain yet'); return;
+      }
+      this.startRunner(qs, domId);
+      toast(`${qs.length} verified question${qs.length>1?'s':''} ready`);
+      return;
+    }
+
+    /* ---- mixed / ai: need an API key ---- */
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first');
+      toast('Add a Claude API key in Settings first');
       App.go('settings'); return;
     }
 
-    const prompt = buildMcqPrompt(dom.name, dom.topics, style, count, S.mcqDiff);
-    const btn = document.querySelector('#mcqSetup .btn-primary');
-    const orig = btn.innerHTML;
+    let verifiedPart = [];
+    let need = count;
+    if(source==='mixed'){
+      verifiedPart = this.fromVerifiedBank(domId, S.mcqDiff, Math.ceil(count/2));
+      need = count - verifiedPart.length;
+    }
+    if(need<=0){ this.startRunner(verifiedPart, domId); toast(`${verifiedPart.length} questions ready`); return; }
+
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Generating…';
-
     try{
+      const topics = dom ? dom.topics : DOMAINS.flatMap(d=>d.topics).slice(0,12);
+      const prompt = buildMcqPrompt(domName, topics, style, need, S.mcqDiff);
       const raw = await AI.complete(prompt, {json:true});
       const parsed = extractJSON(raw);
-      let qs = (parsed.questions || []).filter(validMcq);
-      if(!qs.length) throw new Error('AI returned no usable questions — try again');
-      qs = qs.map(q=>({ ...q, topic:q.topic||dom.name, domain:dom.id, reference:q.reference||'', style }));
-      this.startRunner(qs, dom.id);
-      toast(`${qs.length} questions ready`);
+      let aiQs = (parsed.questions || []).filter(validMcq);
+      if(!aiQs.length && !verifiedPart.length)
+        throw new Error('AI returned no usable questions — try again');
+      aiQs = aiQs.map(q=>shuffleOptions({ ...q, topic:q.topic||domName,
+        domain:q.domain||domId, reference:q.reference||'', style, source:'ai' }));
+      const all = verifiedPart.concat(aiQs).sort(()=>Math.random()-0.5);
+      this.startRunner(all, domId);
+      toast(`${all.length} questions ready`);
     }catch(e){
       console.error('MCQ generation failed:', e);
-      toast(e.message || 'Generation failed — check your API key');
+      if(verifiedPart.length){
+        this.startRunner(verifiedPart, domId);
+        toast('AI unavailable — using verified bank only');
+      }else{
+        toast(e.message || 'Generation failed — check your API key');
+      }
     }finally{
       btn.disabled = false;
       btn.innerHTML = orig;
@@ -1714,18 +2302,21 @@ const MCQ = {
   renderQ(){
     const c = S.current, q = c.qs[c.i];
     const wrap = document.getElementById('mcqRunner');
+    const srcBadge = q.source==='verified'
+      ? '<span class="badge-ai" style="background:rgba(108,195,152,.16);color:var(--ok);">✓ Verified</span>'
+      : `<span class="badge-ai">${q.style?q.style.toUpperCase():'AI'}</span>`;
     wrap.innerHTML = `
       <div class="card">
         <div class="card-head">
           <span class="eyebrow">Question ${c.i+1} / ${c.qs.length}</span>
-          <span class="badge-ai">${q.style?q.style.toUpperCase():'BANK'}</span>
+          ${srcBadge}
         </div>
         <div class="bar" style="margin-bottom:14px;"><i style="width:${100*(c.i)/c.qs.length}%"></i></div>
-        <p style="font-weight:500;margin-bottom:14px;">${q.q}</p>
+        <p style="font-weight:500;margin-bottom:14px;">${escapeHTML(q.q)}</p>
         <div id="mcqOpts">
           ${q.options.map((o,idx)=>`
             <button class="mcq-opt" data-i="${idx}" onclick="MCQ.pick(${idx})">
-              <span class="mcq-key">${'ABCD'[idx]}</span><span>${o}</span>
+              <span class="mcq-key">${'ABCD'[idx]}</span><span>${escapeHTML(o)}</span>
             </button>`).join('')}
         </div>
         <div id="mcqAfter"></div>
@@ -1757,9 +2348,9 @@ const MCQ = {
     Bank.save(q);
     document.getElementById('mcqAfter').innerHTML = `
       <div class="explain">
-        <strong>${right?'✓ Correct':'✕ Incorrect'}.</strong> ${q.explanation}
+        <strong>${right?'✓ Correct':'✕ Incorrect'}.</strong> ${escapeHTML(q.explanation)}
         ${q.reference?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">
-          <strong>Reference:</strong> ${q.reference}</div>`:''}
+          <strong>Reference:</strong> ${escapeHTML(q.reference)}</div>`:''}
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="MCQ.next()">
         ${c.i+1<c.qs.length?'Next question':'Finish set'}
@@ -1791,6 +2382,8 @@ const MCQ = {
    ============================================================ */
 const Bank = {
   save(q){
+    // Avoid flooding the bank with the same verified question text.
+    if(S.mcqBank.some(x=>x.q===q.q)) return;
     S.mcqBank.unshift({ ...q, id:Date.now()+Math.random(), saved:Date.now() });
     if(S.mcqBank.length>500) S.mcqBank.pop();
     persist('bank', S.mcqBank);
@@ -1803,20 +2396,27 @@ const Bank = {
     f.innerHTML = `<button class="chip ${S.bankFilter==='all'?'active':''}" onclick="Bank.filter('all')">All</button>` +
       DOMAINS.map(d=>`<button class="chip ${S.bankFilter===d.id?'active':''}" onclick="Bank.filter('${d.id}')">${d.name.split(' ')[0]}</button>`).join('');
     let items = S.mcqBank;
-    countEl.textContent = items.length+' saved';
+    if(S.bankFilter && S.bankFilter!=='all'){
+      items = items.filter(q=>q.domain===S.bankFilter);
+    }
+    countEl.textContent = S.bankFilter==='all'
+      ? S.mcqBank.length+' saved'
+      : items.length+' of '+S.mcqBank.length;
     if(!items.length){
       list.innerHTML = `<div class="empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5a2 2 0 0 1 2-2h14v18H6a2 2 0 0 1-2-2z"/></svg>
-        <div>No saved questions yet.<br>Run an MCQ set to build your bank.</div></div>`;
+        <div>${S.mcqBank.length?'No saved questions in this domain.':'No saved questions yet.<br>Run an MCQ set to build your bank.'}</div></div>`;
       return;
     }
     list.innerHTML = items.map(q=>`
       <div class="card">
-        <div class="faint" style="margin-bottom:6px;">${q.topic||'—'}</div>
-        <p style="font-weight:500;font-size:14px;margin-bottom:8px;">${q.q}</p>
+        <div class="faint" style="margin-bottom:6px;">${escapeHTML(q.topic||'—')}
+          ${q.source==='verified'?'· <span style="color:var(--ok);">✓ verified</span>':''}</div>
+        <p style="font-weight:500;font-size:14px;margin-bottom:8px;">${escapeHTML(q.q)}</p>
         <div class="explain" style="margin-top:0;">
-          <strong>${'ABCD'[q.answer]}.</strong> ${q.options[q.answer]}
-          ${q.reference?`<div style="margin-top:6px;font-size:12px;color:var(--text-dim);">Ref: ${q.reference}</div>`:''}
+          <strong>${'ABCD'[q.answer]}.</strong> ${escapeHTML(q.options[q.answer])}
+          ${q.explanation?`<div style="margin-top:6px;font-size:13px;color:var(--text);">${escapeHTML(q.explanation)}</div>`:''}
+          ${q.reference?`<div style="margin-top:6px;font-size:12px;color:var(--text-dim);">Ref: ${escapeHTML(q.reference)}</div>`:''}
         </div>
       </div>`).join('');
   },
@@ -2218,73 +2818,127 @@ const VideoView = {
 };
 
 /* ============================================================
-   VIDEO EXTRAS — video of the day + echo news (tap to refresh)
+   VIDEO EXTRAS — Video of the Day, synced to Today's Topic
    ------------------------------------------------------------
    The AI only picks a TOPIC and writes search phrases / summaries.
    It never invents video URLs — all links are real channel
-   searches scoped to that topic.
+   searches scoped to that topic. The choice is anchored on
+   today's Topic of the Day and its learning objectives so the
+   video genuinely teaches what the user is studying.
    ============================================================ */
 const VideoExtras = {
-  async loadVotd(){
+  /* Auto-trigger: when a new Topic of the Day is rendered, if we
+     don't yet have a video for that same topic, pick one. Silent. */
+  async maybeAutoSync(topic){
+    if(!topic || !topic.title) return;
+    const haveKey = AI._readKey('groqKey') || AI._readKey('anthropicKey');
+    if(!haveKey) return;             // no key, no auto-sync; user can trigger manually
+    const existing = S.vextras?.votd;
+    const today = new Date().toISOString().slice(0,10);
+    const matches = existing
+      && existing.date === today
+      && existing.topic_title === topic.title;
+    if(matches) return;              // already synced to this exact topic today
+    // fire-and-forget — render handles state
+    this.loadVotd(topic).catch(e=>console.error('votd auto-sync:',e));
+  },
+
+  /* Pick the video for today. If a Topic of the Day exists, sync the
+     video choice to its title + learning objectives. Otherwise pick a
+     standalone weak-area video. */
+  async loadVotd(topicArg){
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
       toast('Add an API key in Settings first'); App.go('settings'); return;
     }
-    const btn=$('votdBtnLabel') ? $('votdBtnLabel').parentElement : null;
-    const orig = btn ? btn.innerHTML : '';
-    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Picking…'; }
+    // Allow callers to pass the topic; otherwise read from state
+    const topic = (topicArg && topicArg.title) ? topicArg : (S.today?.topic || null);
+
+    const genBtn = document.getElementById('votdGenBtn');
+    const refBtn = document.getElementById('votdRefreshBtn');
+    const visibleBtn = (refBtn && refBtn.style.display !== 'none') ? refBtn : genBtn;
+    const orig = visibleBtn ? visibleBtn.innerHTML : '';
+    if(visibleBtn){ visibleBtn.disabled=true; visibleBtn.innerHTML='<span class="spinner"></span> Syncing video…'; }
+
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
-      const raw = await AI.complete(
-        `Recommend ONE specific, focused echocardiography topic worth watching a teaching video on today`+
-        (weakName?`, ideally related to the user's weak area: ${weakName}`:'')+`.
-Pick a NARROW subtopic (a single measurement, technique, comparison, or syndrome) — NOT a whole domain. Bias toward topics covered by recent (2023-2025) guideline updates (e.g. 2025 ASE diastolic function update, 2024 ASE right-heart guideline) where relevant.
-Write a 2-3 sentence reason it matters at the bedside and for boards.
-Also recommend which channel is generally the best teacher for this topic, choosing from:
-"Mayo ECHO 2024", "123sonography", "ASE", "EACVI", "Houston Methodist DeBakey", "Boston Cardiac", "The Echo Lady".
+
+      const topicBlock = topic
+        ? `TODAY'S TOPIC (sync the video to this):
+Title: "${topic.title}"
+Background: "${topic.background || topic.summary || ''}"
+Learning objectives:
+${(topic.learning_objectives||[]).map((o,i)=>`  L${String(i+1).padStart(2,'0')}. ${o}`).join('\n') || '  (none provided)'}
+
+The video you pick MUST teach the same material as this topic. Choose a search phrase and channel that would surface a lecture covering these objectives.`
+        : `No topic-of-the-day in state. Pick a high-yield narrow subtopic`+(weakName?` related to the user's weak area: ${weakName}`:'')+`, biased toward 2023-2025 guideline updates.`;
+
+      const prompt = `You are picking the "Video of the Day" for an echo board-prep app.
+
+${topicBlock}
+
+Channels available (use the EXACT label):
+- "Mayo ECHO 2024" — Mayo board review lectures (Oh, Kane, Geske, Nkomo, Michelena)
+- "123sonography" — leading online echo course, structured chapters
+- "ASE" — American Society of Echocardiography official channel (guidelines, interviews)
+- "EACVI" — European Association of Cardiovascular Imaging
+- "Houston Methodist DeBakey" — DeBakey CV Education symposia (incl. Sherif Nagueh on diastolic function)
+- "Boston Cardiac" — Dr. Feroze Mahmood (Harvard / Beth Israel) — echo, 3D, structural, anesthesia
+- "The Echo Lady" — BSE-aligned acquisition and reporting tutorials
+
+Pick the channel that most authoritatively teaches THIS topic. For example:
+- Diastolic function / 2025 ASE update -> "Houston Methodist DeBakey" (Nagueh is lead author)
+- LV chamber quantification, valve grading -> "Mayo ECHO 2024" or "ASE"
+- Structural / 3D / TEE -> "Boston Cardiac" or "ASE"
+- Acquisition technique / standardised views -> "123sonography" or "The Echo Lady"
+
 Return ONLY valid JSON, no markdown:
-{"topic":"specific subtopic name","why":"2-3 sentence reason","search":"specific YouTube search phrase","best_channel":"one of the channels above"}`,
-        {json:true, maxTokens:1000});
+{
+  "topic": "specific subtopic name (mirror today's topic title if a topic was given)",
+  "why": "2-3 sentences explaining why this video supports today's learning",
+  "search": "specific YouTube search phrase (5-12 words) likely to surface a real high-quality lecture",
+  "best_channel": "one of the channel labels above, exactly as written",
+  "objective_sync": [
+    "if a topic with learning objectives was given: for EACH objective, one short line stating how the recommended video covers it. Use prefix 'L01:', 'L02:', etc. matching the objective number. Aim for one line per objective. Use empty array if no objectives were provided.",
+    "L02: ..."
+  ]
+}`;
+
+      const raw = await AI.complete(prompt, {json:true, maxTokens:1200});
       const v = extractJSON(raw);
       S.vextras = S.vextras || {};
-      S.vextras.votd = { ...v, date:new Date().toISOString().slice(0,10) };
+      S.vextras.votd = {
+        ...v,
+        topic_title: topic ? topic.title : null,
+        date: new Date().toISOString().slice(0,10)
+      };
       persist('vextras', S.vextras);
       this.renderVotd();
-      toast('Video topic ready');
-    }catch(e){ console.error('votd:',e); toast(e.message||'Failed'); }
-    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
-  },
-  async loadNews(){
-    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add an API key in Settings first'); App.go('settings'); return;
+      if(topicArg){
+        // silent auto-sync — no toast
+      }else{
+        toast('Video of the day ready');
+      }
+    }catch(e){ console.error('votd:',e); if(!topicArg) toast(e.message||'Failed'); }
+    finally{
+      if(visibleBtn){ visibleBtn.disabled=false; visibleBtn.innerHTML=orig; }
     }
-    const btn=$('newsBtnLabel') ? $('newsBtnLabel').parentElement : null;
-    const orig = btn ? btn.innerHTML : '';
-    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Loading…'; }
-    try{
-      const raw = await AI.complete(
-        `Summarise 4-5 notable recent developments in echocardiography — guideline updates,
-new techniques, or shifts in practice that a board candidate should know.
-Only include developments you are confident are real and established; do not fabricate
-guideline names, dates, or study results. If unsure of an exact year, omit it.
-For each item, write a 2-3 sentence summary that explains both the change AND its
-clinical/exam implication.
-Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence summary with clinical implication","area":"topic area"}]}`,
-        {json:true, maxTokens:2000});
-      const n = extractJSON(raw);
-      S.vextras = S.vextras || {};
-      S.vextras.news = { items:(n.items||[]).slice(0,6), date:new Date().toISOString().slice(0,10) };
-      persist('vextras', S.vextras);
-      this.renderNews();
-      toast('Updates ready');
-    }catch(e){ console.error('news:',e); toast(e.message||'Failed'); }
-    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
   },
 
   renderVotd(){
     const v = S.vextras?.votd;
-    if(!v) return;
-    setText('votdBtnLabel','New video topic');
+    const genBtn = document.getElementById('votdGenBtn');
+    const refBtn = document.getElementById('votdRefreshBtn');
+    if(!v){
+      // no video yet — show the empty state and the big generate button
+      if(genBtn) genBtn.style.display='inline-flex';
+      if(refBtn) refBtn.style.display='none';
+      return;
+    }
+    if(genBtn) genBtn.style.display='none';
+    if(refBtn) refBtn.style.display='inline-flex';
+    setText('votdBtnLabel','New video');
+
     // build channel chips with the best-channel marked first
     const channels = ['Mayo ECHO 2024','123sonography','ASE','EACVI','Houston Methodist DeBakey','Boston Cardiac','The Echo Lady'];
     const best = v.best_channel || '';
@@ -2292,8 +2946,19 @@ Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence su
       ? [best, ...channels.filter(c=>c!==best)]
       : channels;
     const query = v.search || v.topic || '';
+    const today = new Date().toISOString().slice(0,10);
+    const syncedToTopic = v.topic_title
+      ? `<div class="votd-source">Synced to today's topic: <em>${escapeHTML(v.topic_title)}</em></div>`
+      : '';
+    const syncBlock = (Array.isArray(v.objective_sync) && v.objective_sync.length)
+      ? `<div class="votd-sync">
+          <div class="vs-label">How this video covers today's learning objectives</div>
+          <ul>${v.objective_sync.map(line=>`<li>${escapeHTML(line)}</li>`).join('')}</ul>
+        </div>`
+      : '';
+
     setHTML('votdBody', `
-      <span class="eyebrow">${v.date===new Date().toISOString().slice(0,10)?'Today':'Earlier'}</span>
+      <span class="eyebrow">${v.date===today?'Today':'Earlier'}</span>
       <h3 style="margin:5px 0 6px;font-size:16px;font-family:var(--font-display);">${escapeHTML(v.topic||'')}</h3>
       <p class="faint" style="margin-bottom:10px;font-size:13px;line-height:1.55;">${escapeHTML(v.why||'')}</p>
       ${best?`<div class="faint" style="font-size:12px;margin-bottom:8px;">Best taught by: <strong style="color:var(--accent);">${escapeHTML(best)}</strong></div>`:''}
@@ -2303,68 +2968,85 @@ Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence su
           return `<a class="chip${i===0&&best?' active':''}" target="_blank" rel="noopener" href="${link}">${i===0&&best?'★ ':''}${escapeHTML(c)}</a>`;
         }).join('')}
         <a class="chip" target="_blank" rel="noopener" href="${ytSearch(query+' echocardiography', '')}">All YouTube ↗</a>
-      </div>`);
-  },
-  renderNews(){
-    const n = S.vextras?.news;
-    if(!n) return;
-    setText('newsBtnLabel','Refresh updates');
-    setHTML('newsBody', `
-      <span class="eyebrow">${n.date===new Date().toISOString().slice(0,10)?'Updated today':'Earlier'}</span>
-      <div style="margin-top:8px;">
-        ${(n.items||[]).map(it=>`
-          <div class="news-item">
-            ${it.area?`<span class="ni-area">${escapeHTML(it.area)}</span>`:''}
-            <div class="ni-head">${escapeHTML(it.headline||'')}</div>
-            <div class="ni-body">${escapeHTML(it.detail||'')}</div>
-          </div>`).join('')}
       </div>
-      <div class="explain" style="margin-top:12px;font-size:12px;">
-        AI-generated summary — verify against primary guideline sources before relying on specifics.
-      </div>`);
+      ${syncBlock}
+      ${syncedToTopic}`);
   },
-  render(){ this.renderVotd(); this.renderNews(); }
+
+  render(){ this.renderVotd(); }
 };
 const Expert = {
+  /* Build the rich HTML for one Q&A entry. Tolerates both the new
+     structured schema and the older flat {answer,refs} schema. */
+  cardHTML(h){
+    const answerHTML = String(h.answer||'No answer returned.')
+      .split(/\n\s*\n/).map(p=>`<p style="font-size:14px;line-height:1.65;margin:0 0 10px;">${escapeHTML(p.trim())}</p>`).join('');
+    const kp = Array.isArray(h.key_points) ? h.key_points : [];
+    const pf = Array.isArray(h.pitfalls)   ? h.pitfalls   : [];
+    const ev = Array.isArray(h.recent_evidence) ? h.recent_evidence : [];
+    const refs = Array.isArray(h.refs) ? h.refs
+               : Array.isArray(h.references) ? h.references : [];
+    return `
+      <div class="eyebrow">Your question</div>
+      <p style="font-weight:500;margin:6px 0 14px;">${escapeHTML(h.q)}</p>
+      <div class="eyebrow" style="color:var(--text-dim);">Expert answer</div>
+      <div class="rich" style="margin-top:8px;">
+        ${answerHTML}
+        ${kp.length?`<h4>Key points</h4><ul>${kp.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul>`:''}
+        ${pf.length?`<div class="pitfalls"><strong>⚠ Pitfalls</strong>
+          <ul>${pf.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul></div>`:''}
+        ${ev.length?`<div class="evidence-block">
+          <div class="ev-label">📈 Recent evidence &amp; trials</div>
+          <ul>${ev.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul>
+        </div>`:''}
+      </div>
+      ${refs.length?`<div class="explain" style="margin-top:12px;">
+        <strong>References</strong>
+        <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;">
+          ${refs.map(r=>`<li style="margin-bottom:3px;">${escapeHTML(r)}</li>`).join('')}
+        </ul>
+        <div style="margin-top:6px;color:var(--text-faint);font-size:11.5px;">
+          Anchored on the EACVI Echo Handbook (Lancellotti &amp; Cosyns, OUP 2016) and the latest ASE / EACVI guidelines.
+        </div></div>`:''}
+      <div class="faint" style="margin-top:8px;font-size:11.5px;">
+        AI answer — confirm against the source guideline for clinical decisions.
+      </div>`;
+  },
+
   async ask(){
     const q = document.getElementById('expertQ').value.trim();
     if(!q){ toast('Type a question first'); return; }
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+      toast('Add a Claude API key in Settings first'); App.go('settings'); return;
     }
     const btn = document.querySelector('#view-expert .btn-primary');
     const orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Thinking…';
     const thread = document.getElementById('expertThread');
-    // optimistic question card
     const pendId = 'pend'+Date.now();
     thread.insertAdjacentHTML('afterbegin', `
       <div class="card" id="${pendId}">
         <div class="eyebrow">Your question</div>
-        <p style="font-weight:500;margin:6px 0 10px;">${q}</p>
+        <p style="font-weight:500;margin:6px 0 10px;">${escapeHTML(q)}</p>
         <div style="display:flex;align-items:center;gap:9px;" class="faint">
           <span class="spinner"></span> Consulting…
         </div>
       </div>`);
     try{
-      const raw = await AI.complete(buildExpertPrompt(q), {json:true});
+      const raw = await AI.complete(buildExpertPrompt(q), {json:true, maxTokens:2600});
       const a = extractJSON(raw);
-      const answer = a.answer || 'No answer returned.';
-      const refs = Array.isArray(a.references) ? a.references : [];
+      const entry = {
+        id:Date.now(), q,
+        answer: a.answer || 'No answer returned.',
+        key_points: Array.isArray(a.key_points) ? a.key_points : [],
+        pitfalls:   Array.isArray(a.pitfalls)   ? a.pitfalls   : [],
+        recent_evidence: Array.isArray(a.recent_evidence) ? a.recent_evidence : [],
+        refs:       Array.isArray(a.references) ? a.references : []
+      };
       const card = document.getElementById(pendId);
-      card.innerHTML = `
-        <div class="eyebrow">Your question</div>
-        <p style="font-weight:500;margin:6px 0 12px;">${q}</p>
-        <div class="eyebrow" style="color:var(--text-dim);">Expert answer</div>
-        <div style="font-size:14px;line-height:1.6;margin:6px 0 12px;white-space:pre-wrap;">${answer}</div>
-        ${refs.length?`<div class="explain" style="margin-top:0;">
-          <strong>References</strong>
-          <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;">
-            ${refs.map(r=>`<li style="margin-bottom:3px;">${r}</li>`).join('')}
-          </ul></div>`:''}`;
-      // persist to thread history
+      if(card) card.innerHTML = this.cardHTML(entry);
       S.expert = S.expert || [];
-      S.expert.unshift({ id:Date.now(), q, answer, refs });
+      S.expert.unshift(entry);
       if(S.expert.length>100) S.expert.pop();
       persist('expert', S.expert);
       document.getElementById('expertQ').value='';
@@ -2372,8 +3054,10 @@ const Expert = {
     }catch(e){
       console.error('expert ask:', e);
       const card = document.getElementById(pendId);
-      if(card) card.querySelector('.faint').innerHTML =
-        `<span style="color:var(--bad);">${e.message||'Failed — try again'}</span>`;
+      if(card){
+        const f = card.querySelector('.faint');
+        if(f) f.innerHTML = `<span style="color:var(--bad);">${escapeHTML(e.message||'Failed — try again')}</span>`;
+      }
       toast(e.message || 'Failed');
     }finally{
       btn.disabled = false; btn.innerHTML = orig;
@@ -2390,18 +3074,7 @@ const Expert = {
         <div>No questions yet. Ask anything about echo — answers cite guidelines.</div></div>`;
       return;
     }
-    thread.innerHTML = hist.map(h=>`
-      <div class="card">
-        <div class="eyebrow">Your question</div>
-        <p style="font-weight:500;margin:6px 0 12px;">${h.q}</p>
-        <div class="eyebrow" style="color:var(--text-dim);">Expert answer</div>
-        <div style="font-size:14px;line-height:1.6;margin:6px 0 12px;white-space:pre-wrap;">${h.answer}</div>
-        ${(h.refs&&h.refs.length)?`<div class="explain" style="margin-top:0;">
-          <strong>References</strong>
-          <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;">
-            ${h.refs.map(r=>`<li style="margin-bottom:3px;">${r}</li>`).join('')}
-          </ul></div>`:''}
-      </div>`).join('');
+    thread.innerHTML = hist.map(h=>`<div class="card">${this.cardHTML(h)}</div>`).join('');
   }
 };
 
@@ -2458,48 +3131,78 @@ const Weak = {
 /* ---- prompt builders for daily topic & scenario ----------- */
 function buildTopicPrompt(weakName){
   const focus = weakName
-    ? `Choose a focused subtopic within or strongly related to the user's current weak area: "${weakName}". Pick something specific (e.g. a single measurement, a single comparison, a single technique) — not the whole domain.`
-    : `Choose ONE specific, focused high-yield echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title (e.g. "Diastolic function") — pick something narrower (e.g. "Grading diastolic dysfunction by the 2025 ASE algorithm" or "Differentiating constrictive pericarditis from restrictive cardiomyopathy").`;
+    ? `Choose a focused subtopic within or strongly related to the user's current weak area: "${weakName}". Pick something specific (a single measurement, a single comparison, a single technique, a single syndrome) — not the whole domain.`
+    : `Choose ONE specific, focused high-yield echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title (e.g. "Diastolic function") — pick something narrower (e.g. "Grading diastolic dysfunction by the 2025 ASE algorithm" or "Low-flow low-gradient AS with preserved EF — paradoxical AS").`;
 
-  return `Produce a deep, board-level teaching brief — written like a textbook chapter section that a fellow could study from in one short session.
+  return `You are a senior consultant echocardiographer writing the "Topic of the Day" for a board-prep app used by cardiology fellows and consultants. This is the central daily learning entry — it must be SELF-CONTAINED, COMPREHENSIVE, and at EXPERT level. Treat this single card the way a chapter section of a top echo handbook would treat the topic.
+
 ${focus}
 
-The brief MUST be substantive and specific, not a superficial overview. It should include actual numerical cutoffs, methodology details, named criteria/algorithms, and concrete pitfalls — not generic statements like "use Doppler" or "look at the LV". Write at the level of a board examiner explaining the topic to a senior fellow.
+SOURCING & DEPTH REQUIREMENTS (non-negotiable):
+- Anchor the bedside framework in the EACVI Echo Handbook (Lancellotti P, Cosyns B, eds; OUP, 2016) — its style of concise, structured bedside reference is the baseline tone. You may reference the Handbook explicitly in the "sources" field.
+- Layer in the MOST RECENT relevant guideline. Examples (use the right one for the topic):
+   * Diastolic function / HFpEF -> 2025 ASE update (Nagueh et al., JASE 2025; 38(7):537-569). Three primary variables (e' velocity, E/e', TR velocity); LA reservoir strain (LARS) <=18% as tiebreaker; LAVI >34 mL/m^2; supplementary criteria (pulmonary vein S/D <=0.67, IVRT <=70 ms). Phenotype-specific algorithms (AF, MAC, valve disease, heart transplant, PH). Do NOT use the 2016 tiered E/e' cutoffs.
+   * Right heart / pulmonary hypertension -> 2025 ASE right-heart guideline.
+   * Strain echo -> 2025 ASE/EACVI clinical consensus on strain (Sept 2025 JASE).
+   * Echo reporting -> 2025 ASE adult echo reporting standardization (July 2025 JASE).
+   * Valve disease severity -> 2021 ESC/EACTS valvular heart disease guidelines + EACVI recommendations.
+   * Cardiomyopathies -> 2023 ESC cardiomyopathy guidelines.
+- Where current evidence has shifted practice, name the trial or registry (e.g. EARLY-TAVR, PARTNER 3, RESHAPE-HF2, DanGer Shock, PROTECTED-TAVR) WITHOUT fabricating numbers. If unsure of a specific result, describe the direction of evidence qualitatively rather than inventing.
 
-CURRENT-GUIDELINE CRITICAL RULES:
-- Use the CURRENT cutoffs from the most up-to-date guideline. For diastolic function, use the 2025 ASE update (Nagueh et al. JASE 2025) — not the 2016 schema. Specifically, do NOT output the old "E/e' <8 normal, 9-12 mild, 13-15 moderate, >15 severe" tiered cutoffs; that schema is outdated.
-- For each numeric cutoff you give, you must be confident it reflects current guideline practice. If unsure, name the parameter and the qualitative threshold direction rather than fabricating a number.
-- If the topic involves a domain with a recent (2023-2025) guideline update, mention that in the "guideline_note" field so the user knows to read the newest version.
+DEPTH FLOOR:
+- Every numeric cutoff must reflect CURRENT guideline practice. If you are not confident in an exact number, give the parameter and the qualitative direction, NOT a fabricated number.
+- Methodology must be concrete and acquisition-aware (e.g. "PW Doppler sample volume 1-3 mm at the leaflet tips, sweep 50-100 mm/s, align with inflow" — not "use Doppler").
+- Pitfalls must explain WHY they mislead, not just name them.
+- Exam pearls must reflect how a board examiner would actually phrase a question stem.
 
 Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
 {
-  "title": "specific, focused topic name (5-12 words, not a broad domain)",
-  "background": "2-3 sentence clinical context — why this matters at the bedside and on the exam",
+  "title": "specific, focused topic name (5-14 words, not a broad domain)",
+  "background": "3-4 sentences of clinical context — why this matters at the bedside AND on the exam, with the disease prevalence or clinical setting where it appears",
+  "learning_objectives": [
+    "specific, measurable learning objective starting with an action verb (Acquire, Classify, Apply, Differentiate, Estimate, Recognise, Integrate)",
+    "next objective",
+    "aim for 4-6 objectives that together cover acquisition technique, interpretation, current algorithm/grading, special-population deviations, and clinical translation"
+  ],
   "key_measurements": [
-    {"name": "named measurement or criterion", "value": "actual current cutoff/range with units", "note": "brief note on how it's obtained or what it means"}
+    {"name": "named measurement or criterion", "value": "actual current cutoff/range with units", "note": "brief note on how it is obtained, why it matters, and the source guideline if recently updated"}
   ],
   "methodology": [
-    "concrete, ordered, actionable step describing how to perform the measurement or apply the algorithm",
+    "concrete, ordered, acquisition-aware step (probe position, sample volume placement, sweep speed, alignment, averaging conventions)",
     "next step",
-    "next step (aim for 4-6 steps total)"
+    "next step (aim for 5-8 steps total)"
   ],
-  "pearls": [
-    "specific clinical or technical pearl — must be concrete and non-obvious",
-    "another pearl",
-    "another pearl (aim for 3-5 pearls)"
-  ],
-  "pitfalls": [
-    "specific mistake or trap with WHY it leads to wrong interpretation",
-    "another pitfall (aim for 3-5 pitfalls)"
+  "algorithm_steps": [
+    "if the topic involves an algorithm or grading scheme, give the decision path as ordered steps with the exact threshold at each branch; omit this field with an empty array if not applicable",
+    "next branch"
   ],
   "differentiating_features": [
-    "if relevant: how to tell this entity/finding from its main mimic — name the mimic and the discriminator (omit this field if not applicable)"
+    "if relevant: how to tell this entity/finding from its main mimic — name the mimic and the discriminator with the actual parameter that distinguishes them (omit with empty array if not applicable)"
+  ],
+  "special_populations": [
+    "if the standard approach changes in a defined population (AF, MAC, valve disease, heart transplant, pulmonary hypertension, athletes, paediatrics) — name the population and the specific deviation. Omit with empty array if not applicable."
+  ],
+  "pearls": [
+    "specific, non-obvious clinical or technical pearl that a senior consultant would mention",
+    "another pearl (aim for 4-6 pearls)"
+  ],
+  "pitfalls": [
+    "specific mistake or trap with WHY it leads to wrong interpretation and how to avoid it",
+    "another pitfall (aim for 4-6 pitfalls)"
+  ],
+  "recent_evidence": [
+    "one piece of post-2023 evidence, trial, registry, or guideline update RELEVANT to this exact topic — name it, give the direction of its finding (without fabricating numbers), and explain how it changes practice. Aim for 2-4 items. Use empty array only if you genuinely cannot recall any reliable item."
   ],
   "exam_pearls": [
-    "what the board examiners specifically test on this topic — likely question stems, classic distractors, must-know associations"
+    "what the board examiners specifically test on this topic — likely question stems, classic distractors, must-know associations and named criteria/eponyms",
+    "another exam pearl (aim for 3-5 items)"
   ],
-  "guideline_note": "if the topic has had a recent guideline update (2023-2025), name the updated guideline and what changed; otherwise leave as empty string",
-  "reference": "the guideline/source supporting this — name the issuing body, year if confident, and subject (e.g. 'ASE 2025 update on diastolic function assessment, Nagueh et al. JASE'). Do NOT fabricate figure or page numbers."
+  "guideline_note": "if the topic has had a recent (2023-2025) guideline update, name the updated guideline, the lead author/issuing body, the year, and WHAT specifically changed. Empty string only if genuinely unchanged.",
+  "sources": [
+    "EACVI Echo Handbook (Lancellotti & Cosyns, OUP 2016) — relevant chapter if applicable",
+    "the most recent guideline that anchors current practice (issuing body, year, lead author if known)",
+    "any other primary references (society consensus, landmark trial). Do NOT fabricate page numbers, figure numbers, or DOIs."
+  ]
 }`;
 }
 function buildScenarioPrompt(weakName){
@@ -2602,6 +3305,15 @@ const Today = {
 
     // Build sections in order; tolerate missing fields and tolerate older (flat) schema
     const sections = [];
+
+    // Learning objectives — first-class, callout style
+    if(Array.isArray(t.learning_objectives) && t.learning_objectives.length){
+      sections.push(`<div class="lo-block">
+        <div class="lo-label">Learning objectives</div>
+        <ol class="lo-list">${t.learning_objectives.map(o=>`<li>${escapeHTML(o)}</li>`).join('')}</ol>
+      </div>`);
+    }
+
     if(t.background || t.summary){
       sections.push(`<h4>Background</h4><p>${escapeHTML(t.background || t.summary)}</p>`);
     }
@@ -2614,11 +3326,19 @@ const Today = {
     }
     if(Array.isArray(t.methodology) && t.methodology.length){
       sections.push(`<h4>How to perform / apply</h4>
-        <ul>${t.methodology.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
+        <ol class="ord">${t.methodology.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ol>`);
+    }
+    if(Array.isArray(t.algorithm_steps) && t.algorithm_steps.length){
+      sections.push(`<h4>Algorithm — step by step</h4>
+        <ol class="ord algo">${t.algorithm_steps.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ol>`);
     }
     if(Array.isArray(t.differentiating_features) && t.differentiating_features.length){
       sections.push(`<h4>How to differentiate</h4>
         <ul>${t.differentiating_features.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
+    }
+    if(Array.isArray(t.special_populations) && t.special_populations.length){
+      sections.push(`<h4>Special populations &amp; deviations</h4>
+        <ul>${t.special_populations.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
     }
     if(Array.isArray(t.pitfalls) && t.pitfalls.length){
       sections.push(`<div class="pitfalls"><strong>⚠ Pitfalls</strong>
@@ -2627,6 +3347,12 @@ const Today = {
     if(Array.isArray(t.pearls) && t.pearls.length){
       sections.push(`<div class="pearls"><strong>★ Clinical pearls</strong>
         <ul>${t.pearls.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul></div>`);
+    }
+    if(Array.isArray(t.recent_evidence) && t.recent_evidence.length){
+      sections.push(`<div class="evidence-block">
+        <div class="ev-label">📈 Recent evidence &amp; trials</div>
+        <ul>${t.recent_evidence.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>
+      </div>`);
     }
     if(Array.isArray(t.exam_pearls) && t.exam_pearls.length){
       sections.push(`<h4>Exam focus</h4>
@@ -2638,6 +3364,11 @@ const Today = {
         <ul>${t.key_points.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
     }
 
+    // Sources block — accept either the new `sources` array OR the legacy single `reference` string
+    const sourcesList = Array.isArray(t.sources) && t.sources.length
+      ? t.sources
+      : (t.reference ? [t.reference] : []);
+
     body.innerHTML = `
       ${datebadge}
       <h3 style="font-family:var(--font-display);font-weight:600;font-size:20px;margin:6px 0 14px;letter-spacing:-.01em;">${escapeHTML(t.title||'Topic')}</h3>
@@ -2646,10 +3377,20 @@ const Today = {
         <p>${escapeHTML(t.guideline_note)}</p>
       </div>`:''}
       <div class="rich">${sections.join('')}</div>
-      ${t.reference?`<div class="explain" style="margin-top:14px;font-size:12.5px;">
-        <strong>Reference:</strong> ${escapeHTML(t.reference)}
-        <div style="margin-top:5px;color:var(--text-faint);">AI-generated — verify cutoffs against the current source guideline. Recent ASE updates: 2025 diastolic function, 2025 right-heart.</div>
+      ${sourcesList.length?`<div class="explain" style="margin-top:14px;font-size:12.5px;">
+        <strong>Sources:</strong>
+        <ul style="margin:6px 0 0 18px;padding:0;">${sourcesList.map(s=>`<li style="margin-bottom:3px;">${escapeHTML(s)}</li>`).join('')}</ul>
+        <div style="margin-top:8px;color:var(--text-faint);">Anchored on the EACVI Echo Handbook (Lancellotti &amp; Cosyns, OUP 2016) and the latest ASE / EACVI guidelines. AI-generated — verify cutoffs against the primary source.</div>
       </div>`:''}`;
+
+    // Auto-sync the Video of the Day to this topic + objectives
+    // (only if we have AI access and either no synced video yet or the synced
+    //  one is from a different topic / older date)
+    try{
+      if(typeof VideoExtras !== 'undefined' && VideoExtras.maybeAutoSync){
+        VideoExtras.maybeAutoSync(t);
+      }
+    }catch(e){ /* non-fatal */ }
   },
   renderScenario(){
     const s = S.today?.scenario;
