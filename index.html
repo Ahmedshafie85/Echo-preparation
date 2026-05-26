@@ -27,8 +27,11 @@
 :root{
   --font-display:'Fraunces',Georgia,serif;
   --font-body:'Inter',-apple-system,system-ui,sans-serif;
-  --radius:18px; --radius-sm:12px;
+  --radius:18px; --radius-sm:12px; --radius-lg:24px;
   --ease:cubic-bezier(.22,.61,.36,1);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.08);
+  --shadow-md:0 4px 14px -4px rgba(0,0,0,.18);
+  --shadow-lg:0 18px 40px -16px rgba(0,0,0,.32);
 }
 /* NIGHT — warm charcoal base, warm off-white text (no pure black/white,
    slightly desaturated teal so the accent doesn't vibrate on dark). */
@@ -283,6 +286,174 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .tracktag{font-size:10px;padding:2px 7px;border-radius:5px;font-weight:700;letter-spacing:.04em;}
 .tracktag.eacvi{background:rgba(96,165,250,.16);color:var(--info);}
 .tracktag.ascexam{background:rgba(251,191,36,.16);color:var(--warn);}
+
+/* ---------- Rich content blocks (topic, scenario, expert) ---------- */
+.rich h4{
+  font-family:var(--font-display);font-weight:600;font-size:14px;
+  color:var(--accent);letter-spacing:.01em;margin:18px 0 8px;
+  display:flex;align-items:center;gap:8px;
+}
+.rich h4::before{
+  content:"";width:4px;height:14px;border-radius:2px;background:var(--accent);
+  display:inline-block;
+}
+.rich h4:first-child{margin-top:0;}
+.rich p{font-size:14px;line-height:1.65;margin-bottom:10px;color:var(--text);}
+.rich ul{margin:0 0 10px 0;padding-left:0;list-style:none;}
+.rich ul li{
+  font-size:13.5px;line-height:1.6;padding:6px 0 6px 22px;
+  position:relative;
+}
+.rich ul li::before{
+  content:"";position:absolute;left:6px;top:14px;
+  width:6px;height:6px;border-radius:50%;background:var(--accent);
+}
+.rich .kv{
+  display:grid;grid-template-columns:auto 1fr;gap:6px 14px;
+  background:var(--bg-2);border:1px solid var(--line);
+  border-radius:var(--radius-sm);padding:12px 14px;margin:0 0 12px;
+  font-size:13px;
+}
+.rich .kv dt{font-weight:600;color:var(--text-dim);white-space:nowrap;}
+.rich .kv dd{margin:0;color:var(--text);}
+.rich .pearls{
+  background:linear-gradient(135deg,var(--accent-soft),transparent);
+  border-left:3px solid var(--accent);
+  border-radius:var(--radius-sm);padding:12px 14px;margin:4px 0 12px;
+}
+.rich .pearls strong{color:var(--accent);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;display:block;margin-bottom:6px;}
+.rich .pearls p,.rich .pearls li{font-size:13px;line-height:1.55;}
+.rich .pitfalls{
+  background:rgba(224,177,92,.08);
+  border-left:3px solid var(--warn);
+  border-radius:var(--radius-sm);padding:12px 14px;margin:4px 0 12px;
+}
+.rich .pitfalls strong{color:var(--warn);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;display:block;margin-bottom:6px;}
+.rich .pitfalls li::before{background:var(--warn);}
+
+/* ---------- Video library — channel grid + curated topic cards ---------- */
+.channel-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;
+}
+.channel-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:14px;display:flex;flex-direction:column;gap:6px;
+  transition:.18s var(--ease);
+}
+.channel-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.channel-card .ch-name{font-weight:600;font-size:13.5px;line-height:1.3;}
+.channel-card .ch-note{font-size:12px;color:var(--text-dim);line-height:1.5;flex:1;}
+.channel-card .ch-foot{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+.channel-card .ch-tag{
+  font-size:10px;padding:2px 7px;border-radius:5px;font-weight:600;
+  background:var(--accent-soft);color:var(--accent);letter-spacing:.04em;text-transform:uppercase;
+}
+.channel-card a{font-size:12px;color:var(--accent);font-weight:600;text-decoration:none;}
+.channel-card a:hover{text-decoration:underline;}
+
+.topic-pill{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--bg-2);border:1px solid var(--line);
+  margin-bottom:6px;transition:.15s var(--ease);cursor:pointer;
+}
+.topic-pill:hover{border-color:var(--accent);background:var(--accent-soft);}
+.topic-pill .tp-name{font-size:13px;font-weight:500;}
+.topic-pill .tp-go{
+  font-size:11px;color:var(--accent);font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+
+.domain-section{margin-bottom:18px;}
+.domain-section .ds-head{
+  font-family:var(--font-display);font-weight:600;font-size:14px;
+  margin:0 0 8px 4px;color:var(--text);
+  display:flex;align-items:center;gap:8px;
+}
+.domain-section .ds-head::after{
+  content:"";flex:1;height:1px;background:var(--line);
+}
+
+/* ---------- News/list items ---------- */
+.news-item{
+  padding:12px 0;border-bottom:1px solid var(--line);
+}
+.news-item:last-child{border-bottom:none;padding-bottom:0;}
+.news-item .ni-head{
+  font-weight:600;font-size:14px;line-height:1.35;margin-bottom:3px;
+}
+.news-item .ni-area{
+  display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;
+  background:var(--accent-soft);color:var(--accent);font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;
+}
+.news-item .ni-body{font-size:13px;line-height:1.6;color:var(--text);}
+
+/* ---------- Compact hero stats — moved inline ---------- */
+.statbar{
+  display:flex;gap:10px;margin:14px 0 6px;flex-wrap:wrap;
+}
+.statbar .stat{
+  flex:1;min-width:90px;
+  background:var(--bg-2);border:1px solid var(--line);
+  border-radius:var(--radius-sm);padding:10px 12px;
+}
+.statbar .stat-num{font-family:var(--font-display);font-size:20px;font-weight:600;line-height:1.1;}
+.statbar .stat-label{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+
+/* ---------- Greeting hero ---------- */
+.greet{
+  padding:22px 22px 18px;
+  background:
+    radial-gradient(circle at 100% 0%,var(--accent-soft),transparent 70%),
+    linear-gradient(180deg,var(--surface),var(--bg-2));
+  border:1px solid var(--line-strong);border-radius:var(--radius-lg);
+  position:relative;overflow:hidden;margin-bottom:6px;
+}
+.greet .greet-date{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;
+}
+.greet h1{
+  font-family:var(--font-display);font-weight:600;font-size:26px;
+  margin:4px 0 2px;letter-spacing:-.015em;
+}
+.greet .greet-sub{
+  font-size:13.5px;color:var(--text-dim);
+}
+
+/* ---------- Section title refinement ---------- */
+.section-title{
+  display:flex;align-items:center;gap:10px;margin:24px 4px 12px;
+}
+.section-title h2{font-size:19px;font-family:var(--font-display);font-weight:600;letter-spacing:-.01em;}
+.section-title .grow{flex:1;}
+
+/* ---------- Refresh ghost button ---------- */
+.btn-refresh{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 11px;border-radius:9px;font-size:12px;font-weight:600;
+  background:transparent;border:1px solid var(--line);color:var(--text-dim);
+  transition:.15s var(--ease);
+}
+.btn-refresh:hover{border-color:var(--accent);color:var(--accent);}
+.btn-refresh svg{width:13px;height:13px;}
+
+/* ---------- Tabs ---------- */
+.tabs{
+  display:flex;gap:4px;padding:4px;border-radius:12px;
+  background:var(--bg-2);border:1px solid var(--line);
+  margin-bottom:14px;
+}
+.tabs button{
+  flex:1;padding:8px 10px;border-radius:9px;font-size:12.5px;font-weight:600;
+  color:var(--text-dim);transition:.15s var(--ease);
+}
+.tabs button.active{background:var(--surface-solid);color:var(--text);box-shadow:var(--shadow-sm);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;animation:fade .25s var(--ease);}
 </style>
 </head>
 <body>
@@ -311,20 +482,39 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
   <!-- ===================== DASHBOARD ===================== -->
   <section class="view active" id="view-home">
-    <div class="card hero">
-      <div class="eyebrow">Today · <span id="todayDate"></span></div>
-      <h2 style="font-size:23px;margin-top:4px;">Good study, Dr. Ahmed</h2>
-      <p class="muted" style="font-size:13.5px;margin-top:3px;">
-        <span id="examCountdown">Set your exam date in Settings</span>
-      </p>
-      <div class="hero-grid">
+    <div class="greet">
+      <div class="greet-date">Today · <span id="todayDate"></span></div>
+      <h1>Good study, Dr. Ahmed</h1>
+      <div class="greet-sub" id="examCountdown">Set your exam date in Settings</div>
+      <div class="statbar">
         <div class="stat"><div class="stat-num" id="stStreak">0<span class="unit"> d</span></div><div class="stat-label">Streak</div></div>
         <div class="stat"><div class="stat-num" id="stMcq">0</div><div class="stat-label">MCQs done</div></div>
         <div class="stat"><div class="stat-num" id="stAcc">—<span class="unit">%</span></div><div class="stat-label">Accuracy</div></div>
       </div>
     </div>
 
-    <!-- TODAY'S TASKS — synced with study plan -->
+    <!-- DAILY TOPIC -->
+    <div class="section-title">
+      <h2>Topic of the day</h2><span class="badge-ai">⚡ AI</span>
+      <span class="grow"></span>
+      <button class="btn-refresh" id="topicRefreshBtn" onclick="Today.loadTopic()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        New topic
+      </button>
+    </div>
+    <div class="card" id="dailyTopicCard">
+      <div class="empty" id="dailyTopicEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14v7"/></svg>
+        <div>A high-yield, deep-dive teaching brief — measurements, methodology, pearls, pitfalls.</div>
+      </div>
+      <div id="dailyTopicBody" style="display:none;"></div>
+      <button class="btn btn-primary btn-block" id="topicGenBtn" style="margin-top:12px;" onclick="Today.loadTopic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
+        <span id="topicBtnLabel">Generate today's topic</span>
+      </button>
+    </div>
+
+    <!-- TODAY'S TASKS -->
     <div class="section-title"><h2>Today's tasks</h2><span class="faint" id="taskProgress"></span></div>
     <div class="card">
       <div id="planTaskHint" class="faint" style="margin-bottom:8px;display:none;"></div>
@@ -335,30 +525,23 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </button>
     </div>
 
-    <!-- DAILY TOPIC -->
-    <div class="section-title"><h2>Topic of the day</h2><span class="badge-ai">⚡ AI</span></div>
-    <div class="card" id="dailyTopicCard">
-      <div class="empty" id="dailyTopicEmpty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14v7"/></svg>
-        <div>Tap below for today's focused echo topic.</div>
-      </div>
-      <div id="dailyTopicBody" style="display:none;"></div>
-      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="Today.loadTopic()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-        <span id="topicBtnLabel">Generate today's topic</span>
+    <!-- CLINICAL SCENARIO -->
+    <div class="section-title">
+      <h2>Clinical scenario</h2><span class="badge-ai">⚡ AI</span>
+      <span class="grow"></span>
+      <button class="btn-refresh" id="scenarioRefreshBtn" onclick="Today.loadScenario()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        New scenario
       </button>
     </div>
-
-    <!-- CLINICAL SCENARIO -->
-    <div class="section-title"><h2>Clinical scenario</h2><span class="badge-ai">⚡ AI</span></div>
     <div class="card" id="scenarioCard">
       <div class="empty" id="scenarioEmpty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>
-        <div>An echo-based clinical case with MCQs, on current guidelines.</div>
+        <div>A clinical vignette with two board-style MCQs anchored in current guidelines.</div>
       </div>
       <div id="scenarioBody" style="display:none;"></div>
-      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="Today.loadScenario()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+      <button class="btn btn-primary btn-block" id="scenarioGenBtn" style="margin-top:12px;" onclick="Today.loadScenario()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
         <span id="scenarioBtnLabel">Generate a scenario</span>
       </button>
     </div>
@@ -483,64 +666,80 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
   <!-- ===================== VIDEO LIBRARY ===================== -->
   <section class="view" id="view-video">
-    <div class="section-title"><h2>Echo video library</h2></div>
+    <div class="section-title"><h2>Echo learning library</h2></div>
 
-    <!-- Video of the day -->
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>Video of the day</h3><span class="badge-ai">⚡ AI</span></div>
-      <div id="votdBody"><div class="empty" style="padding:18px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 8l6 4-6 4z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
-        <div>A high-yield topic to watch today, with the best channels to find it.</div></div></div>
-      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-        <span id="votdBtnLabel">Pick today's video topic</span>
-      </button>
+    <div class="tabs">
+      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Learn</button>
+      <button data-vtab="channels" onclick="VideoView.tab('channels')">Channels</button>
+      <button data-vtab="news" onclick="VideoView.tab('news')">News</button>
+      <button data-vtab="saved" onclick="VideoView.tab('saved')">Saved</button>
     </div>
 
-    <!-- Echo news -->
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>What's new in echo</h3><span class="badge-ai">⚡ AI</span></div>
-      <div id="newsBody"><div class="empty" style="padding:18px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
-        <div>Recent developments in echocardiography guidelines and practice.</div></div></div>
-      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadNews()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-        <span id="newsBtnLabel">Get echo updates</span>
-      </button>
-    </div>
+    <!-- TAB: Learn — curated topic-by-domain library with best-channel pointers -->
+    <div class="tab-panel active" id="vtab-learn">
 
-    <!-- Premium curated channels -->
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>Top echo channels</h3><span class="faint">Verified sources</span></div>
-      <p class="faint" style="margin-bottom:12px;">
-        Hand-picked, real channels used by cardiology fellows worldwide — society
-        channels, leading courses, case libraries, and Mayo Clinic.
-      </p>
-      <div class="stack" id="channelList"></div>
-    </div>
-
-    <!-- Topic search across the library -->
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>Find a topic</h3></div>
-      <div class="field"><label>Search the major channels for a topic</label>
-        <input id="vidTopic" placeholder="e.g. PISA mitral regurgitation">
+      <!-- Pick of the day -->
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head">
+          <h3>Pick of the day</h3><span class="badge-ai">⚡ AI</span>
+        </div>
+        <div id="votdBody"><div class="empty" style="padding:18px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 8l6 4-6 4z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
+          <div>A high-yield topic to watch today, with the best teaching sources.</div></div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
+          <span id="votdBtnLabel">Pick today's video topic</span>
+        </button>
       </div>
-      <div class="chip-row" id="vidTopicResults"></div>
+
+      <!-- Curated by domain -->
+      <div class="section-title" style="margin-top:8px;">
+        <h2 style="font-size:17px;">By domain · curated</h2>
+        <span class="faint">Tap to open the best teaching for that topic</span>
+      </div>
+      <div id="curatedList"><!-- rendered --></div>
     </div>
 
-    <!-- My saved -->
-    <div class="section-title"><h2 style="font-size:18px;">My saved videos</h2></div>
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>Add a video link</h3></div>
-      <div class="field"><label>Title</label><input id="vidTitle" placeholder="e.g. PISA method for MR quantification"></div>
-      <div class="split">
-        <div class="field"><label>URL</label><input id="vidUrl" placeholder="https://youtube.com/..."></div>
-        <div class="field"><label>Domain</label><select id="vidDomain"></select></div>
+    <!-- TAB: Channels — trusted sources grid -->
+    <div class="tab-panel" id="vtab-channels">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head"><h3>Trusted echo channels</h3><span class="faint">Verified sources</span></div>
+        <p class="faint" style="margin-bottom:14px;">
+          Hand-picked, real channels used by cardiology fellows worldwide — society
+          channels, leading courses, case libraries, and Mayo Clinic teaching.
+        </p>
+        <div class="channel-grid" id="channelList"></div>
       </div>
-      <button class="btn btn-primary btn-block" onclick="Videos.add()">Save video</button>
     </div>
-    <div class="chip-row" id="vidFilter" style="margin-bottom:12px;"></div>
-    <div class="stack" id="vidList"></div>
+
+    <!-- TAB: News -->
+    <div class="tab-panel" id="vtab-news">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head"><h3>What's new in echo</h3><span class="badge-ai">⚡ AI</span></div>
+        <div id="newsBody"><div class="empty" style="padding:18px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
+          <div>Recent developments in echocardiography guidelines and practice.</div></div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadNews()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+          <span id="newsBtnLabel">Get echo updates</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: Saved + add own -->
+    <div class="tab-panel" id="vtab-saved">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head"><h3>Add a video link</h3></div>
+        <div class="field"><label>Title</label><input id="vidTitle" placeholder="e.g. PISA method for MR quantification"></div>
+        <div class="split">
+          <div class="field"><label>URL</label><input id="vidUrl" placeholder="https://youtube.com/..."></div>
+          <div class="field"><label>Domain</label><select id="vidDomain"></select></div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="Videos.add()">Save video</button>
+      </div>
+      <div class="chip-row" id="vidFilter" style="margin-bottom:12px;"></div>
+      <div class="stack" id="vidList"></div>
+    </div>
   </section>
 
   <!-- ===================== MCQ BANK ===================== -->
@@ -583,6 +782,19 @@ input,select,textarea{font-family:inherit;font-size:14px;}
           <option value="meta-llama/llama-4-scout-17b-16e-instruct">llama-4-scout (newer, faster)</option>
           <option value="meta-llama/llama-4-maverick-17b-128e-instruct">llama-4-maverick (newer, larger)</option>
           <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (fastest, weaker)</option>
+        </select>
+      </div>
+      <div class="field"><label>Anthropic model</label>
+        <select id="setAnthropicModel">
+          <option value="claude-opus-4-7">claude-opus-4-7 (best quality — recommended for medical depth)</option>
+          <option value="claude-sonnet-4-6">claude-sonnet-4-6 (fast, very capable)</option>
+          <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (cheapest, fastest)</option>
+        </select>
+      </div>
+      <div class="field"><label>Preferred backend</label>
+        <select id="setPreferred">
+          <option value="groq">Groq first, Anthropic fallback (default — fastest, free tier)</option>
+          <option value="anthropic">Anthropic first, Groq fallback (higher quality content)</option>
         </select>
       </div>
     </div>
@@ -759,7 +971,8 @@ const App = {
     document.documentElement.setAttribute('data-theme', S.theme);
     this.updateThemeIcon();
     this.syncThemeColor();
-    document.getElementById('todayDate').textContent =
+    const td = document.getElementById('todayDate');
+    if(td) td.textContent =
       new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'});
     this.initFirebase();
     this.loadSettings();
@@ -790,11 +1003,15 @@ const App = {
     S.view = view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     const map = {bank:'view-bank'};
-    document.getElementById(map[view] || 'view-'+view).classList.add('active');
+    const target = document.getElementById(map[view] || 'view-'+view);
+    if(target) target.classList.add('active');
     document.querySelectorAll('.navitem').forEach(n=>{
       n.classList.toggle('active', n.dataset.view===view);
     });
-    if(view==='settings') document.querySelector('[data-view="settings"]').classList.add('active');
+    if(view==='settings'){
+      const settingsNav = document.querySelector('[data-view="settings"]');
+      if(settingsNav) settingsNav.classList.add('active');
+    }
     window.scrollTo({top:0,behavior:'smooth'});
   },
 
@@ -811,6 +1028,7 @@ const App = {
   },
   updateThemeIcon(){
     const ico = document.getElementById('themeIco');
+    if(!ico) return;
     ico.innerHTML = S.theme==='night'
       ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
       : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
@@ -918,15 +1136,19 @@ const App = {
   /* ---- Settings ---- */
   loadSettings(){
     const s = S.settings;
-    document.getElementById('setEacviDate').value     = s.eacviDate   || '';
-    document.getElementById('setAscexamDate').value   = s.ascexamDate || '';
-    document.getElementById('setGroqKey').value       = s.groqKey     || '';
-    document.getElementById('setAnthropicKey').value  = s.anthropicKey|| '';
-    document.getElementById('setGroqModel').value     = s.groqModel   || 'llama-3.3-70b-versatile';
+    const set = (id, val) => { const el=document.getElementById(id); if(el) el.value = val || ''; };
+    set('setEacviDate',     s.eacviDate);
+    set('setAscexamDate',   s.ascexamDate);
+    set('setGroqKey',       s.groqKey);
+    set('setAnthropicKey',  s.anthropicKey);
+    set('setGroqModel',     s.groqModel     || 'llama-3.3-70b-versatile');
+    set('setAnthropicModel',s.anthropicModel|| 'claude-opus-4-7');
+    set('setPreferred',     s.preferred     || 'groq');
 
     // Auto-save when the user clicks/tabs out of a field — fixes the
     // footgun where users type a key but forget to hit Save.
-    ['setEacviDate','setAscexamDate','setGroqKey','setAnthropicKey','setGroqModel'].forEach(id=>{
+    ['setEacviDate','setAscexamDate','setGroqKey','setAnthropicKey',
+     'setGroqModel','setAnthropicModel','setPreferred'].forEach(id=>{
       const el = document.getElementById(id);
       if(!el || el.dataset.autoSaveBound) return;
       el.dataset.autoSaveBound = '1';
@@ -936,12 +1158,15 @@ const App = {
   },
   /* Silent save (no toast) for blur-driven autosave. */
   autoSaveSettings(){
+    const v = (id)=>{ const el=document.getElementById(id); return el ? el.value : ''; };
     S.settings = {
-      eacviDate:    document.getElementById('setEacviDate').value,
-      ascexamDate:  document.getElementById('setAscexamDate').value,
-      groqKey:      document.getElementById('setGroqKey').value.trim(),
-      anthropicKey: document.getElementById('setAnthropicKey').value.trim(),
-      groqModel:    document.getElementById('setGroqModel').value
+      eacviDate:      v('setEacviDate'),
+      ascexamDate:    v('setAscexamDate'),
+      groqKey:        (v('setGroqKey')||'').trim(),
+      anthropicKey:   (v('setAnthropicKey')||'').trim(),
+      groqModel:      v('setGroqModel')      || 'llama-3.3-70b-versatile',
+      anthropicModel: v('setAnthropicModel') || 'claude-opus-4-7',
+      preferred:      v('setPreferred')      || 'groq'
     };
     persist('settings', S.settings);
     Dashboard.render();
@@ -1002,6 +1227,8 @@ const Tasks = {
     if(!Array.isArray(S.tasks)) S.tasks = [];
     const wrap = document.getElementById('taskList');
     const hint = document.getElementById('planTaskHint');
+    const progEl = document.getElementById('taskProgress');
+    if(!wrap || !hint) return;   // home view not yet in DOM
     const day  = this.todayPlanDay();
     let html = '';
     let total = 0, done = 0;
@@ -1009,14 +1236,14 @@ const Tasks = {
     // plan-session tasks for today (synced)
     if(day){
       hint.style.display='block';
-      hint.innerHTML = `From your study plan — <strong>${day.topic}</strong>`;
+      hint.innerHTML = `From your study plan — <strong>${escapeHTML(day.topic)}</strong>`;
       html += day.tasks.map(t=>{
         total++; if(t.done) done++;
         return `<div class="task ${t.done?'done':''}">
           <button class="checkbox ${t.done?'done':''}" onclick="Plan.toggleTask(${day.n},${t.id})">
             <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
           </button>
-          <div class="task-body"><div>${t.text}</div></div>
+          <div class="task-body"><div>${escapeHTML(t.text)}</div></div>
           <span class="task-tag">Plan</span>
         </div>`;
       }).join('');
@@ -1032,7 +1259,7 @@ const Tasks = {
         <button class="checkbox ${t.done?'done':''}" onclick="Tasks.toggle(${t.id})">
           <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
         </button>
-        <div class="task-body"><div>${t.text}</div></div>
+        <div class="task-body"><div>${escapeHTML(t.text)}</div></div>
         <span class="task-tag" style="background:var(--line-strong);color:var(--text-dim);">Mine</span>
         <button class="icon-btn" style="width:30px;height:30px;" onclick="Tasks.remove(${t.id})" title="Remove">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
@@ -1041,7 +1268,7 @@ const Tasks = {
     }).join('');
 
     wrap.innerHTML = html || '<div class="empty" style="padding:20px;">No tasks today. Build a study plan or add your own.</div>';
-    document.getElementById('taskProgress').textContent = total ? `${done}/${total} done` : '';
+    if(progEl) progEl.textContent = total ? `${done}/${total} done` : '';
   },
   toggle(id){
     const t = S.tasks.find(x=>x.id===id);
@@ -1128,11 +1355,15 @@ const Plan = {
     const setup = document.getElementById('planSetup');
     const wrap  = document.getElementById('planDays');
     const prog  = document.getElementById('planProgress');
+    if(!wrap || !prog) return;   // plan view not in DOM yet — bail safely
     if(!S.plan || !S.plan.days?.length){
       prog.style.display='none';
       wrap.innerHTML='';
-      if(setup) setup.querySelector('.btn-primary').innerHTML =
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg> Generate study plan';
+      if(setup){
+        const pb = setup.querySelector('.btn-primary');
+        if(pb) pb.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg> Generate study plan';
+      }
       return;
     }
     const allTasks = S.plan.days.flatMap(d=>d.tasks);
@@ -1157,7 +1388,7 @@ const Plan = {
         <div class="card-head">
           <div>
             <span class="eyebrow">Day ${d.n} · ${new Date(d.date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}${isToday?' · TODAY':''}</span>
-            <h3 style="font-size:15px;margin-top:3px;">${d.topic}</h3>
+            <h3 style="font-size:15px;margin-top:3px;">${escapeHTML(d.topic)}</h3>
           </div>
           <span class="faint">${dn}/${d.tasks.length}</span>
         </div>
@@ -1167,22 +1398,22 @@ const Plan = {
               <button class="checkbox ${t.done?'done':''}" onclick="Plan.toggleTask(${d.n},${t.id})">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
               </button>
-              <div class="task-body"><div style="font-size:13.5px;">${t.text}</div></div>
+              <div class="task-body"><div style="font-size:13.5px;">${escapeHTML(t.text)}</div></div>
             </div>`).join('')}
         </div>
         <div class="chip-row">
           <a class="chip" target="_blank" rel="noopener"
-             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' echocardiography')}">▶ YouTube</a>
+             href="${ytSearch(d.video+' echocardiography','')}">▶ YouTube</a>
           <a class="chip" target="_blank" rel="noopener"
-             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' 123sonography')}">123sonography</a>
+             href="${ytSearch(d.video,'123sonography')}">123sonography</a>
           <a class="chip" target="_blank" rel="noopener"
-             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' Mayo Clinic')}">Mayo</a>
+             href="${ytSearch(d.video,'Mayo Clinic')}">Mayo</a>
           <a class="chip" target="_blank" rel="noopener"
-             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' ASE echo')}">ASE</a>
+             href="${ytSearch(d.video,'ASE echo')}">ASE</a>
           ${dom?`<button class="chip" onclick="MCQ.fromDomain('${dom.id}')">⚡ Drill MCQs</button>`:''}
         </div>
         ${d.reference?`<div class="explain" style="margin-top:10px;font-size:12.5px;">
-          <strong>Reference:</strong> ${d.reference}</div>`:''}
+          <strong>Reference:</strong> ${escapeHTML(d.reference)}</div>`:''}
       </div>`;
     }).join('');
   },
@@ -1228,29 +1459,31 @@ const AI = {
   /* Single entry point. Returns model text or throws.
      temperature defaults LOW (0.15) — these are factual medical tasks
      where creativity = hallucination. Callers can override if needed. */
-  async complete(prompt, {json=false, temperature=0.15}={}){
+  async complete(prompt, {json=false, temperature=0.15, maxTokens=4000}={}){
     const groqKey      = this._readKey('groqKey');
     const anthropicKey = this._readKey('anthropicKey');
     if(!groqKey && !anthropicKey){
       throw new Error('No working AI backend — add a key in Settings and click Save');
     }
+    const preferred = S.settings?.preferred || 'groq';
+    const order = preferred === 'anthropic'
+      ? [['anthropic', anthropicKey], ['groq', groqKey]]
+      : [['groq', groqKey], ['anthropic', anthropicKey]];
     let lastError = null;
-    // 1) try Groq
-    if(groqKey){
-      try{ return await this._groq(prompt, json, temperature); }
-      catch(e){ console.warn('Groq failed, falling back:', e); lastError = e; }
+    for(const [backend, key] of order){
+      if(!key) continue;
+      try{
+        if(backend==='groq')      return await this._groq(prompt, json, temperature, maxTokens);
+        if(backend==='anthropic') return await this._anthropic(prompt, json, temperature, maxTokens);
+      }catch(e){
+        console.warn(backend+' failed, falling back:', e);
+        lastError = e;
+      }
     }
-    // 2) fall back to Anthropic
-    if(anthropicKey){
-      try{ return await this._anthropic(prompt, json, temperature); }
-      catch(e){ console.warn('Anthropic failed:', e); lastError = e; }
-    }
-    // All configured backends failed — surface the real error, not a misleading
-    // "no key" message.
     throw lastError || new Error('All AI backends failed');
   },
 
-  async _groq(prompt, json, temperature=0.15){
+  async _groq(prompt, json, temperature=0.15, maxTokens=4000){
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{ 'Content-Type':'application/json',
@@ -1263,7 +1496,7 @@ const AI = {
         ],
         ...(json?{response_format:{type:'json_object'}}:{}),
         temperature,
-        max_tokens:4000
+        max_tokens:maxTokens
       })
     });
     if(!r.ok){
@@ -1280,7 +1513,7 @@ const AI = {
     return d.choices?.[0]?.message?.content || '';
   },
 
-  async _anthropic(prompt, json, temperature=0.15){
+  async _anthropic(prompt, json, temperature=0.15, maxTokens=4000){
     /* Direct browser → Anthropic. Requires the
        'anthropic-dangerous-direct-browser-access: true' header so CORS
        passes. Safe here because users supply their own API key in
@@ -1296,8 +1529,8 @@ const AI = {
         'anthropic-dangerous-direct-browser-access':'true'
       },
       body:JSON.stringify({
-        model:'claude-sonnet-4-6',
-        max_tokens:4000,
+        model: S.settings?.anthropicModel || 'claude-opus-4-7',
+        max_tokens:maxTokens,
         temperature,
         system: sys + (json?' Return ONLY the raw JSON object, nothing else.':''),
         messages:[{role:'user',content:prompt}]
@@ -1556,11 +1789,13 @@ const Bank = {
   },
   render(){
     const f = document.getElementById('bankFilter');
+    const list = document.getElementById('bankList');
+    const countEl = document.getElementById('bankCount');
+    if(!f || !list || !countEl) return;
     f.innerHTML = `<button class="chip ${S.bankFilter==='all'?'active':''}" onclick="Bank.filter('all')">All</button>` +
       DOMAINS.map(d=>`<button class="chip ${S.bankFilter===d.id?'active':''}" onclick="Bank.filter('${d.id}')">${d.name.split(' ')[0]}</button>`).join('');
-    const list = document.getElementById('bankList');
     let items = S.mcqBank;
-    document.getElementById('bankCount').textContent = items.length+' saved';
+    countEl.textContent = items.length+' saved';
     if(!items.length){
       list.innerHTML = `<div class="empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5a2 2 0 0 1 2-2h14v18H6a2 2 0 0 1-2-2z"/></svg>
@@ -1581,50 +1816,138 @@ const Bank = {
 };
 
 /* ============================================================
-   VIDEOS — verified channel library + topic search + saved
+   VIDEOS — verified channel library + curated topic library + saved
    ------------------------------------------------------------
    CHANNELS: every URL below was verified via web search.
    These are channel/playlist hubs (stable), not deep video
-   links (which rot). Search-within builds a real YouTube
-   search scoped to the channel — never an invented video URL.
+   links (which rot). For each topic in the curated library
+   we pick which channel typically has the best teaching, then
+   build a scoped YouTube search that surfaces the lecture.
    ============================================================ */
 const ECHO_CHANNELS = [
-  { name:'123sonography',
+  { id:'sono', name:'123sonography',
     handle:'@123sonographycom',
     url:'https://www.youtube.com/@123sonographycom',
     tag:'Course',
     note:'The leading online echo course — free chapters and case-based teaching.' },
-  { name:'ASE — American Society of Echocardiography',
+  { id:'ase', name:'American Society of Echocardiography (ASE)',
     handle:'ase360',
     url:'https://www.youtube.com/ase360',
     tag:'Society',
-    note:'Official ASE channel: guideline updates, expert cases and interviews.' },
-  { name:'EACVI — European Assoc. of Cardiovascular Imaging',
+    note:'Official ASE channel: guideline updates, expert cases, interviews.' },
+  { id:'eacvi', name:'EACVI — European Cardiovascular Imaging',
     handle:'EACVI',
     url:'https://www.youtube.com/playlist?list=PLN5RC1OF9yB4aO8GWiwRE2oqg2ZnCJna-',
     tag:'Society',
     note:'EACVI educational playlist — European guideline-based imaging teaching.' },
-  { name:'ECHOCARDIOGRAPHY (case library)',
+  { id:'cases', name:'ECHOCARDIOGRAPHY (case library)',
     handle:'@echocardiographie',
     url:'https://www.youtube.com/@echocardiographie',
     tag:'Cases',
     note:'Large aggregated library of echo clips by diagnosis.' },
-  { name:'The Echo Channel',
+  { id:'echoch', name:'The Echo Channel',
     handle:'cardiology99',
     url:'https://www.youtube.com/channel/UC65MK3evz9plHtYKU6kDVbQ',
     tag:'Cases',
     note:'Echocardiography clips and short teaching cases.' },
-  { name:'Mayo Clinic — CV Medical Professional Videos',
+  { id:'mayo-mp', name:'Mayo Clinic — CV Medical Professional Videos',
     handle:'mayo-medprof',
     url:'https://medprofvideos.mayoclinic.org/cardiovascular-diseases-and-cardiac-surgery',
     tag:'Mayo',
-    note:'Mayo Clinic\u2019s latest cardiovascular videos for clinicians — guideline updates and grand rounds.' },
-  { name:'Mayo Clinic — CV Education (free CME videos)',
+    note:'Mayo Clinic\u2019s latest cardiovascular videos for clinicians.' },
+  { id:'mayo-cve', name:'Mayo Clinic — Free CV Education',
     handle:'mayo-cve',
     url:'https://cveducation.mayo.edu/lp/free_on_demand_cardiology_lessons',
     tag:'Mayo',
     note:'Free on-demand Mayo cardiology lessons, including echocardiography.' }
 ];
+
+/* Build a YouTube search URL scoped to a channel handle / name. */
+function ytSearch(query, channelHint){
+  const q = channelHint ? `${query} ${channelHint}` : query;
+  return 'https://www.youtube.com/results?search_query='+encodeURIComponent(q);
+}
+
+/* Curated topic library — domain → topics with the channel best known
+   to teach that topic well. Channel hints are NAMES inserted into the
+   YouTube search query; they reliably surface the lecture without us
+   linking to deep, rot-prone video URLs. */
+const CURATED_TOPICS = {
+  phys: [
+    {t:'Doppler principles & the Doppler equation', ch:'123sonography'},
+    {t:'Ultrasound artifacts (reverberation, side lobe, mirror)', ch:'123sonography'},
+    {t:'Knobology — gain, depth, TGC, focus optimization', ch:'ASE echo'},
+    {t:'3D/4D acquisition & post-processing basics', ch:'EACVI'}
+  ],
+  tte: [
+    {t:'Parasternal long-axis (PLAX) — standard views & measurements', ch:'123sonography'},
+    {t:'Parasternal short-axis (PSAX) at all levels', ch:'123sonography'},
+    {t:'Apical 4/5/2/3-chamber views — windows & alignment', ch:'123sonography'},
+    {t:'Subcostal & suprasternal windows', ch:'Mayo Clinic'},
+    {t:'Complete TTE protocol & standard reporting', ch:'ASE echo'}
+  ],
+  lv: [
+    {t:'LV ejection fraction — biplane Simpson method', ch:'ASE echo'},
+    {t:'Global longitudinal strain (GLS) — acquisition & interpretation', ch:'EACVI'},
+    {t:'ASE 2016 algorithm for diastolic function grading', ch:'ASE echo'},
+    {t:'Regional wall motion assessment & 17-segment model', ch:'123sonography'},
+    {t:'LV mass & geometry — concentric vs eccentric remodeling', ch:'Mayo Clinic'}
+  ],
+  rv: [
+    {t:'TAPSE, S\u2032 (TDI), FAC — RV systolic measurements', ch:'ASE echo'},
+    {t:'RV free-wall strain — how to acquire & abnormal cutoffs', ch:'EACVI'},
+    {t:'RVSP estimation from TR jet & RA pressure', ch:'123sonography'},
+    {t:'RV in pulmonary hypertension — echo signs & severity', ch:'Mayo Clinic'}
+  ],
+  valve: [
+    {t:'Aortic stenosis grading — peak velocity, mean gradient, AVA', ch:'ASE echo'},
+    {t:'Low-flow low-gradient AS — dobutamine stress echo workflow', ch:'EACVI'},
+    {t:'Aortic regurgitation quantification — PHT, vena contracta, EROA', ch:'123sonography'},
+    {t:'Mitral regurgitation — PISA method step-by-step', ch:'123sonography'},
+    {t:'Mitral stenosis — PHT method & valve area calculation', ch:'ASE echo'},
+    {t:'Tricuspid regurgitation severity grading', ch:'Mayo Clinic'},
+    {t:'Carpentier classification for MV mechanism', ch:'EACVI'}
+  ],
+  tee: [
+    {t:'Standard TEE views — mid-esophageal & transgastric sequence', ch:'ASE echo'},
+    {t:'TEE for left atrial appendage — pre-cardioversion / pre-Watchman', ch:'Mayo Clinic'},
+    {t:'TEE for infective endocarditis — vegetations, abscess, perforation', ch:'123sonography'},
+    {t:'Pre-TAVI TEE measurements & annular sizing', ch:'EACVI'},
+    {t:'Intra-procedural TEE for MitraClip / TEER', ch:'EACVI'}
+  ],
+  '4d': [
+    {t:'3D LV volumes & EF — single-beat vs multi-beat', ch:'ASE echo'},
+    {t:'3D mitral valve modelling — annulus, scallops, prolapse', ch:'EACVI'},
+    {t:'3D TEE for structural intervention guidance', ch:'EACVI'},
+    {t:'4D flow imaging — concepts & current clinical use', ch:'Mayo Clinic'}
+  ],
+  chd: [
+    {t:'Atrial septal defects — types, shunt assessment, echo features', ch:'123sonography'},
+    {t:'Ventricular septal defects — anatomy by location', ch:'123sonography'},
+    {t:'Patent ductus arteriosus — diagnosis & quantification', ch:'Mayo Clinic'},
+    {t:'Segmental approach to congenital heart disease', ch:'ASE echo'},
+    {t:'Adult congenital heart disease — repaired tetralogy of Fallot', ch:'EACVI'}
+  ],
+  cmp: [
+    {t:'Hypertrophic cardiomyopathy — echo features & SAM', ch:'Mayo Clinic'},
+    {t:'Dilated cardiomyopathy — echo workup & differential', ch:'123sonography'},
+    {t:'Cardiac amyloidosis — apical sparing, strain pattern', ch:'ASE echo'},
+    {t:'LV non-compaction — diagnostic criteria & mimics', ch:'EACVI'},
+    {t:'Cardiac masses & thrombi — differentials by location', ch:'Mayo Clinic'}
+  ],
+  peri: [
+    {t:'Pericardial effusion — size, location, hemodynamic effect', ch:'123sonography'},
+    {t:'Cardiac tamponade — echo signs (chamber collapse, respiratory variation)', ch:'ASE echo'},
+    {t:'Constrictive pericarditis — septal bounce, annulus reversus', ch:'Mayo Clinic'},
+    {t:'Constriction vs restriction — differentiating echo features', ch:'Mayo Clinic'}
+  ],
+  haemo: [
+    {t:'Estimating intracardiac pressures — RA, RVSP, LVEDP', ch:'ASE echo'},
+    {t:'Prosthetic valve evaluation — echo parameters by valve type', ch:'EACVI'},
+    {t:'Modified Duke criteria for infective endocarditis', ch:'123sonography'},
+    {t:'Stress echocardiography — protocols & interpretation', ch:'Mayo Clinic'}
+  ]
+};
 
 const Videos = {
   add(){
@@ -1640,59 +1963,71 @@ const Videos = {
   },
   filter(id){ S.vidFilter=id; this.render(); },
 
-  /* search a topic across the major channels — opens real YouTube searches */
-  searchTopic(){
-    const q = document.getElementById('vidTopic').value.trim();
-    const box = document.getElementById('vidTopicResults');
-    if(!q){ box.innerHTML=''; return; }
-    const ytAll = 'https://www.youtube.com/results?search_query='+encodeURIComponent(q+' echocardiography');
-    // YouTube supports scoping a search to a channel handle in the query text
-    box.innerHTML =
-      `<a class="chip" target="_blank" rel="noopener" href="${ytAll}">▶ All YouTube</a>` +
-      ECHO_CHANNELS.map(c=>{
-        const scoped = 'https://www.youtube.com/results?search_query='+
-          encodeURIComponent(q+' '+c.name.split(' ')[0]);
-        return `<a class="chip" target="_blank" rel="noopener" href="${scoped}">${c.name.split(' ')[0]}</a>`;
-      }).join('');
+  /* Open a specific curated topic — scoped to the best channel. */
+  openTopic(domId, idx){
+    const topic = CURATED_TOPICS[domId]?.[idx];
+    if(!topic) return;
+    const url = ytSearch(topic.t + ' echocardiography', topic.ch);
+    window.open(url, '_blank', 'noopener');
   },
 
   renderChannels(){
     const el = document.getElementById('channelList');
     if(!el) return;
     el.innerHTML = ECHO_CHANNELS.map(c=>`
-      <div class="card" style="display:flex;align-items:center;gap:12px;padding:13px;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:14px;">${c.name}
-            <span class="task-tag" style="margin-left:4px;">${c.tag}</span></div>
-          <div class="faint">${c.note}</div>
+      <div class="channel-card">
+        <div class="ch-name">${c.name}</div>
+        <div class="ch-note">${c.note}</div>
+        <div class="ch-foot">
+          <span class="ch-tag">${c.tag}</span>
+          <a href="${c.url}" target="_blank" rel="noopener">Open ↗</a>
         </div>
-        <a class="btn btn-ghost" href="${c.url}" target="_blank" rel="noopener">Open</a>
       </div>`).join('');
+  },
+
+  /* Render the curated topic library, grouped by domain. */
+  renderCurated(){
+    const el = document.getElementById('curatedList');
+    if(!el) return;
+    el.innerHTML = DOMAINS.map(dom=>{
+      const topics = CURATED_TOPICS[dom.id] || [];
+      if(!topics.length) return '';
+      return `<div class="domain-section">
+        <div class="ds-head">${dom.name}</div>
+        ${topics.map((t,i)=>`
+          <div class="topic-pill" onclick="Videos.openTopic('${dom.id}',${i})">
+            <div class="tp-name">${escapeHTML(t.t)}</div>
+            <span class="tp-go">${escapeHTML(t.ch)} ↗</span>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
   },
 
   render(){
     this.renderChannels();
-    const ti = document.getElementById('vidTopic');
-    if(ti && !ti._wired){ ti._wired=true; ti.addEventListener('input',()=>this.searchTopic()); }
+    this.renderCurated();
     const ds = document.getElementById('vidDomain');
     if(ds && !ds.options.length)
       ds.innerHTML = DOMAINS.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
     const f = document.getElementById('vidFilter');
-    f.innerHTML = `<button class="chip ${S.vidFilter==='all'?'active':''}" onclick="Videos.filter('all')">All</button>` +
-      DOMAINS.map(d=>`<button class="chip ${S.vidFilter===d.id?'active':''}" onclick="Videos.filter('${d.id}')">${d.name.split(' ')[0]}</button>`).join('');
+    if(f){
+      f.innerHTML = `<button class="chip ${S.vidFilter==='all'?'active':''}" onclick="Videos.filter('all')">All</button>` +
+        DOMAINS.map(d=>`<button class="chip ${S.vidFilter===d.id?'active':''}" onclick="Videos.filter('${d.id}')">${d.name.split(' ')[0]}</button>`).join('');
+    }
     const list = document.getElementById('vidList');
+    if(!list) return;
     const items = S.videos.filter(v=>S.vidFilter==='all'||v.dom===S.vidFilter);
     if(!items.length){
       list.innerHTML = `<div class="empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>
-        <div>No saved videos yet. Use the channels above or add your own link.</div></div>`;
+        <div>No saved videos yet. Use the curated library above or add your own link.</div></div>`;
       return;
     }
     list.innerHTML = items.map(v=>{
       const dn = (DOMAINS.find(d=>d.id===v.dom)||{}).name||'';
       return `<div class="card" style="display:flex;align-items:center;gap:12px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;">${v.title}</div>
+          <div style="font-weight:600;">${escapeHTML(v.title)}</div>
           <div class="faint">${dn}</div>
         </div>
         <a class="btn btn-ghost" href="${v.url}" target="_blank" rel="noopener">Open</a>
@@ -1708,6 +2043,14 @@ const Videos = {
   }
 };
 
+/* ---- Tab switching for the Video view ---- */
+const VideoView = {
+  tab(name){
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='vtab-'+name));
+    document.querySelectorAll('.tabs button[data-vtab]').forEach(b=>b.classList.toggle('active', b.dataset.vtab===name));
+  }
+};
+
 /* ============================================================
    VIDEO EXTRAS — video of the day + echo news (tap to refresh)
    ------------------------------------------------------------
@@ -1718,19 +2061,24 @@ const Videos = {
 const VideoExtras = {
   async loadVotd(){
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+      toast('Add an API key in Settings first'); App.go('settings'); return;
     }
-    const btn=$('votdBtnLabel').parentElement, orig=btn.innerHTML;
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Picking…';
+    const btn=$('votdBtnLabel') ? $('votdBtnLabel').parentElement : null;
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Picking…'; }
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
       const raw = await AI.complete(
-        `Recommend ONE high-yield echocardiography topic worth watching a teaching video on today`+
+        `Recommend ONE specific, focused echocardiography topic worth watching a teaching video on today`+
         (weakName?`, ideally related to the user's weak area: ${weakName}`:'')+`.
-Give a specific subtopic, a one-line reason it matters, and a precise video search phrase.
-Return ONLY valid JSON: {"topic":"string","why":"string","search":"specific search phrase"}`,
-        {json:true});
+Pick a NARROW subtopic (a single measurement, technique, comparison, or syndrome) — NOT a whole domain.
+Write a 2-3 sentence reason it matters at the bedside and for boards.
+Also recommend which channel is generally the best teacher for this topic, choosing from:
+"123sonography", "ASE echo" (American Society of Echocardiography), "EACVI" (European), "Mayo Clinic".
+Return ONLY valid JSON, no markdown:
+{"topic":"specific subtopic name","why":"2-3 sentence reason","search":"specific YouTube search phrase","best_channel":"one of the four channels above"}`,
+        {json:true, maxTokens:1000});
       const v = extractJSON(raw);
       S.vextras = S.vextras || {};
       S.vextras.votd = { ...v, date:new Date().toISOString().slice(0,10) };
@@ -1738,45 +2086,57 @@ Return ONLY valid JSON: {"topic":"string","why":"string","search":"specific sear
       this.renderVotd();
       toast('Video topic ready');
     }catch(e){ console.error('votd:',e); toast(e.message||'Failed'); }
-    finally{ btn.disabled=false; btn.innerHTML=orig; }
+    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
   },
   async loadNews(){
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+      toast('Add an API key in Settings first'); App.go('settings'); return;
     }
-    const btn=$('newsBtnLabel').parentElement, orig=btn.innerHTML;
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Loading…';
+    const btn=$('newsBtnLabel') ? $('newsBtnLabel').parentElement : null;
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Loading…'; }
     try{
       const raw = await AI.complete(
-        `Summarise 3-4 notable recent developments in echocardiography — guideline updates,
+        `Summarise 4-5 notable recent developments in echocardiography — guideline updates,
 new techniques, or shifts in practice that a board candidate should know.
 Only include developments you are confident are real and established; do not fabricate
 guideline names, dates, or study results. If unsure of an exact year, omit it.
-Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence summary","area":"topic area"}]}`,
-        {json:true});
+For each item, write a 2-3 sentence summary that explains both the change AND its
+clinical/exam implication.
+Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence summary with clinical implication","area":"topic area"}]}`,
+        {json:true, maxTokens:2000});
       const n = extractJSON(raw);
       S.vextras = S.vextras || {};
-      S.vextras.news = { items:(n.items||[]).slice(0,5), date:new Date().toISOString().slice(0,10) };
+      S.vextras.news = { items:(n.items||[]).slice(0,6), date:new Date().toISOString().slice(0,10) };
       persist('vextras', S.vextras);
       this.renderNews();
       toast('Updates ready');
     }catch(e){ console.error('news:',e); toast(e.message||'Failed'); }
-    finally{ btn.disabled=false; btn.innerHTML=orig; }
+    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
   },
 
   renderVotd(){
     const v = S.vextras?.votd;
     if(!v) return;
     setText('votdBtnLabel','New video topic');
-    const ch = ['echocardiography','123sonography','Mayo Clinic','ASE echo'];
+    // build channel chips with the best-channel marked first
+    const channels = ['123sonography','ASE echo','EACVI','Mayo Clinic'];
+    const best = v.best_channel || '';
+    const ordered = best
+      ? [best, ...channels.filter(c=>c!==best)]
+      : channels;
+    const query = v.search || v.topic || '';
     setHTML('votdBody', `
       <span class="eyebrow">${v.date===new Date().toISOString().slice(0,10)?'Today':'Earlier'}</span>
-      <h3 style="margin:5px 0 6px;font-size:15px;">${v.topic||''}</h3>
-      <p class="faint" style="margin-bottom:10px;">${v.why||''}</p>
+      <h3 style="margin:5px 0 6px;font-size:16px;font-family:var(--font-display);">${escapeHTML(v.topic||'')}</h3>
+      <p class="faint" style="margin-bottom:10px;font-size:13px;line-height:1.55;">${escapeHTML(v.why||'')}</p>
+      ${best?`<div class="faint" style="font-size:12px;margin-bottom:8px;">Best taught by: <strong style="color:var(--accent);">${escapeHTML(best)}</strong></div>`:''}
       <div class="chip-row">
-        ${ch.map(c=>`<a class="chip" target="_blank" rel="noopener"
-          href="https://www.youtube.com/results?search_query=${encodeURIComponent((v.search||v.topic)+' '+c)}">
-          ${c==='echocardiography'?'▶ YouTube':c.split(' ')[0]}</a>`).join('')}
+        ${ordered.map((c,i)=>{
+          const link = ytSearch(query, c);
+          return `<a class="chip${i===0&&best?' active':''}" target="_blank" rel="noopener" href="${link}">${i===0&&best?'★ ':''}${escapeHTML(c)}</a>`;
+        }).join('')}
+        <a class="chip" target="_blank" rel="noopener" href="${ytSearch(query+' echocardiography', '')}">All YouTube ↗</a>
       </div>`);
   },
   renderNews(){
@@ -1786,14 +2146,14 @@ Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence su
     setHTML('newsBody', `
       <span class="eyebrow">${n.date===new Date().toISOString().slice(0,10)?'Updated today':'Earlier'}</span>
       <div style="margin-top:8px;">
-        ${n.items.map(it=>`
-          <div style="padding:10px 0;border-bottom:1px solid var(--line);">
-            <div style="font-weight:600;font-size:13.5px;">${it.headline||''}</div>
-            ${it.area?`<div class="faint" style="margin:2px 0 4px;">${it.area}</div>`:''}
-            <div style="font-size:13px;line-height:1.55;">${it.detail||''}</div>
+        ${(n.items||[]).map(it=>`
+          <div class="news-item">
+            ${it.area?`<span class="ni-area">${escapeHTML(it.area)}</span>`:''}
+            <div class="ni-head">${escapeHTML(it.headline||'')}</div>
+            <div class="ni-body">${escapeHTML(it.detail||'')}</div>
           </div>`).join('')}
       </div>
-      <div class="explain" style="margin-top:10px;font-size:12px;">
+      <div class="explain" style="margin-top:12px;font-size:12px;">
         AI-generated summary — verify against primary guideline sources before relying on specifics.
       </div>`);
   },
@@ -1932,15 +2292,49 @@ const Weak = {
 /* ---- prompt builders for daily topic & scenario ----------- */
 function buildTopicPrompt(weakName){
   const focus = weakName
-    ? `Choose a topic within or related to the user's current weak area: ${weakName}.`
-    : `Choose any high-yield echocardiography board topic.`;
-  return `Produce a concise "topic of the day" for a cardiologist preparing for echo board exams.
-${focus}
-Keep it focused and high-yield — something learnable in one short study session.
-Base all content on current, well-established echocardiography guidelines.
+    ? `Choose a focused subtopic within or strongly related to the user's current weak area: "${weakName}". Pick something specific (e.g. a single measurement, a single comparison, a single technique) — not the whole domain.`
+    : `Choose ONE specific, focused high-yield echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title (e.g. "Diastolic function") — pick something narrower (e.g. "Grading diastolic dysfunction by the 2016 ASE algorithm" or "Differentiating constrictive pericarditis from restrictive cardiomyopathy").`;
 
-Return ONLY valid JSON, no markdown, exactly:
-{"title":"string","summary":"3-5 sentence teaching summary","key_points":["point","point","point"],"reference":"the guideline or source supporting this — name the body and subject; do not invent figure numbers"}`;
+  return `Produce a deep, board-level teaching brief — written like a textbook chapter section that a fellow could study from in one short session.
+${focus}
+
+The brief MUST be substantive and specific, not a superficial overview. It should include actual numerical cutoffs, methodology details, named criteria/algorithms, and concrete pitfalls — not generic statements like "use Doppler" or "look at the LV". Write at the level of a board examiner explaining the topic to a senior fellow.
+
+Constraints on factual accuracy:
+- Only include guideline cutoffs and named criteria you are confident are current and correct (ASE, EACVI, ESC, AHA/ACC).
+- If unsure of an exact number, give the qualitative direction and the named guideline body rather than fabricating a number.
+- Name the guideline by its issuing body and subject (e.g. "ASE 2016 guideline on diastolic function"), not invented figure/page numbers.
+- Topic must be specific and focused — NOT a whole curricular domain.
+
+Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
+{
+  "title": "specific, focused topic name (5-12 words, not a broad domain)",
+  "background": "2-3 sentence clinical context — why this matters at the bedside and on the exam",
+  "key_measurements": [
+    {"name": "named measurement or criterion", "value": "actual cutoff/range with units", "note": "brief note on how it's obtained or what it means"}
+  ],
+  "methodology": [
+    "concrete, ordered, actionable step describing how to perform the measurement or apply the algorithm",
+    "next step",
+    "next step (aim for 4-6 steps total)"
+  ],
+  "pearls": [
+    "specific clinical or technical pearl — must be concrete and non-obvious",
+    "another pearl",
+    "another pearl (aim for 3-5 pearls)"
+  ],
+  "pitfalls": [
+    "specific mistake or trap with WHY it leads to wrong interpretation",
+    "another pitfall (aim for 3-5 pitfalls)"
+  ],
+  "differentiating_features": [
+    "if relevant: how to tell this entity/finding from its main mimic — name the mimic and the discriminator (omit this field if not applicable)"
+  ],
+  "exam_pearls": [
+    "what the board examiners specifically test on this topic — likely question stems, classic distractors, must-know associations"
+  ],
+  "reference": "the guideline/source supporting this — name the issuing body and subject (e.g. 'ASE 2016 guideline on diastolic function assessment'). Do NOT fabricate figure or page numbers."
+}`;
 }
 function buildScenarioPrompt(weakName){
   const focus = weakName
@@ -1962,36 +2356,43 @@ Return ONLY valid JSON, no markdown, exactly:
 const Today = {
   async loadTopic(){
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+      toast('Add an API key in Settings first'); App.go('settings'); return;
     }
-    const btn = document.querySelector('#dailyTopicCard .btn-primary');
-    const orig = btn.innerHTML;
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generating…';
+    // Pick whichever button is currently visible (generate-first, otherwise refresh)
+    const genBtn = document.getElementById('topicGenBtn');
+    const refBtn = document.getElementById('topicRefreshBtn');
+    const btn = (refBtn && refBtn.style.display !== 'none') ? refBtn : genBtn;
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generating deep brief…'; }
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
-      const raw = await AI.complete(buildTopicPrompt(weakName), {json:true});
+      const raw = await AI.complete(buildTopicPrompt(weakName), {json:true, maxTokens:3200, temperature:0.2});
       const t = extractJSON(raw);
       S.today = S.today || {};
       S.today.topic = { ...t, date:new Date().toISOString().slice(0,10) };
       persist('today', S.today);
       this.renderTopic();
-      toast('Topic ready');
+      toast('Deep teaching brief ready');
     }catch(e){
       console.error('topic:', e); toast(e.message||'Failed');
-    }finally{ btn.disabled=false; btn.innerHTML=orig; }
+    }finally{
+      if(btn){ btn.disabled=false; btn.innerHTML=orig; }
+    }
   },
   async loadScenario(){
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+      toast('Add an API key in Settings first'); App.go('settings'); return;
     }
-    const btn = document.querySelector('#scenarioCard .btn-primary');
-    const orig = btn.innerHTML;
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generating…';
+    const genBtn = document.getElementById('scenarioGenBtn');
+    const refBtn = document.getElementById('scenarioRefreshBtn');
+    const btn = (refBtn && refBtn.style.display !== 'none') ? refBtn : genBtn;
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generating…'; }
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
-      const raw = await AI.complete(buildScenarioPrompt(weakName), {json:true});
+      const raw = await AI.complete(buildScenarioPrompt(weakName), {json:true, maxTokens:2400});
       const s = extractJSON(raw);
       const qs = (s.questions||[]).filter(validMcq);
       S.today = S.today || {};
@@ -2002,27 +2403,81 @@ const Today = {
       toast('Scenario ready');
     }catch(e){
       console.error('scenario:', e); toast(e.message||'Failed');
-    }finally{ btn.disabled=false; btn.innerHTML=orig; }
+    }finally{
+      if(btn){ btn.disabled=false; btn.innerHTML=orig; }
+    }
   },
 
+  /* Renders a rich, structured topic card. Falls back gracefully if
+     the AI returned the older (flat) schema. */
   renderTopic(){
     const t = S.today?.topic;
     const empty = document.getElementById('dailyTopicEmpty');
     const body  = document.getElementById('dailyTopicBody');
     const label = document.getElementById('topicBtnLabel');
-    if(!t){ empty.style.display='block'; body.style.display='none'; return; }
+    const genBtn = document.getElementById('topicGenBtn');
+    const refBtn = document.getElementById('topicRefreshBtn');
+    if(!body || !empty) return;
+    if(!t){
+      empty.style.display='block'; body.style.display='none';
+      if(genBtn) genBtn.style.display='inline-flex';
+      if(refBtn) refBtn.style.display='none';
+      return;
+    }
     empty.style.display='none'; body.style.display='block';
-    label.textContent = 'Refresh topic';
+    if(label) label.textContent = 'Refresh topic';
+    if(genBtn) genBtn.style.display='none';   // hide big button after generation
+    if(refBtn) refBtn.style.display='inline-flex';
+
+    const today = new Date().toISOString().slice(0,10);
+    const datebadge = t.date===today
+      ? '<span class="eyebrow">Today</span>'
+      : `<span class="eyebrow" style="color:var(--text-faint);">Generated ${t.date||'earlier'}</span>`;
+
+    // Build sections in order; tolerate missing fields and tolerate older (flat) schema
+    const sections = [];
+    if(t.background || t.summary){
+      sections.push(`<h4>Background</h4><p>${escapeHTML(t.background || t.summary)}</p>`);
+    }
+    if(Array.isArray(t.key_measurements) && t.key_measurements.length){
+      sections.push(`<h4>Key measurements &amp; cutoffs</h4>
+        <dl class="kv">${t.key_measurements.map(m=>`
+          <dt>${escapeHTML(m.name||'')}</dt>
+          <dd><strong>${escapeHTML(m.value||'')}</strong>${m.note?` <span class="muted">— ${escapeHTML(m.note)}</span>`:''}</dd>
+        `).join('')}</dl>`);
+    }
+    if(Array.isArray(t.methodology) && t.methodology.length){
+      sections.push(`<h4>How to perform / apply</h4>
+        <ul>${t.methodology.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
+    }
+    if(Array.isArray(t.differentiating_features) && t.differentiating_features.length){
+      sections.push(`<h4>How to differentiate</h4>
+        <ul>${t.differentiating_features.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
+    }
+    if(Array.isArray(t.pitfalls) && t.pitfalls.length){
+      sections.push(`<div class="pitfalls"><strong>⚠ Pitfalls</strong>
+        <ul>${t.pitfalls.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul></div>`);
+    }
+    if(Array.isArray(t.pearls) && t.pearls.length){
+      sections.push(`<div class="pearls"><strong>★ Clinical pearls</strong>
+        <ul>${t.pearls.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul></div>`);
+    }
+    if(Array.isArray(t.exam_pearls) && t.exam_pearls.length){
+      sections.push(`<h4>Exam focus</h4>
+        <ul>${t.exam_pearls.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
+    }
+    // legacy schema fallback — render key_points if structured sections are sparse
+    if(Array.isArray(t.key_points) && t.key_points.length && !sections.some(s=>/Key /.test(s))){
+      sections.push(`<h4>Key points</h4>
+        <ul>${t.key_points.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
+    }
+
     body.innerHTML = `
-      <span class="eyebrow">${t.date===new Date().toISOString().slice(0,10)?'Today':'Earlier'}</span>
-      <h3 style="margin:5px 0 8px;">${t.title||'Topic'}</h3>
-      <p style="font-size:13.5px;line-height:1.6;margin-bottom:10px;">${t.summary||''}</p>
-      ${Array.isArray(t.key_points)&&t.key_points.length?`
-        <ul style="margin:0 0 10px 18px;padding:0;font-size:13px;">
-          ${t.key_points.map(p=>`<li style="margin-bottom:4px;">${p}</li>`).join('')}
-        </ul>`:''}
-      ${t.reference?`<div class="explain" style="margin-top:0;font-size:12.5px;">
-        <strong>Reference:</strong> ${t.reference}
+      ${datebadge}
+      <h3 style="font-family:var(--font-display);font-weight:600;font-size:20px;margin:6px 0 14px;letter-spacing:-.01em;">${escapeHTML(t.title||'Topic')}</h3>
+      <div class="rich">${sections.join('')}</div>
+      ${t.reference?`<div class="explain" style="margin-top:14px;font-size:12.5px;">
+        <strong>Reference:</strong> ${escapeHTML(t.reference)}
         <div style="margin-top:5px;color:var(--text-faint);">AI-generated — verify against the source.</div>
       </div>`:''}`;
   },
@@ -2031,16 +2486,26 @@ const Today = {
     const empty = document.getElementById('scenarioEmpty');
     const body  = document.getElementById('scenarioBody');
     const label = document.getElementById('scenarioBtnLabel');
-    if(!s){ empty.style.display='block'; body.style.display='none'; return; }
+    const genBtn = document.getElementById('scenarioGenBtn');
+    const refBtn = document.getElementById('scenarioRefreshBtn');
+    if(!body || !empty) return;
+    if(!s){
+      empty.style.display='block'; body.style.display='none';
+      if(genBtn) genBtn.style.display='inline-flex';
+      if(refBtn) refBtn.style.display='none';
+      return;
+    }
     empty.style.display='none'; body.style.display='block';
-    label.textContent = 'New scenario';
+    if(label) label.textContent = 'New scenario';
+    if(genBtn) genBtn.style.display='none';
+    if(refBtn) refBtn.style.display='inline-flex';
     body.innerHTML = `
       <span class="eyebrow">Clinical vignette</span>
-      <p style="font-size:13.5px;line-height:1.6;margin:6px 0 14px;">${s.vignette}</p>
+      <p style="font-size:14px;line-height:1.65;margin:6px 0 16px;">${escapeHTML(s.vignette)}</p>
       ${s.questions.map((q,qi)=>{
         const picked = s.answered[qi];
         return `<div style="margin-bottom:16px;">
-          <p style="font-weight:500;font-size:13.5px;margin-bottom:9px;">Q${qi+1}. ${q.q}</p>
+          <p style="font-weight:500;font-size:13.5px;margin-bottom:9px;">Q${qi+1}. ${escapeHTML(q.q)}</p>
           <div>
             ${q.options.map((o,oi)=>{
               let cls='mcq-opt';
@@ -2050,12 +2515,12 @@ const Today = {
               }
               return `<button class="${cls}" ${picked!=null?'style="pointer-events:none;"':''}
                 onclick="Today.answer(${qi},${oi})">
-                <span class="mcq-key">${'ABCD'[oi]}</span><span>${o}</span></button>`;
+                <span class="mcq-key">${'ABCD'[oi]}</span><span>${escapeHTML(o)}</span></button>`;
             }).join('')}
           </div>
           ${picked!=null?`<div class="explain">
-            <strong>${picked===q.answer?'✓ Correct':'✕ Incorrect'}.</strong> ${q.explanation}
-            ${q.reference?`<div style="margin-top:6px;font-size:12px;color:var(--text-dim);">Ref: ${q.reference} · AI-generated, verify.</div>`:''}
+            <strong>${picked===q.answer?'✓ Correct':'✕ Incorrect'}.</strong> ${escapeHTML(q.explanation||'')}
+            ${q.reference?`<div style="margin-top:6px;font-size:12px;color:var(--text-dim);">Ref: ${escapeHTML(q.reference)} · AI-generated, verify.</div>`:''}
           </div>`:''}
         </div>`;
       }).join('')}`;
@@ -2073,6 +2538,14 @@ const Today = {
     this.renderScenario();
   }
 };
+
+/* ---- tiny HTML escape so AI output can't break the layout ---- */
+function escapeHTML(str){
+  if(str==null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 /* ---- toast helper ---- */
 let toastT;
