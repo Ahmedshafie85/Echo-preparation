@@ -485,12 +485,36 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   <section class="view" id="view-video">
     <div class="section-title"><h2>Echo video library</h2></div>
 
+    <!-- Video of the day -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Video of the day</h3><span class="badge-ai">⚡ AI</span></div>
+      <div id="votdBody"><div class="empty" style="padding:18px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 8l6 4-6 4z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
+        <div>A high-yield topic to watch today, with the best channels to find it.</div></div></div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        <span id="votdBtnLabel">Pick today's video topic</span>
+      </button>
+    </div>
+
+    <!-- Echo news -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>What's new in echo</h3><span class="badge-ai">⚡ AI</span></div>
+      <div id="newsBody"><div class="empty" style="padding:18px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
+        <div>Recent developments in echocardiography guidelines and practice.</div></div></div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadNews()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        <span id="newsBtnLabel">Get echo updates</span>
+      </button>
+    </div>
+
     <!-- Premium curated channels -->
     <div class="card" style="margin-bottom:14px;">
       <div class="card-head"><h3>Top echo channels</h3><span class="faint">Verified sources</span></div>
       <p class="faint" style="margin-bottom:12px;">
         Hand-picked, real channels used by cardiology fellows worldwide — society
-        channels, leading courses, and case libraries.
+        channels, leading courses, case libraries, and Mayo Clinic.
       </p>
       <div class="stack" id="channelList"></div>
     </div>
@@ -690,6 +714,7 @@ window.S = {
   plan:       JSON.parse(localStorage.getItem('ep_plan')    || 'null'),
   expert:     JSON.parse(localStorage.getItem('ep_expert')  || '[]'),
   today:      JSON.parse(localStorage.getItem('ep_today')   || 'null'),
+  vextras:    JSON.parse(localStorage.getItem('ep_vextras') || 'null'),
   stats:      JSON.parse(localStorage.getItem('ep_stats')   || '{"streak":0,"mcqDone":0,"correct":0,"byDomain":{}}'),
   mcqDiff:    'board',
   planTrack:  'all',
@@ -703,7 +728,7 @@ window.S = {
 
 /* Persist to local storage, and (debounced) mirror to Firestore if sync is up.
    We only mirror the user-data keys, never API keys (those stay device-local). */
-const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert','today']);
+const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert','today','vextras']);
 const _cloudTimers = {};
 function persist(k, v){
   localStorage.setItem('ep_'+k, JSON.stringify(v));
@@ -719,6 +744,11 @@ function persist(k, v){
       .catch(e=>console.warn('cloud sync ('+k+'):', e));
   }, 800);
 }
+
+/* Null-safe DOM helpers — never throw if an element is missing. */
+function $(id){ return document.getElementById(id); }
+function setText(id, text){ const e=$(id); if(e) e.textContent=text; }
+function setHTML(id, html){ const e=$(id); if(e) e.innerHTML=html; }
 
 /* ============================================================
    APP — shell, navigation, theme, settings
@@ -737,6 +767,7 @@ const App = {
     Plan.render();
     MCQ.initSetup();
     Videos.render();
+    VideoExtras.render();
     Bank.render();
     Expert.render();
     Today.render();
@@ -801,21 +832,21 @@ const App = {
       S.fb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
 
       firebase.auth().onAuthStateChanged(user=>{
-        const signInBox  = document.getElementById('signInBox');
-        const signedInBox= document.getElementById('signedInBox');
+        const signInBox  = $('signInBox');
+        const signedInBox= $('signedInBox');
         if(user){
           S.uid = user.uid;
-          document.getElementById('syncUserEmail').textContent = user.email || user.uid.slice(0,8)+'…';
-          signInBox.style.display    = 'none';
-          signedInBox.style.display  = 'block';
-          el.innerHTML = ' — <strong>connected</strong>.';
+          setText('syncUserEmail', user.email || user.uid.slice(0,8)+'…');
+          if(signInBox)   signInBox.style.display='none';
+          if(signedInBox) signedInBox.style.display='block';
+          setHTML('syncState', ' — <strong>connected</strong>.');
           this.pullCloudThenEnableSync();
         }else{
           S.uid = null;
           S.syncReady = false;
-          signInBox.style.display    = 'block';
-          signedInBox.style.display  = 'none';
-          el.textContent = ' — not signed in (using local storage).';
+          if(signInBox)   signInBox.style.display='block';
+          if(signedInBox) signedInBox.style.display='none';
+          setText('syncState', ' — not signed in (using local storage).');
         }
       });
     }catch(e){
@@ -857,7 +888,7 @@ const App = {
       const cloudUpdated = cloud?._updated || 0;
 
       if(cloud && cloudUpdated >= localUpdated){
-        ['tasks','bank','videos','plan','stats','expert','today'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert','today','vextras'].forEach(k=>{
           if(cloud[k] !== undefined){
             localStorage.setItem('ep_'+k, JSON.stringify(cloud[k]));
             const stateKey = (k==='bank') ? 'mcqBank' : k;
@@ -865,13 +896,13 @@ const App = {
           }
         });
         Tasks.render(); Plan.render(); Bank.render();
-        Videos.render(); Expert.render(); Today.render(); Weak.render(); Dashboard.render();
+        Videos.render(); VideoExtras.render(); Expert.render(); Today.render(); Weak.render(); Dashboard.render();
       }
       S.syncReady = true;
 
       if(!cloud || cloudUpdated < localUpdated){
         const payload = {_updated: Date.now()};
-        ['tasks','bank','videos','plan','stats','expert','today'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert','today','vextras'].forEach(k=>{
           const v = localStorage.getItem('ep_'+k);
           if(v) payload[k] = JSON.parse(v);
         });
@@ -927,36 +958,32 @@ const App = {
 const Dashboard = {
   render(){
     const st = S.stats;
-    document.getElementById('stStreak').innerHTML = st.streak + '<span class="unit"> d</span>';
-    document.getElementById('stMcq').textContent  = st.mcqDone;
+    setHTML('stStreak', st.streak + '<span class="unit"> d</span>');
+    setText('stMcq', st.mcqDone);
     const acc = st.mcqDone ? Math.round(100*st.correct/st.mcqDone) : null;
-    document.getElementById('stAcc').innerHTML = (acc==null?'—':acc) + '<span class="unit">%</span>';
+    setHTML('stAcc', (acc==null?'—':acc) + '<span class="unit">%</span>');
 
     // nearest exam countdown
     const dates = [];
     if(S.settings.eacviDate)   dates.push(['EACVI', S.settings.eacviDate]);
     if(S.settings.ascexamDate) dates.push(['ASCeXAM', S.settings.ascexamDate]);
-    const el = document.getElementById('examCountdown');
     if(!dates.length){
-      el.textContent = 'Set your exam date in Settings';
+      setText('examCountdown', 'Set your exam date in Settings');
     }else{
       dates.sort((a,b)=>new Date(a[1])-new Date(b[1]));
       const [name,d] = dates[0];
       const days = Math.ceil((new Date(d)-new Date())/864e5);
-      el.textContent = days>0
+      setText('examCountdown', days>0
         ? `${days} days to ${name} · keep the streak going`
-        : `${name} exam date reached`;
+        : `${name} exam date reached`);
     }
 
     // plan hint — today's session topic if a plan exists
-    const hint = document.getElementById('planTodayHint');
-    if(hint){
-      const todayStr = new Date().toISOString().slice(0,10);
-      const today = S.plan?.days?.find(x=>x.date===todayStr);
-      hint.textContent = today
-        ? `Today: ${today.topic}`
-        : (S.plan?.days?.length ? 'View your study schedule.' : 'Build your day-by-day schedule.');
-    }
+    const todayStr = new Date().toISOString().slice(0,10);
+    const today = S.plan?.days?.find(x=>x.date===todayStr);
+    setText('planTodayHint', today
+      ? `Today: ${today.topic}`
+      : (S.plan?.days?.length ? 'View your study schedule.' : 'Build your day-by-day schedule.'));
   }
 };
 
@@ -1145,7 +1172,13 @@ const Plan = {
         </div>
         <div class="chip-row">
           <a class="chip" target="_blank" rel="noopener"
-             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' echocardiography')}">▶ Watch video</a>
+             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' echocardiography')}">▶ YouTube</a>
+          <a class="chip" target="_blank" rel="noopener"
+             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' 123sonography')}">123sonography</a>
+          <a class="chip" target="_blank" rel="noopener"
+             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' Mayo Clinic')}">Mayo</a>
+          <a class="chip" target="_blank" rel="noopener"
+             href="https://www.youtube.com/results?search_query=${encodeURIComponent(d.video+' ASE echo')}">ASE</a>
           ${dom?`<button class="chip" onclick="MCQ.fromDomain('${dom.id}')">⚡ Drill MCQs</button>`:''}
         </div>
         ${d.reference?`<div class="explain" style="margin-top:10px;font-size:12.5px;">
@@ -1356,7 +1389,7 @@ For each session provide:
 - "topic": the focused subject of that day
 - "domain": the matching domain id from the list above (one of: ${domains.map(d=>d.id).join(', ')})
 - "tasks": 3-5 concrete, checkable study actions for that day
-- "video_search": a precise search phrase to find a teaching video on the topic
+- "video_search": a SPECIFIC search phrase targeting an actual teaching video on the exact subtopic — include the technique or concept name and the word "echocardiography" (e.g. "PISA method mitral regurgitation echocardiography tutorial", not just "valves"). Be specific enough to surface a focused lecture, not a broad playlist.
 - "reference": the guideline or textbook chapter to read for that topic. Name the issuing body and subject (e.g. "ASE guideline on chamber quantification"); add a chapter number only if confident. Do not invent edition years or chapter numbers.
 
 Return ONLY valid JSON, no markdown, exactly:
@@ -1580,7 +1613,17 @@ const ECHO_CHANNELS = [
     handle:'cardiology99',
     url:'https://www.youtube.com/channel/UC65MK3evz9plHtYKU6kDVbQ',
     tag:'Cases',
-    note:'Echocardiography clips and short teaching cases.' }
+    note:'Echocardiography clips and short teaching cases.' },
+  { name:'Mayo Clinic — CV Medical Professional Videos',
+    handle:'mayo-medprof',
+    url:'https://medprofvideos.mayoclinic.org/cardiovascular-diseases-and-cardiac-surgery',
+    tag:'Mayo',
+    note:'Mayo Clinic\u2019s latest cardiovascular videos for clinicians — guideline updates and grand rounds.' },
+  { name:'Mayo Clinic — CV Education (free CME videos)',
+    handle:'mayo-cve',
+    url:'https://cveducation.mayo.edu/lp/free_on_demand_cardiology_lessons',
+    tag:'Mayo',
+    note:'Free on-demand Mayo cardiology lessons, including echocardiography.' }
 ];
 
 const Videos = {
@@ -1666,8 +1709,96 @@ const Videos = {
 };
 
 /* ============================================================
-   EXPERT — AI consultant-level Q&A with references
+   VIDEO EXTRAS — video of the day + echo news (tap to refresh)
+   ------------------------------------------------------------
+   The AI only picks a TOPIC and writes search phrases / summaries.
+   It never invents video URLs — all links are real channel
+   searches scoped to that topic.
    ============================================================ */
+const VideoExtras = {
+  async loadVotd(){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    }
+    const btn=$('votdBtnLabel').parentElement, orig=btn.innerHTML;
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Picking…';
+    try{
+      const weak = Weak.weakestId();
+      const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
+      const raw = await AI.complete(
+        `Recommend ONE high-yield echocardiography topic worth watching a teaching video on today`+
+        (weakName?`, ideally related to the user's weak area: ${weakName}`:'')+`.
+Give a specific subtopic, a one-line reason it matters, and a precise video search phrase.
+Return ONLY valid JSON: {"topic":"string","why":"string","search":"specific search phrase"}`,
+        {json:true});
+      const v = extractJSON(raw);
+      S.vextras = S.vextras || {};
+      S.vextras.votd = { ...v, date:new Date().toISOString().slice(0,10) };
+      persist('vextras', S.vextras);
+      this.renderVotd();
+      toast('Video topic ready');
+    }catch(e){ console.error('votd:',e); toast(e.message||'Failed'); }
+    finally{ btn.disabled=false; btn.innerHTML=orig; }
+  },
+  async loadNews(){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    }
+    const btn=$('newsBtnLabel').parentElement, orig=btn.innerHTML;
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Loading…';
+    try{
+      const raw = await AI.complete(
+        `Summarise 3-4 notable recent developments in echocardiography — guideline updates,
+new techniques, or shifts in practice that a board candidate should know.
+Only include developments you are confident are real and established; do not fabricate
+guideline names, dates, or study results. If unsure of an exact year, omit it.
+Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence summary","area":"topic area"}]}`,
+        {json:true});
+      const n = extractJSON(raw);
+      S.vextras = S.vextras || {};
+      S.vextras.news = { items:(n.items||[]).slice(0,5), date:new Date().toISOString().slice(0,10) };
+      persist('vextras', S.vextras);
+      this.renderNews();
+      toast('Updates ready');
+    }catch(e){ console.error('news:',e); toast(e.message||'Failed'); }
+    finally{ btn.disabled=false; btn.innerHTML=orig; }
+  },
+
+  renderVotd(){
+    const v = S.vextras?.votd;
+    if(!v) return;
+    setText('votdBtnLabel','New video topic');
+    const ch = ['echocardiography','123sonography','Mayo Clinic','ASE echo'];
+    setHTML('votdBody', `
+      <span class="eyebrow">${v.date===new Date().toISOString().slice(0,10)?'Today':'Earlier'}</span>
+      <h3 style="margin:5px 0 6px;font-size:15px;">${v.topic||''}</h3>
+      <p class="faint" style="margin-bottom:10px;">${v.why||''}</p>
+      <div class="chip-row">
+        ${ch.map(c=>`<a class="chip" target="_blank" rel="noopener"
+          href="https://www.youtube.com/results?search_query=${encodeURIComponent((v.search||v.topic)+' '+c)}">
+          ${c==='echocardiography'?'▶ YouTube':c.split(' ')[0]}</a>`).join('')}
+      </div>`);
+  },
+  renderNews(){
+    const n = S.vextras?.news;
+    if(!n) return;
+    setText('newsBtnLabel','Refresh updates');
+    setHTML('newsBody', `
+      <span class="eyebrow">${n.date===new Date().toISOString().slice(0,10)?'Updated today':'Earlier'}</span>
+      <div style="margin-top:8px;">
+        ${n.items.map(it=>`
+          <div style="padding:10px 0;border-bottom:1px solid var(--line);">
+            <div style="font-weight:600;font-size:13.5px;">${it.headline||''}</div>
+            ${it.area?`<div class="faint" style="margin:2px 0 4px;">${it.area}</div>`:''}
+            <div style="font-size:13px;line-height:1.55;">${it.detail||''}</div>
+          </div>`).join('')}
+      </div>
+      <div class="explain" style="margin-top:10px;font-size:12px;">
+        AI-generated summary — verify against primary guideline sources before relying on specifics.
+      </div>`);
+  },
+  render(){ this.renderVotd(); this.renderNews(); }
+};
 const Expert = {
   async ask(){
     const q = document.getElementById('expertQ').value.trim();
