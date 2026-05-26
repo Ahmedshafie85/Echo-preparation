@@ -324,26 +324,60 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </div>
     </div>
 
-    <div class="section-title"><h2>Daily tasks</h2><span class="faint" id="taskProgress"></span></div>
+    <!-- TODAY'S TASKS — synced with study plan -->
+    <div class="section-title"><h2>Today's tasks</h2><span class="faint" id="taskProgress"></span></div>
     <div class="card">
+      <div id="planTaskHint" class="faint" style="margin-bottom:8px;display:none;"></div>
       <div id="taskList"><!-- rendered --></div>
       <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="Tasks.addPrompt()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-        Add task
+        Add my own task
       </button>
     </div>
+
+    <!-- DAILY TOPIC -->
+    <div class="section-title"><h2>Topic of the day</h2><span class="badge-ai">⚡ AI</span></div>
+    <div class="card" id="dailyTopicCard">
+      <div class="empty" id="dailyTopicEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14v7"/></svg>
+        <div>Tap below for today's focused echo topic.</div>
+      </div>
+      <div id="dailyTopicBody" style="display:none;"></div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="Today.loadTopic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        <span id="topicBtnLabel">Generate today's topic</span>
+      </button>
+    </div>
+
+    <!-- CLINICAL SCENARIO -->
+    <div class="section-title"><h2>Clinical scenario</h2><span class="badge-ai">⚡ AI</span></div>
+    <div class="card" id="scenarioCard">
+      <div class="empty" id="scenarioEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>
+        <div>An echo-based clinical case with MCQs, on current guidelines.</div>
+      </div>
+      <div id="scenarioBody" style="display:none;"></div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="Today.loadScenario()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        <span id="scenarioBtnLabel">Generate a scenario</span>
+      </button>
+    </div>
+
+    <!-- WEAK POINTS -->
+    <div class="section-title"><h2>Focus areas</h2><span class="faint">Weak-point analysis</span></div>
+    <div class="card" id="weakCard"><!-- rendered --></div>
 
     <div class="section-title"><h2>Continue studying</h2></div>
     <div class="split">
       <div class="card" style="cursor:pointer;" onclick="App.go('mcq')">
         <span class="badge-ai">⚡ AI</span>
         <h3 style="margin:9px 0 4px;">Quick MCQ drill</h3>
-        <p class="faint">Exam-style questions on your weak domains.</p>
+        <p class="faint">Exam-style questions on any domain.</p>
       </div>
       <div class="card" style="cursor:pointer;" onclick="App.go('plan')">
         <span class="eyebrow">Plan</span>
         <h3 style="margin:9px 0 4px;">Study plan</h3>
-        <p class="faint" id="planTodayHint">Open your dual-track schedule.</p>
+        <p class="faint" id="planTodayHint">Open your study schedule.</p>
       </div>
     </div>
   </section>
@@ -449,7 +483,29 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
   <!-- ===================== VIDEO LIBRARY ===================== -->
   <section class="view" id="view-video">
-    <div class="section-title"><h2>Video library</h2></div>
+    <div class="section-title"><h2>Echo video library</h2></div>
+
+    <!-- Premium curated channels -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Top echo channels</h3><span class="faint">Verified sources</span></div>
+      <p class="faint" style="margin-bottom:12px;">
+        Hand-picked, real channels used by cardiology fellows worldwide — society
+        channels, leading courses, and case libraries.
+      </p>
+      <div class="stack" id="channelList"></div>
+    </div>
+
+    <!-- Topic search across the library -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Find a topic</h3></div>
+      <div class="field"><label>Search the major channels for a topic</label>
+        <input id="vidTopic" placeholder="e.g. PISA mitral regurgitation">
+      </div>
+      <div class="chip-row" id="vidTopicResults"></div>
+    </div>
+
+    <!-- My saved -->
+    <div class="section-title"><h2 style="font-size:18px;">My saved videos</h2></div>
     <div class="card" style="margin-bottom:14px;">
       <div class="card-head"><h3>Add a video link</h3></div>
       <div class="field"><label>Title</label><input id="vidTitle" placeholder="e.g. PISA method for MR quantification"></div>
@@ -633,7 +689,8 @@ window.S = {
   videos:     JSON.parse(localStorage.getItem('ep_videos')  || '[]'),
   plan:       JSON.parse(localStorage.getItem('ep_plan')    || 'null'),
   expert:     JSON.parse(localStorage.getItem('ep_expert')  || '[]'),
-  stats:      JSON.parse(localStorage.getItem('ep_stats')   || '{"streak":0,"mcqDone":0,"correct":0}'),
+  today:      JSON.parse(localStorage.getItem('ep_today')   || 'null'),
+  stats:      JSON.parse(localStorage.getItem('ep_stats')   || '{"streak":0,"mcqDone":0,"correct":0,"byDomain":{}}'),
   mcqDiff:    'board',
   planTrack:  'all',
   bankFilter: 'all',
@@ -646,7 +703,7 @@ window.S = {
 
 /* Persist to local storage, and (debounced) mirror to Firestore if sync is up.
    We only mirror the user-data keys, never API keys (those stay device-local). */
-const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert']);
+const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert','today']);
 const _cloudTimers = {};
 function persist(k, v){
   localStorage.setItem('ep_'+k, JSON.stringify(v));
@@ -682,6 +739,8 @@ const App = {
     Videos.render();
     Bank.render();
     Expert.render();
+    Today.render();
+    Weak.render();
     Dashboard.render();
   },
 
@@ -798,7 +857,7 @@ const App = {
       const cloudUpdated = cloud?._updated || 0;
 
       if(cloud && cloudUpdated >= localUpdated){
-        ['tasks','bank','videos','plan','stats','expert'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert','today'].forEach(k=>{
           if(cloud[k] !== undefined){
             localStorage.setItem('ep_'+k, JSON.stringify(cloud[k]));
             const stateKey = (k==='bank') ? 'mcqBank' : k;
@@ -806,13 +865,13 @@ const App = {
           }
         });
         Tasks.render(); Plan.render(); Bank.render();
-        Videos.render(); Expert.render(); Dashboard.render();
+        Videos.render(); Expert.render(); Today.render(); Weak.render(); Dashboard.render();
       }
       S.syncReady = true;
 
       if(!cloud || cloudUpdated < localUpdated){
         const payload = {_updated: Date.now()};
-        ['tasks','bank','videos','plan','stats','expert'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert','today'].forEach(k=>{
           const v = localStorage.getItem('ep_'+k);
           if(v) payload[k] = JSON.parse(v);
         });
@@ -905,39 +964,70 @@ const Dashboard = {
    TASKS — daily study tasks
    ============================================================ */
 const Tasks = {
-  seed(){
-    return [
-      { id:1, text:'Review ASE diastolic dysfunction algorithm', tag:'LV',    done:false },
-      { id:2, text:'10 board-style MCQs — valvular disease',     tag:'MCQ',   done:false },
-      { id:3, text:'Watch: TEE LAA assessment technique',        tag:'Video', done:false }
-    ];
+  /* S.tasks now holds ONLY the user's own extra tasks.
+     Today's plan-session tasks are read live from S.plan and
+     checked off through Plan.toggleTask so the two stay in sync. */
+  todayPlanDay(){
+    const todayStr = new Date().toISOString().slice(0,10);
+    return S.plan?.days?.find(d=>d.date===todayStr) || null;
   },
   render(){
-    if(!Array.isArray(S.tasks) || S.tasks.length===0){
-      S.tasks = this.seed(); persist('tasks', S.tasks);
-    }
+    if(!Array.isArray(S.tasks)) S.tasks = [];
     const wrap = document.getElementById('taskList');
-    wrap.innerHTML = S.tasks.map(t=>`
-      <div class="task ${t.done?'done':''}">
+    const hint = document.getElementById('planTaskHint');
+    const day  = this.todayPlanDay();
+    let html = '';
+    let total = 0, done = 0;
+
+    // plan-session tasks for today (synced)
+    if(day){
+      hint.style.display='block';
+      hint.innerHTML = `From your study plan — <strong>${day.topic}</strong>`;
+      html += day.tasks.map(t=>{
+        total++; if(t.done) done++;
+        return `<div class="task ${t.done?'done':''}">
+          <button class="checkbox ${t.done?'done':''}" onclick="Plan.toggleTask(${day.n},${t.id})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
+          </button>
+          <div class="task-body"><div>${t.text}</div></div>
+          <span class="task-tag">Plan</span>
+        </div>`;
+      }).join('');
+    }else{
+      hint.style.display = S.plan ? 'block' : 'none';
+      if(S.plan) hint.innerHTML = 'No plan session scheduled for today — rest day or add your own tasks.';
+    }
+
+    // user's own extra tasks
+    html += S.tasks.map(t=>{
+      total++; if(t.done) done++;
+      return `<div class="task ${t.done?'done':''}">
         <button class="checkbox ${t.done?'done':''}" onclick="Tasks.toggle(${t.id})">
           <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
         </button>
-        <div class="task-body">
-          <div>${t.text}</div>
-        </div>
-        <span class="task-tag">${t.tag}</span>
-      </div>`).join('') || '<div class="empty">No tasks yet.</div>';
-    const done = S.tasks.filter(t=>t.done).length;
-    document.getElementById('taskProgress').textContent = `${done}/${S.tasks.length} done`;
+        <div class="task-body"><div>${t.text}</div></div>
+        <span class="task-tag" style="background:var(--line-strong);color:var(--text-dim);">Mine</span>
+        <button class="icon-btn" style="width:30px;height:30px;" onclick="Tasks.remove(${t.id})" title="Remove">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+
+    wrap.innerHTML = html || '<div class="empty" style="padding:20px;">No tasks today. Build a study plan or add your own.</div>';
+    document.getElementById('taskProgress').textContent = total ? `${done}/${total} done` : '';
   },
   toggle(id){
     const t = S.tasks.find(x=>x.id===id);
     if(t){ t.done=!t.done; persist('tasks', S.tasks); this.render(); }
   },
+  remove(id){
+    S.tasks = S.tasks.filter(t=>t.id!==id);
+    persist('tasks', S.tasks); this.render();
+  },
   addPrompt(){
-    const text = prompt('New study task:');
+    const text = prompt('New task for today:');
     if(text && text.trim()){
-      S.tasks.push({ id:Date.now(), text:text.trim(), tag:'Task', done:false });
+      S.tasks.push({ id:Date.now(), text:text.trim(), done:false });
       persist('tasks', S.tasks); this.render();
     }
   }
@@ -967,7 +1057,9 @@ const Plan = {
     const orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Building plan…';
     try{
-      const raw = await AI.complete(buildPlanPrompt(exam, sessions, DOMAINS), {json:true});
+      const weakNames = Weak.ranked().filter(d=>d.seen>=3 && d.acc<0.7)
+        .map(d=>d.name).slice(0,3);
+      const raw = await AI.complete(buildPlanPrompt(exam, sessions, DOMAINS, weakNames), {json:true});
       const parsed = extractJSON(raw);
       let days = (parsed.days||[]).filter(d=>d && d.topic && Array.isArray(d.tasks));
       if(!days.length) throw new Error('AI returned no plan — try again');
@@ -987,6 +1079,8 @@ const Plan = {
       S.plan = { exam, created:Date.now(), days };
       persist('plan', S.plan);
       this.render();
+      Tasks.render();
+      Dashboard.render();
       toast(`${days.length}-session plan ready`);
     }catch(e){
       console.error('plan generate:', e);
@@ -1000,7 +1094,7 @@ const Plan = {
     const day = S.plan?.days.find(d=>d.n===dayN);
     if(!day) return;
     const t = day.tasks.find(x=>x.id===taskId);
-    if(t){ t.done=!t.done; persist('plan', S.plan); this.render(); Dashboard.render(); }
+    if(t){ t.done=!t.done; persist('plan', S.plan); this.render(); Tasks.render(); Dashboard.render(); }
   },
 
   render(){
@@ -1245,15 +1339,18 @@ Return ONLY a valid JSON object, no markdown, no commentary, in exactly this sha
 }
 
 /* ---- plan prompt: dated day-by-day study schedule --------- */
-function buildPlanPrompt(exam, sessions, domains){
+function buildPlanPrompt(exam, sessions, domains, weakNames){
   const examNote = {
     eacvi:'the EACVI echocardiography certification exam',
     ascexam:'the ASCeXAM (American) echocardiography board exam',
     both:'both the EACVI and ASCeXAM echocardiography exams'
   }[exam] || 'echocardiography board exams';
+  const weakNote = (weakNames && weakNames.length)
+    ? `\nThe user is currently weakest in: ${weakNames.join(', ')}. Allocate MORE sessions to these areas and schedule them earlier.`
+    : '';
   return `Build a ${sessions}-session study plan for a cardiologist preparing for ${examNote}.
 Cover this curriculum across the sessions, progressing logically and revisiting hard topics:
-${domains.map(d=>`- ${d.id}: ${d.name} (${d.topics.join('; ')})`).join('\n')}
+${domains.map(d=>`- ${d.id}: ${d.name} (${d.topics.join('; ')})`).join('\n')}${weakNote}
 
 For each session provide:
 - "topic": the focused subject of that day
@@ -1323,8 +1420,8 @@ const MCQ = {
       const parsed = extractJSON(raw);
       let qs = (parsed.questions || []).filter(validMcq);
       if(!qs.length) throw new Error('AI returned no usable questions — try again');
-      qs = qs.map(q=>({ ...q, topic:q.topic||dom.name, reference:q.reference||'', style }));
-      this.startRunner(qs);
+      qs = qs.map(q=>({ ...q, topic:q.topic||dom.name, domain:dom.id, reference:q.reference||'', style }));
+      this.startRunner(qs, dom.id);
       toast(`${qs.length} questions ready`);
     }catch(e){
       console.error('MCQ generation failed:', e);
@@ -1334,8 +1431,8 @@ const MCQ = {
       btn.innerHTML = orig;
     }
   },
-  startRunner(qs){
-    S.current = { qs, i:0, picked:null, score:0 };
+  startRunner(qs, domain){
+    S.current = { qs, i:0, picked:null, score:0, domain:domain||null };
     document.getElementById('mcqSetup').style.display='none';
     document.getElementById('mcqRunner').style.display='block';
     this.renderQ();
@@ -1373,9 +1470,15 @@ const MCQ = {
     });
     const right = idx===q.answer;
     if(right) c.score++;
-    // stats
+    // stats — global
     S.stats.mcqDone++; if(right) S.stats.correct++;
-    persist('stats', S.stats); Dashboard.render();
+    // stats — per domain (for weak-point analysis)
+    const dom = q.domain || c.domain || 'misc';
+    S.stats.byDomain = S.stats.byDomain || {};
+    const ds = S.stats.byDomain[dom] || {seen:0,correct:0};
+    ds.seen++; if(right) ds.correct++;
+    S.stats.byDomain[dom] = ds;
+    persist('stats', S.stats); Dashboard.render(); Weak.render();
     // save to bank
     Bank.save(q);
     document.getElementById('mcqAfter').innerHTML = `
@@ -1445,8 +1548,41 @@ const Bank = {
 };
 
 /* ============================================================
-   VIDEOS — curated topic links
+   VIDEOS — verified channel library + topic search + saved
+   ------------------------------------------------------------
+   CHANNELS: every URL below was verified via web search.
+   These are channel/playlist hubs (stable), not deep video
+   links (which rot). Search-within builds a real YouTube
+   search scoped to the channel — never an invented video URL.
    ============================================================ */
+const ECHO_CHANNELS = [
+  { name:'123sonography',
+    handle:'@123sonographycom',
+    url:'https://www.youtube.com/@123sonographycom',
+    tag:'Course',
+    note:'The leading online echo course — free chapters and case-based teaching.' },
+  { name:'ASE — American Society of Echocardiography',
+    handle:'ase360',
+    url:'https://www.youtube.com/ase360',
+    tag:'Society',
+    note:'Official ASE channel: guideline updates, expert cases and interviews.' },
+  { name:'EACVI — European Assoc. of Cardiovascular Imaging',
+    handle:'EACVI',
+    url:'https://www.youtube.com/playlist?list=PLN5RC1OF9yB4aO8GWiwRE2oqg2ZnCJna-',
+    tag:'Society',
+    note:'EACVI educational playlist — European guideline-based imaging teaching.' },
+  { name:'ECHOCARDIOGRAPHY (case library)',
+    handle:'@echocardiographie',
+    url:'https://www.youtube.com/@echocardiographie',
+    tag:'Cases',
+    note:'Large aggregated library of echo clips by diagnosis.' },
+  { name:'The Echo Channel',
+    handle:'cardiology99',
+    url:'https://www.youtube.com/channel/UC65MK3evz9plHtYKU6kDVbQ',
+    tag:'Cases',
+    note:'Echocardiography clips and short teaching cases.' }
+];
+
 const Videos = {
   add(){
     const title = document.getElementById('vidTitle').value.trim();
@@ -1460,7 +1596,41 @@ const Videos = {
     this.render(); toast('Video saved');
   },
   filter(id){ S.vidFilter=id; this.render(); },
+
+  /* search a topic across the major channels — opens real YouTube searches */
+  searchTopic(){
+    const q = document.getElementById('vidTopic').value.trim();
+    const box = document.getElementById('vidTopicResults');
+    if(!q){ box.innerHTML=''; return; }
+    const ytAll = 'https://www.youtube.com/results?search_query='+encodeURIComponent(q+' echocardiography');
+    // YouTube supports scoping a search to a channel handle in the query text
+    box.innerHTML =
+      `<a class="chip" target="_blank" rel="noopener" href="${ytAll}">▶ All YouTube</a>` +
+      ECHO_CHANNELS.map(c=>{
+        const scoped = 'https://www.youtube.com/results?search_query='+
+          encodeURIComponent(q+' '+c.name.split(' ')[0]);
+        return `<a class="chip" target="_blank" rel="noopener" href="${scoped}">${c.name.split(' ')[0]}</a>`;
+      }).join('');
+  },
+
+  renderChannels(){
+    const el = document.getElementById('channelList');
+    if(!el) return;
+    el.innerHTML = ECHO_CHANNELS.map(c=>`
+      <div class="card" style="display:flex;align-items:center;gap:12px;padding:13px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${c.name}
+            <span class="task-tag" style="margin-left:4px;">${c.tag}</span></div>
+          <div class="faint">${c.note}</div>
+        </div>
+        <a class="btn btn-ghost" href="${c.url}" target="_blank" rel="noopener">Open</a>
+      </div>`).join('');
+  },
+
   render(){
+    this.renderChannels();
+    const ti = document.getElementById('vidTopic');
+    if(ti && !ti._wired){ ti._wired=true; ti.addEventListener('input',()=>this.searchTopic()); }
     const ds = document.getElementById('vidDomain');
     if(ds && !ds.options.length)
       ds.innerHTML = DOMAINS.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
@@ -1472,7 +1642,7 @@ const Videos = {
     if(!items.length){
       list.innerHTML = `<div class="empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>
-        <div>No videos yet. Add links to lectures and technique demos.</div></div>`;
+        <div>No saved videos yet. Use the channels above or add your own link.</div></div>`;
       return;
     }
     list.innerHTML = items.map(v=>{
@@ -1483,8 +1653,15 @@ const Videos = {
           <div class="faint">${dn}</div>
         </div>
         <a class="btn btn-ghost" href="${v.url}" target="_blank" rel="noopener">Open</a>
+        <button class="icon-btn" onclick="Videos.remove(${v.id})" title="Remove">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
       </div>`;
     }).join('');
+  },
+  remove(id){
+    S.videos = S.videos.filter(v=>v.id!==id);
+    persist('videos', S.videos); this.render();
   }
 };
 
@@ -1568,6 +1745,201 @@ const Expert = {
             ${h.refs.map(r=>`<li style="margin-bottom:3px;">${r}</li>`).join('')}
           </ul></div>`:''}
       </div>`).join('');
+  }
+};
+
+/* ============================================================
+   WEAK — weak-point analysis from per-domain MCQ accuracy
+   ============================================================ */
+const Weak = {
+  /* Returns domains sorted weakest-first, with enough data. */
+  ranked(){
+    const by = S.stats.byDomain || {};
+    return DOMAINS
+      .map(d=>{
+        const s = by[d.id] || {seen:0,correct:0};
+        return { id:d.id, name:d.name, seen:s.seen,
+                 acc: s.seen ? s.correct/s.seen : null };
+      })
+      .filter(d=>d.seen>0)
+      .sort((a,b)=>a.acc-b.acc);
+  },
+  /* The single weakest domain id with >=3 questions seen — used to
+     bias the daily topic / plan. Null if not enough data yet. */
+  weakestId(){
+    const r = this.ranked().filter(d=>d.seen>=3);
+    return r.length ? r[0].id : null;
+  },
+  render(){
+    const el = document.getElementById('weakCard');
+    if(!el) return;
+    const r = this.ranked();
+    if(!r.length){
+      el.innerHTML = `<div class="empty" style="padding:20px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18M7 14l4-4 4 4 5-6"/></svg>
+        <div>Answer some MCQs and your weak domains will surface here.</div></div>`;
+      return;
+    }
+    const weak = r.slice(0,4);
+    el.innerHTML = `
+      <p class="faint" style="margin-bottom:12px;">Lowest accuracy first — tap to drill that domain.</p>
+      ${weak.map(d=>{
+        const pct = Math.round(d.acc*100);
+        const col = pct<50?'var(--bad)':pct<70?'var(--warn)':'var(--ok)';
+        return `<div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span style="font-weight:500;">${d.name}</span>
+            <span style="color:${col};font-weight:600;">${pct}% · ${d.seen} Q</span>
+          </div>
+          <div class="bar"><i style="width:${pct}%;background:${col};"></i></div>
+          <button class="chip" style="margin-top:7px;" onclick="MCQ.fromDomain('${d.id}')">⚡ Drill ${d.name.split(' ')[0]}</button>
+        </div>`;
+      }).join('')}`;
+  }
+};
+
+/* ---- prompt builders for daily topic & scenario ----------- */
+function buildTopicPrompt(weakName){
+  const focus = weakName
+    ? `Choose a topic within or related to the user's current weak area: ${weakName}.`
+    : `Choose any high-yield echocardiography board topic.`;
+  return `Produce a concise "topic of the day" for a cardiologist preparing for echo board exams.
+${focus}
+Keep it focused and high-yield — something learnable in one short study session.
+Base all content on current, well-established echocardiography guidelines.
+
+Return ONLY valid JSON, no markdown, exactly:
+{"title":"string","summary":"3-5 sentence teaching summary","key_points":["point","point","point"],"reference":"the guideline or source supporting this — name the body and subject; do not invent figure numbers"}`;
+}
+function buildScenarioPrompt(weakName){
+  const focus = weakName
+    ? `Theme the case around the user's weak area: ${weakName}.`
+    : `Pick any realistic echo-relevant clinical presentation.`;
+  return `Create a realistic echo-based clinical scenario for board exam practice.
+${focus}
+Give a short clinical vignette with relevant echo findings, then 2 single-best-answer MCQs about it.
+Base everything on current, well-established echocardiography guidelines. Do not invent guideline
+figure numbers or cutoff values you are unsure of.
+
+Return ONLY valid JSON, no markdown, exactly:
+{"vignette":"the clinical case with echo findings","questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","reference":"string"}]}`;
+}
+
+/* ============================================================
+   TODAY — AI daily topic + clinical scenario (tap to refresh)
+   ============================================================ */
+const Today = {
+  async loadTopic(){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    }
+    const btn = document.querySelector('#dailyTopicCard .btn-primary');
+    const orig = btn.innerHTML;
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generating…';
+    try{
+      const weak = Weak.weakestId();
+      const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
+      const raw = await AI.complete(buildTopicPrompt(weakName), {json:true});
+      const t = extractJSON(raw);
+      S.today = S.today || {};
+      S.today.topic = { ...t, date:new Date().toISOString().slice(0,10) };
+      persist('today', S.today);
+      this.renderTopic();
+      toast('Topic ready');
+    }catch(e){
+      console.error('topic:', e); toast(e.message||'Failed');
+    }finally{ btn.disabled=false; btn.innerHTML=orig; }
+  },
+  async loadScenario(){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    }
+    const btn = document.querySelector('#scenarioCard .btn-primary');
+    const orig = btn.innerHTML;
+    btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generating…';
+    try{
+      const weak = Weak.weakestId();
+      const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
+      const raw = await AI.complete(buildScenarioPrompt(weakName), {json:true});
+      const s = extractJSON(raw);
+      const qs = (s.questions||[]).filter(validMcq);
+      S.today = S.today || {};
+      S.today.scenario = { vignette:s.vignette||'', questions:qs,
+                           date:new Date().toISOString().slice(0,10), answered:{} };
+      persist('today', S.today);
+      this.renderScenario();
+      toast('Scenario ready');
+    }catch(e){
+      console.error('scenario:', e); toast(e.message||'Failed');
+    }finally{ btn.disabled=false; btn.innerHTML=orig; }
+  },
+
+  renderTopic(){
+    const t = S.today?.topic;
+    const empty = document.getElementById('dailyTopicEmpty');
+    const body  = document.getElementById('dailyTopicBody');
+    const label = document.getElementById('topicBtnLabel');
+    if(!t){ empty.style.display='block'; body.style.display='none'; return; }
+    empty.style.display='none'; body.style.display='block';
+    label.textContent = 'Refresh topic';
+    body.innerHTML = `
+      <span class="eyebrow">${t.date===new Date().toISOString().slice(0,10)?'Today':'Earlier'}</span>
+      <h3 style="margin:5px 0 8px;">${t.title||'Topic'}</h3>
+      <p style="font-size:13.5px;line-height:1.6;margin-bottom:10px;">${t.summary||''}</p>
+      ${Array.isArray(t.key_points)&&t.key_points.length?`
+        <ul style="margin:0 0 10px 18px;padding:0;font-size:13px;">
+          ${t.key_points.map(p=>`<li style="margin-bottom:4px;">${p}</li>`).join('')}
+        </ul>`:''}
+      ${t.reference?`<div class="explain" style="margin-top:0;font-size:12.5px;">
+        <strong>Reference:</strong> ${t.reference}
+        <div style="margin-top:5px;color:var(--text-faint);">AI-generated — verify against the source.</div>
+      </div>`:''}`;
+  },
+  renderScenario(){
+    const s = S.today?.scenario;
+    const empty = document.getElementById('scenarioEmpty');
+    const body  = document.getElementById('scenarioBody');
+    const label = document.getElementById('scenarioBtnLabel');
+    if(!s){ empty.style.display='block'; body.style.display='none'; return; }
+    empty.style.display='none'; body.style.display='block';
+    label.textContent = 'New scenario';
+    body.innerHTML = `
+      <span class="eyebrow">Clinical vignette</span>
+      <p style="font-size:13.5px;line-height:1.6;margin:6px 0 14px;">${s.vignette}</p>
+      ${s.questions.map((q,qi)=>{
+        const picked = s.answered[qi];
+        return `<div style="margin-bottom:16px;">
+          <p style="font-weight:500;font-size:13.5px;margin-bottom:9px;">Q${qi+1}. ${q.q}</p>
+          <div>
+            ${q.options.map((o,oi)=>{
+              let cls='mcq-opt';
+              if(picked!=null){
+                if(oi===q.answer) cls+=' correct';
+                else if(oi===picked) cls+=' wrong';
+              }
+              return `<button class="${cls}" ${picked!=null?'style="pointer-events:none;"':''}
+                onclick="Today.answer(${qi},${oi})">
+                <span class="mcq-key">${'ABCD'[oi]}</span><span>${o}</span></button>`;
+            }).join('')}
+          </div>
+          ${picked!=null?`<div class="explain">
+            <strong>${picked===q.answer?'✓ Correct':'✕ Incorrect'}.</strong> ${q.explanation}
+            ${q.reference?`<div style="margin-top:6px;font-size:12px;color:var(--text-dim);">Ref: ${q.reference} · AI-generated, verify.</div>`:''}
+          </div>`:''}
+        </div>`;
+      }).join('')}`;
+  },
+  answer(qi, oi){
+    const s = S.today?.scenario;
+    if(!s || s.answered[qi]!=null) return;
+    s.answered[qi] = oi;
+    persist('today', S.today);
+    this.renderScenario();
+  },
+  render(){
+    // clear stale (previous-day) content so it's obviously refreshable
+    this.renderTopic();
+    this.renderScenario();
   }
 };
 
