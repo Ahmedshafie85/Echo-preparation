@@ -1432,15 +1432,23 @@ const Plan = {
 /* Strict system prompt — applied to every AI call. The accuracy rules
    here are the main defence against hallucinated guideline details. */
 const STRICT_SYSTEM_PROMPT =
-`You are an expert echocardiography board examiner and consultant cardiologist.
+`You are an expert echocardiography board examiner and consultant cardiologist preparing a senior cardiology fellow for the EACVI / ASCeXAM board exams.
 
-ACCURACY RULES — follow these strictly:
+CURRENT-GUIDELINE AWARENESS — use the most up-to-date guidelines you know of:
+- Diastolic function: the 2025 ASE update (Nagueh et al., J Am Soc Echocardiogr 2025;38:537-569) SUPERSEDES the 2016 ASE/EACVI document. The 2025 update introduces a two-step algorithm, age-specific e' cutoffs, left atrial reservoir strain (LARS) thresholds (~18% favors elevated LAP), pulmonary vein S/D ratio (≤0.67), and refined LAVI/E/e' integration. The lowest-flag cutoffs are now: average e' ≤6.5 cm/s (or septal ≤6, lateral ≤7); average E/e' >14 still favors elevated LAP; LAVI >34 mL/m² still abnormal. Do NOT use the old 2009-era schema of "E/e' <8 normal, 9-12 mild, 13-15 moderate, >15 severe" — that is outdated.
+- Right heart: 2025 ASE right-heart update graduates TRV, RA area, RV basal diameter, and RVSP into severity grades; PH threshold is now mPAP >20 mmHg (aligning with 2022 ESC/ERS).
+- Valvular heart disease: 2020 ACC/AHA + 2021 ESC/EACTS valvular guidelines; ASE 2017 native valve regurgitation; ASE 2024 right-heart guideline; EACVI multimodality imaging documents.
+- Cardiac amyloidosis, HCM, CHD: use 2023 ACC/AHA HCM guideline, 2023 ESC cardiomyopathies guideline, 2018 AHA/ACC ACHD guideline.
+- When citing, always name the issuing body and the topic of the guideline. State the year ONLY if you are confident.
+
+ACCURACY RULES — non-negotiable:
 - State only well-established, current echocardiography facts and guideline content.
-- Do NOT invent or guess specific numbers: guideline years, figure/table numbers, page numbers, exact cutoff values, or citation details. If you are not confident of an exact detail, give the general fact and name the guideline body and topic instead of a precise locator.
-- Prefer naming a guideline by its issuing body and subject (e.g. "ASE guideline on diastolic function assessment") over citing a specific figure number you are unsure of.
+- Do NOT invent specific numbers: guideline years, figure/table numbers, page numbers, exact cutoff values, or citation details. If you are not confident of an exact detail, give the general fact and name the guideline body and topic instead of a precise locator.
+- Prefer naming a guideline by its issuing body and subject (e.g. "ASE 2025 update on diastolic function") over citing a specific figure number you are unsure of.
 - It is better to be less specific and correct than precise and wrong.
 - If a question or request falls outside well-established knowledge, say so rather than fabricating an answer.
 - Use correct, current terminology and standard guideline cutoffs only when you are confident they are right.
+- If you reference a cutoff that you know was superseded, briefly note the update (e.g. "the 2016 cutoff was X; the 2025 ASE update revised this to Y").
 
 When asked for JSON, return strictly valid JSON with no markdown fences and no commentary.`;
 
@@ -1825,41 +1833,113 @@ const Bank = {
    build a scoped YouTube search that surfaces the lecture.
    ============================================================ */
 const ECHO_CHANNELS = [
-  { id:'sono', name:'123sonography',
-    handle:'@123sonographycom',
+  // ---- Echo-focused teaching ----
+  { id:'sono', name:'123sonography', category:'echo',
     url:'https://www.youtube.com/@123sonographycom',
     tag:'Course',
     note:'The leading online echo course — free chapters and case-based teaching.' },
-  { id:'ase', name:'American Society of Echocardiography (ASE)',
-    handle:'ase360',
+  { id:'ase', name:'American Society of Echocardiography (ASE)', category:'echo',
     url:'https://www.youtube.com/ase360',
     tag:'Society',
     note:'Official ASE channel: guideline updates, expert cases, interviews.' },
-  { id:'eacvi', name:'EACVI — European Cardiovascular Imaging',
-    handle:'EACVI',
+  { id:'eacvi', name:'EACVI — European Cardiovascular Imaging', category:'echo',
     url:'https://www.youtube.com/playlist?list=PLN5RC1OF9yB4aO8GWiwRE2oqg2ZnCJna-',
     tag:'Society',
     note:'EACVI educational playlist — European guideline-based imaging teaching.' },
-  { id:'cases', name:'ECHOCARDIOGRAPHY (case library)',
-    handle:'@echocardiographie',
+  { id:'boston-cardiac', name:'Boston Cardiac (Dr. Feroze Mahmood, Harvard)', category:'echo',
+    url:'https://www.youtube.com/@fmahmood543',
+    tag:'Boards',
+    note:'Echo board review, 3D echo, structural heart, cardiac anesthesia — Beth Israel / Harvard.' },
+  { id:'debakey', name:'Houston Methodist DeBakey CV Education', category:'echo',
+    url:'https://www.youtube.com/channel/UCb8PGmJ6SILfyOvOWJvHZIg',
+    tag:'Course',
+    note:'Symposia, weekly conferences, expert lectures — incl. Sherif Nagueh on diastolic function.' },
+  { id:'echolady', name:'The Echo Lady', category:'echo',
+    url:'https://www.youtube.com/channel/UCMdSZrmtuukFYkjGVQbBv1w',
+    tag:'Sonographer',
+    note:'Echo tutorials in English & Spanish — BSE-aligned protocols and image acquisition.' },
+  { id:'echoweb', name:'TheEchoweb (echo-web.com)', category:'echo',
+    url:'https://www.youtube.com/@TheEchoweb',
+    tag:'Cases',
+    note:'Global echo education resource — case clips and disease-by-disease teaching.' },
+  { id:'paropkar', name:'Paropkar Echo Teaching', category:'echo',
+    url:'https://www.youtube.com/channel/UCIOBBu07oaq9rSuf_yg-zmQ',
+    tag:'Tutorials',
+    note:'Practical echo teaching covering valves, hemodynamics, and CHD.' },
+  { id:'cardiac-imaging', name:'Mohamed Abdelfattah — Cardiac Imaging channel', category:'echo',
+    url:'https://www.youtube.com/results?search_query=Mohamed+Abdelfattah+cardiac+imaging+channel',
+    tag:'Tutorials',
+    note:'Multimodality cardiac imaging tutorials — echo, CMR, CT.' },
+  { id:'echo-cases', name:'ECHOCARDIOGRAPHY (case library)', category:'echo',
     url:'https://www.youtube.com/@echocardiographie',
     tag:'Cases',
-    note:'Large aggregated library of echo clips by diagnosis.' },
-  { id:'echoch', name:'The Echo Channel',
-    handle:'cardiology99',
-    url:'https://www.youtube.com/channel/UC65MK3evz9plHtYKU6kDVbQ',
-    tag:'Cases',
-    note:'Echocardiography clips and short teaching cases.' },
-  { id:'mayo-mp', name:'Mayo Clinic — CV Medical Professional Videos',
-    handle:'mayo-medprof',
-    url:'https://medprofvideos.mayoclinic.org/cardiovascular-diseases-and-cardiac-surgery',
-    tag:'Mayo',
-    note:'Mayo Clinic\u2019s latest cardiovascular videos for clinicians.' },
-  { id:'mayo-cve', name:'Mayo Clinic — Free CV Education',
-    handle:'mayo-cve',
+    note:'Aggregated library of echo clips organised by diagnosis.' },
+  { id:'mayo-cve', name:'Mayo Clinic — Free CV Education', category:'echo',
     url:'https://cveducation.mayo.edu/lp/free_on_demand_cardiology_lessons',
     tag:'Mayo',
-    note:'Free on-demand Mayo cardiology lessons, including echocardiography.' }
+    note:'Free on-demand Mayo cardiology lessons — includes echo modules.' },
+  { id:'mayo-echo-2024', name:'Mayo Clinic ECHO 2024 lectures (YouTube)', category:'echo',
+    url:'https://www.youtube.com/results?search_query=Mayo+Clinic+Echo+2024',
+    tag:'Boards',
+    note:'Mayo ECHO 2024 board-review lectures by Kane, Oh, Nkomo, Michelena, Geske and others.' },
+  { id:'mayo-medprof', name:'Mayo Clinic — CV Medical Professional Videos', category:'echo',
+    url:'https://medprofvideos.mayoclinic.org/cardiovascular-diseases-and-cardiac-surgery',
+    tag:'Mayo',
+    note:'Mayo Clinic\u2019s latest cardiovascular teaching videos for clinicians.' },
+  { id:'ge-healthcare', name:'GE HealthCare', category:'echo',
+    url:'https://www.youtube.com/@GEHealthCare',
+    tag:'Vendor',
+    note:'Vendor channel — useful for cardiac ultrasound techniques and AI tools demos.' },
+  { id:'western-sono', name:'Western Sono (POCUS echo)', category:'echo',
+    url:'https://westernsono.ca/screencasts/echo/',
+    tag:'POCUS',
+    note:'Critical-care POCUS echo screencasts — diastology, hemodynamics, valve assessment.' },
+
+  // ---- Egyptian / Arabic-speaking faculty ----
+  { id:'abdelbasit', name:'Mohamed Abdelbasit (Zagazig)', category:'arabic',
+    url:'https://www.youtube.com/channel/UCbBWE4DA5hEs9r1mbmujDxg',
+    tag:'Tutorials',
+    note:'Case-based, interactive cardiology and echo teaching in Arabic & English.' },
+  { id:'cairo-univ', name:'Cardiology Department — Cairo University', category:'arabic',
+    url:'https://www.youtube.com/channel/UCd2kdXmMLYgfLXXrn6Y3nxQ',
+    tag:'University',
+    note:'Lectures and scientific activities from Cairo University Cardiology Department.' },
+  { id:'ainshams', name:'Cardiology Department — Ain Shams University', category:'arabic',
+    url:'https://www.youtube.com/@cardiologydepartmentainsha9783',
+    tag:'University',
+    note:'Educational lectures from Ain Shams cardiology faculty and visiting professors.' },
+  { id:'cic-hani', name:'CIC — Hani Mahmoud', category:'arabic',
+    url:'https://www.youtube.com/channel/UCiolzTbQm-Z1PjvQLGRywCw',
+    tag:'Tutorials',
+    note:'ECG, echo, and cardiology lectures for all levels — residents to consultants.' },
+  { id:'mahmoud-saied', name:'Mahmoud Saied (cardiology)', category:'arabic',
+    url:'https://www.youtube.com/results?search_query=Mahmoud+Saied+cardiology+echocardiography',
+    tag:'Tutorials',
+    note:'Arabic-language cardiology and echo teaching.' },
+
+  // ---- General cardiology (broader than echo) ----
+  { id:'aha', name:'American Heart Association (AHA)', category:'general',
+    url:'https://www.youtube.com/@American_Heart',
+    tag:'Society',
+    note:'AHA scientific sessions, guideline highlights, and clinical updates.' },
+  { id:'medscape', name:'Medscape', category:'general',
+    url:'https://www.youtube.com/@Medscape',
+    tag:'News',
+    note:'Trial summaries, guideline reviews, and expert interviews across cardiology.' },
+  { id:'radcliffe', name:'Radcliffe Cardiology', category:'general',
+    url:'https://www.youtube.com/channel/UCmJZXhuw-rlWXhlP0s26TXA',
+    tag:'CME',
+    note:'Lifelong learning for cardiovascular professionals — webinars, debates, podcasts.' },
+  { id:'euroelso', name:'EuroELSO (ECMO)', category:'general',
+    url:'https://www.youtube.com/results?search_query=EuroELSO+ECMO+echocardiography',
+    tag:'ECMO',
+    note:'European chapter of ELSO — ECMO/MCS-relevant echo and hemodynamics.' }
+];
+
+const ECHO_CHANNEL_CATEGORIES = [
+  {id:'echo',    label:'Echocardiography'},
+  {id:'arabic',  label:'Egyptian & Arabic-speaking faculty'},
+  {id:'general', label:'General cardiology'}
 ];
 
 /* Build a YouTube search URL scoped to a channel handle / name. */
@@ -1868,84 +1948,151 @@ function ytSearch(query, channelHint){
   return 'https://www.youtube.com/results?search_query='+encodeURIComponent(q);
 }
 
-/* Curated topic library — domain → topics with the channel best known
-   to teach that topic well. Channel hints are NAMES inserted into the
-   YouTube search query; they reliably surface the lecture without us
-   linking to deep, rot-prone video URLs. */
+/* Curated topic library — each topic resolves to a SPECIFIC teaching video
+   URL when one has been verified; otherwise to a channel-scoped YouTube
+   search that reliably surfaces the right lecture.
+
+   Schema per item:
+     { t: topic name, ch: channel/source label, url: direct video OR scoped search URL }
+
+   Direct-video URLs were collected from confirmed teaching channels
+   (Mayo ECHO 2024 board-review uploads, DeBakey CV Education, ASE, EACVI,
+   Egyptian university channels). Channel-scoped searches are used where
+   no single canonical video exists. */
 const CURATED_TOPICS = {
   phys: [
-    {t:'Doppler principles & the Doppler equation', ch:'123sonography'},
-    {t:'Ultrasound artifacts (reverberation, side lobe, mirror)', ch:'123sonography'},
-    {t:'Knobology — gain, depth, TGC, focus optimization', ch:'ASE echo'},
-    {t:'3D/4D acquisition & post-processing basics', ch:'EACVI'}
+    {t:'Doppler principles & the Doppler equation', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=Doppler+principles+echocardiography+123sonography'},
+    {t:'Ultrasound artifacts (reverberation, side lobe, mirror)', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=ultrasound+artifacts+echocardiography+ASE'},
+    {t:'Knobology — gain, depth, TGC, focus optimization', ch:'The Echo Lady',
+     url:'https://www.youtube.com/results?search_query=echocardiography+knobology+The+Echo+Lady'},
+    {t:'3D/4D acquisition & post-processing basics', ch:'Boston Cardiac',
+     url:'https://www.youtube.com/results?search_query=3D+echocardiography+acquisition+Feroze+Mahmood'},
+    {t:'M-mode for the boards', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=t3Vxr92YPb0'}
   ],
   tte: [
-    {t:'Parasternal long-axis (PLAX) — standard views & measurements', ch:'123sonography'},
-    {t:'Parasternal short-axis (PSAX) at all levels', ch:'123sonography'},
-    {t:'Apical 4/5/2/3-chamber views — windows & alignment', ch:'123sonography'},
-    {t:'Subcostal & suprasternal windows', ch:'Mayo Clinic'},
-    {t:'Complete TTE protocol & standard reporting', ch:'ASE echo'}
+    {t:'Parasternal long & short axis — standard measurements', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=parasternal+long+axis+PLAX+echocardiography+123sonography'},
+    {t:'Apical 4/5/2/3-chamber — windows & alignment', ch:'The Echo Lady',
+     url:'https://www.youtube.com/results?search_query=apical+four+chamber+echocardiography+The+Echo+Lady'},
+    {t:'Subcostal & suprasternal windows', ch:'Western Sono',
+     url:'https://westernsono.ca/screencasts/echo/'},
+    {t:'Complete TTE protocol & standard reporting', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=complete+TTE+protocol+ASE+standard+reporting'},
+    {t:'Contrast echocardiography — indications & technique', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=MDQYTAjGyXk'}
   ],
   lv: [
-    {t:'LV ejection fraction — biplane Simpson method', ch:'ASE echo'},
-    {t:'Global longitudinal strain (GLS) — acquisition & interpretation', ch:'EACVI'},
-    {t:'ASE 2016 algorithm for diastolic function grading', ch:'ASE echo'},
-    {t:'Regional wall motion assessment & 17-segment model', ch:'123sonography'},
-    {t:'LV mass & geometry — concentric vs eccentric remodeling', ch:'Mayo Clinic'}
+    {t:'Diastolic function — the basics (Garvan Kane)', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=S2c6u3agZNU'},
+    {t:'2025 ASE update on diastolic function (Nagueh)', ch:'Houston Methodist DeBakey',
+     url:'https://www.youtube.com/results?search_query=Sherif+Nagueh+2025+ASE+diastolic+function+update'},
+    {t:'LV ejection fraction — biplane Simpson method', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=LV+ejection+fraction+biplane+Simpson+method+ASE'},
+    {t:'Essentials of strain imaging (GLS)', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=2JRbK5ZT8SM'},
+    {t:'Strain imaging for cardio-oncology', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=_JiUZFpZPTQ'},
+    {t:'Regional wall motion & 17-segment model', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=regional+wall+motion+17+segment+echocardiography+123sonography'}
   ],
   rv: [
-    {t:'TAPSE, S\u2032 (TDI), FAC — RV systolic measurements', ch:'ASE echo'},
-    {t:'RV free-wall strain — how to acquire & abnormal cutoffs', ch:'EACVI'},
-    {t:'RVSP estimation from TR jet & RA pressure', ch:'123sonography'},
-    {t:'RV in pulmonary hypertension — echo signs & severity', ch:'Mayo Clinic'}
+    {t:'2024 ASE right-heart guideline — what changed', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=2024+ASE+right+heart+guideline+echocardiography'},
+    {t:'TAPSE, S\u2032 (TDI), FAC — RV systolic measurements', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=TAPSE+S+prime+FAC+RV+systolic+echocardiography'},
+    {t:'RV free-wall strain — acquisition & cutoffs', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=RV+free+wall+strain+EACVI+echocardiography'},
+    {t:'RVSP estimation & PH probability by echo', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=RVSP+pulmonary+hypertension+echo+Mayo+Clinic'}
   ],
   valve: [
-    {t:'Aortic stenosis grading — peak velocity, mean gradient, AVA', ch:'ASE echo'},
-    {t:'Low-flow low-gradient AS — dobutamine stress echo workflow', ch:'EACVI'},
-    {t:'Aortic regurgitation quantification — PHT, vena contracta, EROA', ch:'123sonography'},
-    {t:'Mitral regurgitation — PISA method step-by-step', ch:'123sonography'},
-    {t:'Mitral stenosis — PHT method & valve area calculation', ch:'ASE echo'},
-    {t:'Tricuspid regurgitation severity grading', ch:'Mayo Clinic'},
-    {t:'Carpentier classification for MV mechanism', ch:'EACVI'}
+    {t:'Aortic stenosis grading — peak velocity, mean gradient, AVA', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=aortic+stenosis+grading+Mayo+Clinic+Echo+2024'},
+    {t:'Aortic regurgitation — quantification', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=OC2J8NPDDcw'},
+    {t:'Mitral regurgitation — quantification & mechanism', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=kgaCIKkpEGc'},
+    {t:'Mitral stenosis — PHT method & valve area', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=Y4GM3L2io1M'},
+    {t:'PISA method for MR — step-by-step', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=PISA+method+mitral+regurgitation+echocardiography+123sonography'},
+    {t:'Low-flow low-gradient AS & dobutamine stress echo', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=low+flow+low+gradient+aortic+stenosis+dobutamine+EACVI'},
+    {t:'Tricuspid regurgitation severity (post-2024 schema)', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=tricuspid+regurgitation+severity+grading+ASE+2024'},
+    {t:'Carpentier classification for MV mechanism', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=Carpentier+classification+mitral+valve+EACVI'}
   ],
   tee: [
-    {t:'Standard TEE views — mid-esophageal & transgastric sequence', ch:'ASE echo'},
-    {t:'TEE for left atrial appendage — pre-cardioversion / pre-Watchman', ch:'Mayo Clinic'},
-    {t:'TEE for infective endocarditis — vegetations, abscess, perforation', ch:'123sonography'},
-    {t:'Pre-TAVI TEE measurements & annular sizing', ch:'EACVI'},
-    {t:'Intra-procedural TEE for MitraClip / TEER', ch:'EACVI'}
+    {t:'Standard TEE views — mid-esophageal & transgastric', ch:'Boston Cardiac',
+     url:'https://www.youtube.com/results?search_query=standard+TEE+views+Feroze+Mahmood+Boston'},
+    {t:'TEE for left atrial appendage — pre-Watchman / pre-cardioversion', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=TEE+left+atrial+appendage+Watchman+Mayo'},
+    {t:'TEE for infective endocarditis — vegetations & abscess', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=TEE+infective+endocarditis+vegetations+123sonography'},
+    {t:'Pre-TAVI TEE measurements & annular sizing', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=pre+TAVI+TEE+annular+sizing+EACVI'},
+    {t:'Intra-procedural TEE for MitraClip / TEER', ch:'Boston Cardiac',
+     url:'https://www.youtube.com/results?search_query=MitraClip+TEER+TEE+guidance+Boston+Cardiac'},
+    {t:'Intraoperative echocardiography fundamentals', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=oJG3uFlGdVA'}
   ],
   '4d': [
-    {t:'3D LV volumes & EF — single-beat vs multi-beat', ch:'ASE echo'},
-    {t:'3D mitral valve modelling — annulus, scallops, prolapse', ch:'EACVI'},
-    {t:'3D TEE for structural intervention guidance', ch:'EACVI'},
-    {t:'4D flow imaging — concepts & current clinical use', ch:'Mayo Clinic'}
+    {t:'3D LV volumes & EF — single vs multi-beat', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=3D+LV+volumes+ejection+fraction+ASE'},
+    {t:'3D mitral valve modelling — annulus & scallops', ch:'Boston Cardiac',
+     url:'https://www.youtube.com/results?search_query=3D+mitral+valve+modeling+Feroze+Mahmood'},
+    {t:'3D TEE for structural intervention guidance', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=3D+TEE+structural+heart+intervention+EACVI'},
+    {t:'Interventional echocardiography', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=9IYw198SV98'}
   ],
   chd: [
-    {t:'Atrial septal defects — types, shunt assessment, echo features', ch:'123sonography'},
-    {t:'Ventricular septal defects — anatomy by location', ch:'123sonography'},
-    {t:'Patent ductus arteriosus — diagnosis & quantification', ch:'Mayo Clinic'},
-    {t:'Segmental approach to congenital heart disease', ch:'ASE echo'},
-    {t:'Adult congenital heart disease — repaired tetralogy of Fallot', ch:'EACVI'}
+    {t:'Atrial septal defects — types & shunt assessment', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=atrial+septal+defect+echocardiography+123sonography'},
+    {t:'Ventricular septal defects — anatomy by location', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=ventricular+septal+defect+echocardiography+EACVI'},
+    {t:'Patent ductus arteriosus — Doppler features', ch:'Cairo University Cardiology',
+     url:'https://www.youtube.com/results?search_query=patent+ductus+arteriosus+echocardiography+Cairo+University'},
+    {t:'Segmental approach to CHD', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=segmental+approach+congenital+heart+disease+ASE'},
+    {t:'Adult CHD — repaired tetralogy of Fallot', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=adult+congenital+repaired+tetralogy+Fallot+EACVI'}
   ],
   cmp: [
-    {t:'Hypertrophic cardiomyopathy — echo features & SAM', ch:'Mayo Clinic'},
-    {t:'Dilated cardiomyopathy — echo workup & differential', ch:'123sonography'},
-    {t:'Cardiac amyloidosis — apical sparing, strain pattern', ch:'ASE echo'},
-    {t:'LV non-compaction — diagnostic criteria & mimics', ch:'EACVI'},
-    {t:'Cardiac masses & thrombi — differentials by location', ch:'Mayo Clinic'}
+    {t:'Hypertrophic cardiomyopathy — echo features & SAM', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=hypertrophic+cardiomyopathy+SAM+Mayo+Clinic+Echo+2024'},
+    {t:'Cardiac amyloidosis — apical sparing pattern', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=cardiac+amyloidosis+apical+sparing+strain+Mayo+Clinic'},
+    {t:'Dilated cardiomyopathy — echo workup', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=dilated+cardiomyopathy+echo+123sonography'},
+    {t:'LV non-compaction — diagnostic criteria & mimics', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=LV+non+compaction+echocardiography+EACVI'},
+    {t:'Cardiac masses & thrombi — by location', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=cardiac+masses+thrombi+echocardiography+Mayo+Clinic'}
   ],
   peri: [
-    {t:'Pericardial effusion — size, location, hemodynamic effect', ch:'123sonography'},
-    {t:'Cardiac tamponade — echo signs (chamber collapse, respiratory variation)', ch:'ASE echo'},
-    {t:'Constrictive pericarditis — septal bounce, annulus reversus', ch:'Mayo Clinic'},
-    {t:'Constriction vs restriction — differentiating echo features', ch:'Mayo Clinic'}
+    {t:'Pericardial effusion — size & hemodynamic effect', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=pericardial+effusion+echocardiography+123sonography'},
+    {t:'Cardiac tamponade — echo signs (chamber collapse)', ch:'Western Sono',
+     url:'https://www.youtube.com/results?search_query=cardiac+tamponade+echocardiography+Western+Sono'},
+    {t:'Constrictive pericarditis — septal bounce, annulus reversus', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/watch?v=jZfGxhb9A6U'},
+    {t:'Constriction vs restriction — discriminators', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=constrictive+pericarditis+restrictive+cardiomyopathy+Mayo'}
   ],
   haemo: [
-    {t:'Estimating intracardiac pressures — RA, RVSP, LVEDP', ch:'ASE echo'},
-    {t:'Prosthetic valve evaluation — echo parameters by valve type', ch:'EACVI'},
-    {t:'Modified Duke criteria for infective endocarditis', ch:'123sonography'},
-    {t:'Stress echocardiography — protocols & interpretation', ch:'Mayo Clinic'}
+    {t:'Estimating intracardiac pressures — RA, RVSP, LVEDP', ch:'ASE',
+     url:'https://www.youtube.com/results?search_query=intracardiac+pressures+RAP+RVSP+LVEDP+echo+ASE'},
+    {t:'Prosthetic valve evaluation by type', ch:'EACVI',
+     url:'https://www.youtube.com/results?search_query=prosthetic+valve+echocardiography+EACVI'},
+    {t:'Modified Duke criteria for infective endocarditis', ch:'123sonography',
+     url:'https://www.youtube.com/results?search_query=Duke+criteria+endocarditis+echocardiography'},
+    {t:'Stress echocardiography — protocols & interpretation', ch:'Mayo ECHO 2024',
+     url:'https://www.youtube.com/results?search_query=stress+echocardiography+protocols+Mayo+Clinic'}
   ]
 };
 
@@ -1963,26 +2110,38 @@ const Videos = {
   },
   filter(id){ S.vidFilter=id; this.render(); },
 
-  /* Open a specific curated topic — scoped to the best channel. */
+  /* Open a curated topic — opens the verified video URL when one exists,
+     otherwise the channel-scoped search. */
   openTopic(domId, idx){
     const topic = CURATED_TOPICS[domId]?.[idx];
     if(!topic) return;
-    const url = ytSearch(topic.t + ' echocardiography', topic.ch);
+    const url = topic.url || ytSearch(topic.t + ' echocardiography', topic.ch);
     window.open(url, '_blank', 'noopener');
   },
 
+  /* Group ECHO_CHANNELS by category and render each category in its own block. */
   renderChannels(){
     const el = document.getElementById('channelList');
     if(!el) return;
-    el.innerHTML = ECHO_CHANNELS.map(c=>`
-      <div class="channel-card">
-        <div class="ch-name">${c.name}</div>
-        <div class="ch-note">${c.note}</div>
-        <div class="ch-foot">
-          <span class="ch-tag">${c.tag}</span>
-          <a href="${c.url}" target="_blank" rel="noopener">Open ↗</a>
-        </div>
-      </div>`).join('');
+    el.innerHTML = ECHO_CHANNEL_CATEGORIES.map(cat=>{
+      const channels = ECHO_CHANNELS.filter(c=>c.category===cat.id);
+      if(!channels.length) return '';
+      return `
+        <div class="domain-section">
+          <div class="ds-head">${escapeHTML(cat.label)}</div>
+          <div class="channel-grid">
+            ${channels.map(c=>`
+              <div class="channel-card">
+                <div class="ch-name">${escapeHTML(c.name)}</div>
+                <div class="ch-note">${escapeHTML(c.note)}</div>
+                <div class="ch-foot">
+                  <span class="ch-tag">${escapeHTML(c.tag)}</span>
+                  <a href="${c.url}" target="_blank" rel="noopener">Open ↗</a>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
   },
 
   /* Render the curated topic library, grouped by domain. */
@@ -1993,12 +2152,19 @@ const Videos = {
       const topics = CURATED_TOPICS[dom.id] || [];
       if(!topics.length) return '';
       return `<div class="domain-section">
-        <div class="ds-head">${dom.name}</div>
-        ${topics.map((t,i)=>`
+        <div class="ds-head">${escapeHTML(dom.name)}</div>
+        ${topics.map((t,i)=>{
+          // distinguish direct video from search
+          const isDirect = t.url && t.url.includes('/watch?');
+          const linkTag = isDirect
+            ? '<span class="tp-go" style="color:var(--ok);">▶ Video</span>'
+            : `<span class="tp-go">${escapeHTML(t.ch)} ↗</span>`;
+          return `
           <div class="topic-pill" onclick="Videos.openTopic('${dom.id}',${i})">
-            <div class="tp-name">${escapeHTML(t.t)}</div>
-            <span class="tp-go">${escapeHTML(t.ch)} ↗</span>
-          </div>`).join('')}
+            <div class="tp-name">${escapeHTML(t.t)} <span class="faint" style="font-weight:400;font-size:11px;margin-left:6px;">· ${escapeHTML(t.ch)}</span></div>
+            ${linkTag}
+          </div>`;
+        }).join('')}
       </div>`;
     }).join('');
   },
@@ -2072,12 +2238,12 @@ const VideoExtras = {
       const raw = await AI.complete(
         `Recommend ONE specific, focused echocardiography topic worth watching a teaching video on today`+
         (weakName?`, ideally related to the user's weak area: ${weakName}`:'')+`.
-Pick a NARROW subtopic (a single measurement, technique, comparison, or syndrome) — NOT a whole domain.
+Pick a NARROW subtopic (a single measurement, technique, comparison, or syndrome) — NOT a whole domain. Bias toward topics covered by recent (2023-2025) guideline updates (e.g. 2025 ASE diastolic function update, 2024 ASE right-heart guideline) where relevant.
 Write a 2-3 sentence reason it matters at the bedside and for boards.
 Also recommend which channel is generally the best teacher for this topic, choosing from:
-"123sonography", "ASE echo" (American Society of Echocardiography), "EACVI" (European), "Mayo Clinic".
+"Mayo ECHO 2024", "123sonography", "ASE", "EACVI", "Houston Methodist DeBakey", "Boston Cardiac", "The Echo Lady".
 Return ONLY valid JSON, no markdown:
-{"topic":"specific subtopic name","why":"2-3 sentence reason","search":"specific YouTube search phrase","best_channel":"one of the four channels above"}`,
+{"topic":"specific subtopic name","why":"2-3 sentence reason","search":"specific YouTube search phrase","best_channel":"one of the channels above"}`,
         {json:true, maxTokens:1000});
       const v = extractJSON(raw);
       S.vextras = S.vextras || {};
@@ -2120,7 +2286,7 @@ Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence su
     if(!v) return;
     setText('votdBtnLabel','New video topic');
     // build channel chips with the best-channel marked first
-    const channels = ['123sonography','ASE echo','EACVI','Mayo Clinic'];
+    const channels = ['Mayo ECHO 2024','123sonography','ASE','EACVI','Houston Methodist DeBakey','Boston Cardiac','The Echo Lady'];
     const best = v.best_channel || '';
     const ordered = best
       ? [best, ...channels.filter(c=>c!==best)]
@@ -2293,25 +2459,24 @@ const Weak = {
 function buildTopicPrompt(weakName){
   const focus = weakName
     ? `Choose a focused subtopic within or strongly related to the user's current weak area: "${weakName}". Pick something specific (e.g. a single measurement, a single comparison, a single technique) — not the whole domain.`
-    : `Choose ONE specific, focused high-yield echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title (e.g. "Diastolic function") — pick something narrower (e.g. "Grading diastolic dysfunction by the 2016 ASE algorithm" or "Differentiating constrictive pericarditis from restrictive cardiomyopathy").`;
+    : `Choose ONE specific, focused high-yield echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title (e.g. "Diastolic function") — pick something narrower (e.g. "Grading diastolic dysfunction by the 2025 ASE algorithm" or "Differentiating constrictive pericarditis from restrictive cardiomyopathy").`;
 
   return `Produce a deep, board-level teaching brief — written like a textbook chapter section that a fellow could study from in one short session.
 ${focus}
 
 The brief MUST be substantive and specific, not a superficial overview. It should include actual numerical cutoffs, methodology details, named criteria/algorithms, and concrete pitfalls — not generic statements like "use Doppler" or "look at the LV". Write at the level of a board examiner explaining the topic to a senior fellow.
 
-Constraints on factual accuracy:
-- Only include guideline cutoffs and named criteria you are confident are current and correct (ASE, EACVI, ESC, AHA/ACC).
-- If unsure of an exact number, give the qualitative direction and the named guideline body rather than fabricating a number.
-- Name the guideline by its issuing body and subject (e.g. "ASE 2016 guideline on diastolic function"), not invented figure/page numbers.
-- Topic must be specific and focused — NOT a whole curricular domain.
+CURRENT-GUIDELINE CRITICAL RULES:
+- Use the CURRENT cutoffs from the most up-to-date guideline. For diastolic function, use the 2025 ASE update (Nagueh et al. JASE 2025) — not the 2016 schema. Specifically, do NOT output the old "E/e' <8 normal, 9-12 mild, 13-15 moderate, >15 severe" tiered cutoffs; that schema is outdated.
+- For each numeric cutoff you give, you must be confident it reflects current guideline practice. If unsure, name the parameter and the qualitative threshold direction rather than fabricating a number.
+- If the topic involves a domain with a recent (2023-2025) guideline update, mention that in the "guideline_note" field so the user knows to read the newest version.
 
 Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
 {
   "title": "specific, focused topic name (5-12 words, not a broad domain)",
   "background": "2-3 sentence clinical context — why this matters at the bedside and on the exam",
   "key_measurements": [
-    {"name": "named measurement or criterion", "value": "actual cutoff/range with units", "note": "brief note on how it's obtained or what it means"}
+    {"name": "named measurement or criterion", "value": "actual current cutoff/range with units", "note": "brief note on how it's obtained or what it means"}
   ],
   "methodology": [
     "concrete, ordered, actionable step describing how to perform the measurement or apply the algorithm",
@@ -2333,7 +2498,8 @@ Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this sha
   "exam_pearls": [
     "what the board examiners specifically test on this topic — likely question stems, classic distractors, must-know associations"
   ],
-  "reference": "the guideline/source supporting this — name the issuing body and subject (e.g. 'ASE 2016 guideline on diastolic function assessment'). Do NOT fabricate figure or page numbers."
+  "guideline_note": "if the topic has had a recent guideline update (2023-2025), name the updated guideline and what changed; otherwise leave as empty string",
+  "reference": "the guideline/source supporting this — name the issuing body, year if confident, and subject (e.g. 'ASE 2025 update on diastolic function assessment, Nagueh et al. JASE'). Do NOT fabricate figure or page numbers."
 }`;
 }
 function buildScenarioPrompt(weakName){
@@ -2475,10 +2641,14 @@ const Today = {
     body.innerHTML = `
       ${datebadge}
       <h3 style="font-family:var(--font-display);font-weight:600;font-size:20px;margin:6px 0 14px;letter-spacing:-.01em;">${escapeHTML(t.title||'Topic')}</h3>
+      ${t.guideline_note?`<div class="pearls" style="margin-bottom:14px;">
+        <strong>📋 Guideline update</strong>
+        <p>${escapeHTML(t.guideline_note)}</p>
+      </div>`:''}
       <div class="rich">${sections.join('')}</div>
       ${t.reference?`<div class="explain" style="margin-top:14px;font-size:12.5px;">
         <strong>Reference:</strong> ${escapeHTML(t.reference)}
-        <div style="margin-top:5px;color:var(--text-faint);">AI-generated — verify against the source.</div>
+        <div style="margin-top:5px;color:var(--text-faint);">AI-generated — verify cutoffs against the current source guideline. Recent ASE updates: 2025 diastolic function, 2025 right-heart.</div>
       </div>`:''}`;
   },
   renderScenario(){
