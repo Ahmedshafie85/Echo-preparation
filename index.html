@@ -333,78 +333,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   text-transform:uppercase;display:block;margin-bottom:6px;}
 .rich .pitfalls li::before{background:var(--warn);}
 
-/* Ordered lists (methodology, algorithm steps) */
-.rich ol.ord{margin:0 0 12px 0;padding-left:0;list-style:none;counter-reset:step;}
-.rich ol.ord li{
-  font-size:13.5px;line-height:1.6;padding:6px 0 6px 32px;
-  position:relative;counter-increment:step;
-}
-.rich ol.ord li::before{
-  content:counter(step,decimal-leading-zero);
-  position:absolute;left:0;top:6px;
-  width:24px;height:22px;display:grid;place-items:center;
-  font-family:var(--font-body);font-size:10.5px;font-weight:600;
-  color:var(--accent);background:var(--accent-soft);
-  border-radius:5px;letter-spacing:.04em;
-}
-.rich ol.ord.algo li::before{background:rgba(127,168,212,.16);color:var(--info);}
-
-/* Learning objectives — first-class callout */
-.rich .lo-block{
-  background:linear-gradient(135deg,var(--accent-soft),transparent 70%);
-  border:1px solid var(--accent);border-radius:var(--radius-sm);
-  padding:14px 16px;margin:0 0 16px;
-}
-.rich .lo-block .lo-label{
-  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--accent);font-weight:700;margin-bottom:8px;
-}
-.rich ol.lo-list{margin:0;padding-left:0;list-style:none;counter-reset:lo;}
-.rich ol.lo-list li{
-  font-size:13.5px;line-height:1.55;padding:5px 0 5px 30px;
-  position:relative;counter-increment:lo;color:var(--text);
-}
-.rich ol.lo-list li::before{
-  content:"L"counter(lo,decimal-leading-zero);
-  position:absolute;left:0;top:5px;
-  font-family:var(--font-body);font-size:10px;font-weight:700;
-  color:var(--accent);letter-spacing:.04em;
-}
-
-/* Recent evidence / trials block */
-.rich .evidence-block{
-  background:rgba(127,168,212,.08);
-  border-left:3px solid var(--info);
-  border-radius:var(--radius-sm);padding:12px 14px;margin:4px 0 12px;
-}
-.rich .evidence-block .ev-label{
-  color:var(--info);font-size:11px;letter-spacing:.1em;
-  text-transform:uppercase;font-weight:700;margin-bottom:6px;
-}
-.rich .evidence-block li::before{background:var(--info);}
-
-/* Video-of-the-Day sync block */
-.votd-sync{
-  background:var(--bg-2);border:1px solid var(--line);
-  border-radius:var(--radius-sm);padding:11px 13px;margin-top:10px;
-}
-.votd-sync .vs-label{
-  font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--accent);font-weight:600;margin-bottom:6px;
-}
-.votd-sync ul{margin:0;padding:0;list-style:none;}
-.votd-sync ul li{
-  font-size:12.5px;line-height:1.5;padding:3px 0 3px 16px;
-  position:relative;color:var(--text-dim);
-}
-.votd-sync ul li::before{
-  content:"◇";position:absolute;left:0;top:3px;color:var(--accent);font-size:10px;
-}
-.votd-source{
-  display:inline-block;font-size:10.5px;color:var(--text-faint);
-  margin-top:6px;font-style:italic;
-}
-
 /* ---------- Video library — channel grid + curated topic cards ---------- */
 .channel-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;
@@ -447,6 +375,21 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .domain-section .ds-head::after{
   content:"";flex:1;height:1px;background:var(--line);
 }
+
+/* ---------- News/list items ---------- */
+.news-item{
+  padding:12px 0;border-bottom:1px solid var(--line);
+}
+.news-item:last-child{border-bottom:none;padding-bottom:0;}
+.news-item .ni-head{
+  font-weight:600;font-size:14px;line-height:1.35;margin-bottom:3px;
+}
+.news-item .ni-area{
+  display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;
+  background:var(--accent-soft);color:var(--accent);font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;
+}
+.news-item .ni-body{font-size:13px;line-height:1.6;color:var(--text);}
 
 /* ---------- Compact hero stats — moved inline ---------- */
 .statbar{
@@ -550,27 +493,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </div>
     </div>
 
-    <!-- DAILY TOPIC -->
-    <div class="section-title">
-      <h2>Topic of the day</h2><span class="badge-ai">⚡ AI</span>
-      <span class="grow"></span>
-      <button class="btn-refresh" id="topicRefreshBtn" onclick="Today.loadTopic()" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-        New topic
-      </button>
-    </div>
-    <div class="card" id="dailyTopicCard">
-      <div class="empty" id="dailyTopicEmpty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14v7"/></svg>
-        <div>A high-yield, deep-dive teaching brief — measurements, methodology, pearls, pitfalls.</div>
-      </div>
-      <div id="dailyTopicBody" style="display:none;"></div>
-      <button class="btn btn-primary btn-block" id="topicGenBtn" style="margin-top:12px;" onclick="Today.loadTopic()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
-        <span id="topicBtnLabel">Generate today's topic</span>
-      </button>
-    </div>
-
     <!-- TODAY'S TASKS -->
     <div class="section-title"><h2>Today's tasks</h2><span class="faint" id="taskProgress"></span></div>
     <div class="card">
@@ -582,25 +504,16 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </button>
     </div>
 
-    <!-- CLINICAL SCENARIO -->
-    <div class="section-title">
-      <h2>Clinical scenario</h2><span class="badge-ai">⚡ AI</span>
-      <span class="grow"></span>
-      <button class="btn-refresh" id="scenarioRefreshBtn" onclick="Today.loadScenario()" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-        New scenario
-      </button>
-    </div>
-    <div class="card" id="scenarioCard">
-      <div class="empty" id="scenarioEmpty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>
-        <div>A clinical vignette with two board-style MCQs anchored in current guidelines.</div>
+    <!-- TODAY'S LEARNING (lives in the Expert tab) -->
+    <div class="section-title"><h2>Today's learning</h2><span class="badge-ai">⚡ AI</span></div>
+    <div class="card" style="cursor:pointer;" onclick="App.go('expert')">
+      <div class="card-head">
+        <h3 id="todayLearnHeading">Topic of the day &amp; clinical scenario</h3>
+        <span class="faint">Open ↗</span>
       </div>
-      <div id="scenarioBody" style="display:none;"></div>
-      <button class="btn btn-primary btn-block" id="scenarioGenBtn" style="margin-top:12px;" onclick="Today.loadScenario()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
-        <span id="scenarioBtnLabel">Generate a scenario</span>
-      </button>
+      <p class="faint" id="todayLearnSub" style="font-size:13px;line-height:1.55;margin-top:6px;">
+        Deep, board-level brief on a focused echo topic — measurements, algorithm steps, pearls, pitfalls — plus a paired clinical vignette. Tap to open the Expert panel.
+      </p>
     </div>
 
     <!-- WEAK POINTS -->
@@ -657,7 +570,51 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
   <!-- ===================== ASK AN EXPERT ===================== -->
   <section class="view" id="view-expert">
-    <div class="section-title"><h2>Ask an expert</h2><span class="badge-ai">⚡ AI</span></div>
+    <div class="section-title"><h2>Today's brief</h2><span class="badge-ai">⚡ AI</span></div>
+
+    <!-- DAILY TOPIC -->
+    <div class="section-title" style="margin-top:6px;">
+      <h2 style="font-size:17px;">Topic of the day</h2>
+      <span class="grow"></span>
+      <button class="btn-refresh" id="topicRefreshBtn" onclick="Today.loadTopic()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        New topic
+      </button>
+    </div>
+    <div class="card" id="dailyTopicCard" style="margin-bottom:14px;">
+      <div class="empty" id="dailyTopicEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14v7"/></svg>
+        <div>A focused, expert-level brief — exact cutoffs, the current algorithm with each branch, pearls, pitfalls, recent evidence.</div>
+      </div>
+      <div id="dailyTopicBody" style="display:none;"></div>
+      <button class="btn btn-primary btn-block" id="topicGenBtn" style="margin-top:12px;" onclick="Today.loadTopic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
+        <span id="topicBtnLabel">Generate today's topic</span>
+      </button>
+    </div>
+
+    <!-- CLINICAL SCENARIO -->
+    <div class="section-title">
+      <h2 style="font-size:17px;">Clinical scenario</h2>
+      <span class="grow"></span>
+      <button class="btn-refresh" id="scenarioRefreshBtn" onclick="Today.loadScenario()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+        New scenario
+      </button>
+    </div>
+    <div class="card" id="scenarioCard" style="margin-bottom:18px;">
+      <div class="empty" id="scenarioEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>
+        <div>A clinical vignette paired to today's topic, with two board-style MCQs anchored in current guidelines.</div>
+      </div>
+      <div id="scenarioBody" style="display:none;"></div>
+      <button class="btn btn-primary btn-block" id="scenarioGenBtn" style="margin-top:12px;" onclick="Today.loadScenario()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
+        <span id="scenarioBtnLabel">Generate a scenario</span>
+      </button>
+    </div>
+
+    <div class="section-title"><h2>Ask an expert</h2></div>
     <div class="card" style="margin-bottom:14px;">
       <p class="faint" style="margin-bottom:12px;">
         Ask any echocardiography question. Answers are written at consultant level
@@ -734,32 +691,35 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div class="section-title"><h2>Echo learning library</h2></div>
 
     <div class="tabs">
-      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Video of the day</button>
+      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Learn</button>
       <button data-vtab="channels" onclick="VideoView.tab('channels')">Channels</button>
+      <button data-vtab="news" onclick="VideoView.tab('news')">News</button>
       <button data-vtab="saved" onclick="VideoView.tab('saved')">Saved</button>
     </div>
 
-    <!-- TAB: Video of the Day — synced to today's Topic of the Day -->
+    <!-- TAB: Learn — curated topic-by-domain library with best-channel pointers -->
     <div class="tab-panel active" id="vtab-learn">
 
-      <!-- Video of the day, synced to topic + objectives -->
+      <!-- Pick of the day -->
       <div class="card" style="margin-bottom:14px;">
         <div class="card-head">
-          <h3>Video of the day</h3><span class="badge-ai">⚡ AI</span>
-          <span class="grow"></span>
-          <button class="btn-refresh" id="votdRefreshBtn" onclick="VideoExtras.loadVotd()" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-            New video
-          </button>
+          <h3>Pick of the day</h3><span class="badge-ai">⚡ AI</span>
         </div>
         <div id="votdBody"><div class="empty" style="padding:18px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 8l6 4-6 4z"/><rect x="2" y="3" width="20" height="18" rx="3"/></svg>
-          <div id="votdEmptyText">Generate today's Topic on the Home tab — the matching teaching video will appear here, synced to today's learning objectives.</div></div></div>
-        <button class="btn btn-primary btn-block" id="votdGenBtn" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
+          <div>A high-yield topic to watch today, with the best teaching sources.</div></div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadVotd()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9z"/></svg>
-          <span id="votdBtnLabel">Pick today's video</span>
+          <span id="votdBtnLabel">Pick today's video topic</span>
         </button>
       </div>
+
+      <!-- Curated by domain -->
+      <div class="section-title" style="margin-top:8px;">
+        <h2 style="font-size:17px;">By domain · curated</h2>
+        <span class="faint">Tap to open the best teaching for that topic</span>
+      </div>
+      <div id="curatedList"><!-- rendered --></div>
     </div>
 
     <!-- TAB: Channels — trusted sources grid -->
@@ -771,6 +731,20 @@ input,select,textarea{font-family:inherit;font-size:14px;}
           channels, leading courses, case libraries, and Mayo Clinic teaching.
         </p>
         <div class="channel-grid" id="channelList"></div>
+      </div>
+    </div>
+
+    <!-- TAB: News -->
+    <div class="tab-panel" id="vtab-news">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head"><h3>What's new in echo</h3><span class="badge-ai">⚡ AI</span></div>
+        <div id="newsBody"><div class="empty" style="padding:18px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
+          <div>Recent developments in echocardiography guidelines and practice.</div></div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadNews()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
+          <span id="newsBtnLabel">Get echo updates</span>
+        </button>
       </div>
     </div>
 
@@ -1628,6 +1602,22 @@ const Dashboard = {
     setText('planTodayHint', today
       ? `Today: ${today.topic}`
       : (S.plan?.days?.length ? 'View your study schedule.' : 'Build your day-by-day schedule.'));
+
+    // today's learning preview — show current topic title if generated
+    const tHeading = document.getElementById('todayLearnHeading');
+    const tSub     = document.getElementById('todayLearnSub');
+    if(tHeading && tSub){
+      const tp = S.today?.topic;
+      const sc = S.today?.scenario;
+      const todayDate = new Date().toISOString().slice(0,10);
+      if(tp && tp.date===todayDate){
+        tHeading.textContent = tp.title || 'Topic of the day';
+        tSub.textContent = `Today's topic is ready${sc && sc.date===todayDate?' · scenario ready':''}. Tap to open the Expert panel.`;
+      }else{
+        tHeading.textContent = 'Topic of the day & clinical scenario';
+        tSub.textContent = 'Deep, board-level brief on a focused echo topic — measurements, algorithm steps, pearls, pitfalls — plus a paired clinical vignette. Tap to open the Expert panel.';
+      }
+    }
   }
 };
 
@@ -1821,14 +1811,6 @@ const Plan = {
             </div>`).join('')}
         </div>
         <div class="chip-row">
-          <a class="chip" target="_blank" rel="noopener"
-             href="${ytSearch(d.video+' echocardiography','')}">▶ YouTube</a>
-          <a class="chip" target="_blank" rel="noopener"
-             href="${ytSearch(d.video,'123sonography')}">123sonography</a>
-          <a class="chip" target="_blank" rel="noopener"
-             href="${ytSearch(d.video,'Mayo Clinic')}">Mayo</a>
-          <a class="chip" target="_blank" rel="noopener"
-             href="${ytSearch(d.video,'ASE echo')}">ASE</a>
           ${dom?`<button class="chip" onclick="MCQ.fromDomain('${dom.id}')">⚡ Drill MCQs</button>`:''}
         </div>
         ${d.reference?`<div class="explain" style="margin-top:10px;font-size:12.5px;">
@@ -2143,44 +2125,18 @@ Return ONLY valid JSON, no markdown, exactly:
 
 /* ---- expert prompt: structured consultant-level answer ----- */
 function buildExpertPrompt(question){
-  return `You are a senior consultant echocardiographer answering a colleague's question for a board-prep app. The reader is a practising cardiologist — answer at full consultant / board-examiner depth and DO NOT oversimplify.
+  return `A consultant cardiologist colleague asks you the following echocardiography question. Answer at full board-examiner depth — assume the reader is a practising cardiologist, so do NOT oversimplify.
 
 Question: "${question}"
 
-SOURCING & DEPTH REQUIREMENTS:
-- Anchor the bedside framework in the EACVI Echo Handbook (Lancellotti P, Cosyns B, eds; OUP, 2016) — concise structured bedside reference.
-- Layer in the MOST RECENT relevant guideline, e.g.:
-   * Diastolic function / HFpEF -> 2025 ASE update (Nagueh et al., JASE 2025; 38(7):537-569) — three primary variables (e' velocity, E/e', TR velocity); LARS <=18% as tiebreaker; LAVI >34 mL/m^2; phenotype-specific mini-algorithms (AF, MAC, valve disease, transplant, PH). Do NOT cite the 2016 tiered E/e' cutoffs as current.
-   * Right heart / pulmonary hypertension -> 2025 ASE right-heart guideline.
-   * Strain echo -> 2025 ASE/EACVI clinical consensus on strain (Sept 2025 JASE).
-   * Echo reporting standardization -> 2025 ASE (July 2025 JASE).
-   * Valve disease severity -> 2021 ESC/EACTS VHD + EACVI recommendations.
-   * Cardiomyopathies -> 2023 ESC cardiomyopathy guidelines.
-- Where current evidence shifted practice, name the trial / registry (e.g. EARLY-TAVR, PARTNER 3, RESHAPE-HF2, DanGer Shock) WITHOUT fabricating specific numbers. If unsure of a result, describe the direction of evidence qualitatively.
-- Use the VERIFIED ECHO REFERENCE VALUES given to you elsewhere — never contradict them. If the question hinges on a cutoff and you are unsure of the current number, name the parameter and the qualitative direction rather than fabricating.
-
-DEPTH FLOOR:
-- Each major claim must be specific and clinically actionable (acquisition technique, exact cutoff, named criterion, named trial). No generic "use Doppler" or "look at the LV".
-- Pitfalls must explain WHY they mislead, not just name them.
+Give a substantive, clinically grounded answer. Where the question involves measurements or grading, state the actual cutoffs from the VERIFIED ECHO REFERENCE VALUES you were given — never contradict them. Where it involves a differential, name the discriminating features explicitly. Include concrete methodology, not generic advice.
 
 Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
 {
-  "answer": "2 to 5 paragraphs of substantive consultant-level prose. Use real cutoffs, named criteria, and acquisition-aware language. Where a recent guideline applies, weave it in (e.g. '...per the 2025 ASE diastolic update...'). For algorithm questions, walk through the decision path. Plain text, no markdown.",
-  "key_points": [
-    "3-6 crisp take-home points, each a complete clinical statement with specifics (numbers, named criteria, or named scoring system)"
-  ],
-  "pitfalls": [
-    "2-4 common errors or traps relevant to this question, each explaining WHY it misleads and how to avoid it (omit field with empty array if genuinely not applicable)"
-  ],
-  "recent_evidence": [
-    "if any post-2023 trial, registry, or guideline update is directly relevant, name it and describe its direction WITHOUT fabricating numbers. Use empty array if not applicable.",
-    "next item"
-  ],
-  "references": [
-    "EACVI Echo Handbook (Lancellotti & Cosyns, OUP 2016) — relevant chapter if applicable",
-    "the most recent guideline anchoring this answer (issuing body, year, lead author if known)",
-    "any other primary references. Do NOT fabricate page numbers, figure numbers, or DOIs."
-  ]
+  "answer": "the main consultant-level answer — 2 to 5 paragraphs of substantive prose; use real cutoffs and named criteria",
+  "key_points": ["3-6 crisp take-home points, each a complete clinical statement with specifics"],
+  "pitfalls": ["2-4 common errors or traps relevant to this question, each explaining WHY it misleads (omit the array if genuinely not applicable)"],
+  "references": ["specific supporting guidelines/literature — name the issuing body and subject; add a year only if confident; do not fabricate figure or page numbers"]
 }`;
 }
 
@@ -2818,127 +2774,73 @@ const VideoView = {
 };
 
 /* ============================================================
-   VIDEO EXTRAS — Video of the Day, synced to Today's Topic
+   VIDEO EXTRAS — video of the day + echo news (tap to refresh)
    ------------------------------------------------------------
    The AI only picks a TOPIC and writes search phrases / summaries.
    It never invents video URLs — all links are real channel
-   searches scoped to that topic. The choice is anchored on
-   today's Topic of the Day and its learning objectives so the
-   video genuinely teaches what the user is studying.
+   searches scoped to that topic.
    ============================================================ */
 const VideoExtras = {
-  /* Auto-trigger: when a new Topic of the Day is rendered, if we
-     don't yet have a video for that same topic, pick one. Silent. */
-  async maybeAutoSync(topic){
-    if(!topic || !topic.title) return;
-    const haveKey = AI._readKey('groqKey') || AI._readKey('anthropicKey');
-    if(!haveKey) return;             // no key, no auto-sync; user can trigger manually
-    const existing = S.vextras?.votd;
-    const today = new Date().toISOString().slice(0,10);
-    const matches = existing
-      && existing.date === today
-      && existing.topic_title === topic.title;
-    if(matches) return;              // already synced to this exact topic today
-    // fire-and-forget — render handles state
-    this.loadVotd(topic).catch(e=>console.error('votd auto-sync:',e));
-  },
-
-  /* Pick the video for today. If a Topic of the Day exists, sync the
-     video choice to its title + learning objectives. Otherwise pick a
-     standalone weak-area video. */
-  async loadVotd(topicArg){
+  async loadVotd(){
     if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
       toast('Add an API key in Settings first'); App.go('settings'); return;
     }
-    // Allow callers to pass the topic; otherwise read from state
-    const topic = (topicArg && topicArg.title) ? topicArg : (S.today?.topic || null);
-
-    const genBtn = document.getElementById('votdGenBtn');
-    const refBtn = document.getElementById('votdRefreshBtn');
-    const visibleBtn = (refBtn && refBtn.style.display !== 'none') ? refBtn : genBtn;
-    const orig = visibleBtn ? visibleBtn.innerHTML : '';
-    if(visibleBtn){ visibleBtn.disabled=true; visibleBtn.innerHTML='<span class="spinner"></span> Syncing video…'; }
-
+    const btn=$('votdBtnLabel') ? $('votdBtnLabel').parentElement : null;
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Picking…'; }
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
-
-      const topicBlock = topic
-        ? `TODAY'S TOPIC (sync the video to this):
-Title: "${topic.title}"
-Background: "${topic.background || topic.summary || ''}"
-Learning objectives:
-${(topic.learning_objectives||[]).map((o,i)=>`  L${String(i+1).padStart(2,'0')}. ${o}`).join('\n') || '  (none provided)'}
-
-The video you pick MUST teach the same material as this topic. Choose a search phrase and channel that would surface a lecture covering these objectives.`
-        : `No topic-of-the-day in state. Pick a high-yield narrow subtopic`+(weakName?` related to the user's weak area: ${weakName}`:'')+`, biased toward 2023-2025 guideline updates.`;
-
-      const prompt = `You are picking the "Video of the Day" for an echo board-prep app.
-
-${topicBlock}
-
-Channels available (use the EXACT label):
-- "Mayo ECHO 2024" — Mayo board review lectures (Oh, Kane, Geske, Nkomo, Michelena)
-- "123sonography" — leading online echo course, structured chapters
-- "ASE" — American Society of Echocardiography official channel (guidelines, interviews)
-- "EACVI" — European Association of Cardiovascular Imaging
-- "Houston Methodist DeBakey" — DeBakey CV Education symposia (incl. Sherif Nagueh on diastolic function)
-- "Boston Cardiac" — Dr. Feroze Mahmood (Harvard / Beth Israel) — echo, 3D, structural, anesthesia
-- "The Echo Lady" — BSE-aligned acquisition and reporting tutorials
-
-Pick the channel that most authoritatively teaches THIS topic. For example:
-- Diastolic function / 2025 ASE update -> "Houston Methodist DeBakey" (Nagueh is lead author)
-- LV chamber quantification, valve grading -> "Mayo ECHO 2024" or "ASE"
-- Structural / 3D / TEE -> "Boston Cardiac" or "ASE"
-- Acquisition technique / standardised views -> "123sonography" or "The Echo Lady"
-
+      const raw = await AI.complete(
+        `Recommend ONE specific, focused echocardiography topic worth watching a teaching video on today`+
+        (weakName?`, ideally related to the user's weak area: ${weakName}`:'')+`.
+Pick a NARROW subtopic (a single measurement, technique, comparison, or syndrome) — NOT a whole domain. Bias toward topics covered by recent (2023-2025) guideline updates (e.g. 2025 ASE diastolic function update, 2024 ASE right-heart guideline) where relevant.
+Write a 2-3 sentence reason it matters at the bedside and for boards.
+Also recommend which channel is generally the best teacher for this topic, choosing from:
+"Mayo ECHO 2024", "123sonography", "ASE", "EACVI", "Houston Methodist DeBakey", "Boston Cardiac", "The Echo Lady".
 Return ONLY valid JSON, no markdown:
-{
-  "topic": "specific subtopic name (mirror today's topic title if a topic was given)",
-  "why": "2-3 sentences explaining why this video supports today's learning",
-  "search": "specific YouTube search phrase (5-12 words) likely to surface a real high-quality lecture",
-  "best_channel": "one of the channel labels above, exactly as written",
-  "objective_sync": [
-    "if a topic with learning objectives was given: for EACH objective, one short line stating how the recommended video covers it. Use prefix 'L01:', 'L02:', etc. matching the objective number. Aim for one line per objective. Use empty array if no objectives were provided.",
-    "L02: ..."
-  ]
-}`;
-
-      const raw = await AI.complete(prompt, {json:true, maxTokens:1200});
+{"topic":"specific subtopic name","why":"2-3 sentence reason","search":"specific YouTube search phrase","best_channel":"one of the channels above"}`,
+        {json:true, maxTokens:1000});
       const v = extractJSON(raw);
       S.vextras = S.vextras || {};
-      S.vextras.votd = {
-        ...v,
-        topic_title: topic ? topic.title : null,
-        date: new Date().toISOString().slice(0,10)
-      };
+      S.vextras.votd = { ...v, date:new Date().toISOString().slice(0,10) };
       persist('vextras', S.vextras);
       this.renderVotd();
-      if(topicArg){
-        // silent auto-sync — no toast
-      }else{
-        toast('Video of the day ready');
-      }
-    }catch(e){ console.error('votd:',e); if(!topicArg) toast(e.message||'Failed'); }
-    finally{
-      if(visibleBtn){ visibleBtn.disabled=false; visibleBtn.innerHTML=orig; }
+      toast('Video topic ready');
+    }catch(e){ console.error('votd:',e); toast(e.message||'Failed'); }
+    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
+  },
+  async loadNews(){
+    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+      toast('Add an API key in Settings first'); App.go('settings'); return;
     }
+    const btn=$('newsBtnLabel') ? $('newsBtnLabel').parentElement : null;
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Loading…'; }
+    try{
+      const raw = await AI.complete(
+        `Summarise 4-5 notable recent developments in echocardiography — guideline updates,
+new techniques, or shifts in practice that a board candidate should know.
+Only include developments you are confident are real and established; do not fabricate
+guideline names, dates, or study results. If unsure of an exact year, omit it.
+For each item, write a 2-3 sentence summary that explains both the change AND its
+clinical/exam implication.
+Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence summary with clinical implication","area":"topic area"}]}`,
+        {json:true, maxTokens:2000});
+      const n = extractJSON(raw);
+      S.vextras = S.vextras || {};
+      S.vextras.news = { items:(n.items||[]).slice(0,6), date:new Date().toISOString().slice(0,10) };
+      persist('vextras', S.vextras);
+      this.renderNews();
+      toast('Updates ready');
+    }catch(e){ console.error('news:',e); toast(e.message||'Failed'); }
+    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
   },
 
   renderVotd(){
     const v = S.vextras?.votd;
-    const genBtn = document.getElementById('votdGenBtn');
-    const refBtn = document.getElementById('votdRefreshBtn');
-    if(!v){
-      // no video yet — show the empty state and the big generate button
-      if(genBtn) genBtn.style.display='inline-flex';
-      if(refBtn) refBtn.style.display='none';
-      return;
-    }
-    if(genBtn) genBtn.style.display='none';
-    if(refBtn) refBtn.style.display='inline-flex';
-    setText('votdBtnLabel','New video');
-
+    if(!v) return;
+    setText('votdBtnLabel','New video topic');
     // build channel chips with the best-channel marked first
     const channels = ['Mayo ECHO 2024','123sonography','ASE','EACVI','Houston Methodist DeBakey','Boston Cardiac','The Echo Lady'];
     const best = v.best_channel || '';
@@ -2946,19 +2848,8 @@ Return ONLY valid JSON, no markdown:
       ? [best, ...channels.filter(c=>c!==best)]
       : channels;
     const query = v.search || v.topic || '';
-    const today = new Date().toISOString().slice(0,10);
-    const syncedToTopic = v.topic_title
-      ? `<div class="votd-source">Synced to today's topic: <em>${escapeHTML(v.topic_title)}</em></div>`
-      : '';
-    const syncBlock = (Array.isArray(v.objective_sync) && v.objective_sync.length)
-      ? `<div class="votd-sync">
-          <div class="vs-label">How this video covers today's learning objectives</div>
-          <ul>${v.objective_sync.map(line=>`<li>${escapeHTML(line)}</li>`).join('')}</ul>
-        </div>`
-      : '';
-
     setHTML('votdBody', `
-      <span class="eyebrow">${v.date===today?'Today':'Earlier'}</span>
+      <span class="eyebrow">${v.date===new Date().toISOString().slice(0,10)?'Today':'Earlier'}</span>
       <h3 style="margin:5px 0 6px;font-size:16px;font-family:var(--font-display);">${escapeHTML(v.topic||'')}</h3>
       <p class="faint" style="margin-bottom:10px;font-size:13px;line-height:1.55;">${escapeHTML(v.why||'')}</p>
       ${best?`<div class="faint" style="font-size:12px;margin-bottom:8px;">Best taught by: <strong style="color:var(--accent);">${escapeHTML(best)}</strong></div>`:''}
@@ -2968,12 +2859,27 @@ Return ONLY valid JSON, no markdown:
           return `<a class="chip${i===0&&best?' active':''}" target="_blank" rel="noopener" href="${link}">${i===0&&best?'★ ':''}${escapeHTML(c)}</a>`;
         }).join('')}
         <a class="chip" target="_blank" rel="noopener" href="${ytSearch(query+' echocardiography', '')}">All YouTube ↗</a>
-      </div>
-      ${syncBlock}
-      ${syncedToTopic}`);
+      </div>`);
   },
-
-  render(){ this.renderVotd(); }
+  renderNews(){
+    const n = S.vextras?.news;
+    if(!n) return;
+    setText('newsBtnLabel','Refresh updates');
+    setHTML('newsBody', `
+      <span class="eyebrow">${n.date===new Date().toISOString().slice(0,10)?'Updated today':'Earlier'}</span>
+      <div style="margin-top:8px;">
+        ${(n.items||[]).map(it=>`
+          <div class="news-item">
+            ${it.area?`<span class="ni-area">${escapeHTML(it.area)}</span>`:''}
+            <div class="ni-head">${escapeHTML(it.headline||'')}</div>
+            <div class="ni-body">${escapeHTML(it.detail||'')}</div>
+          </div>`).join('')}
+      </div>
+      <div class="explain" style="margin-top:12px;font-size:12px;">
+        AI-generated summary — verify against primary guideline sources before relying on specifics.
+      </div>`);
+  },
+  render(){ this.renderVotd(); this.renderNews(); }
 };
 const Expert = {
   /* Build the rich HTML for one Q&A entry. Tolerates both the new
@@ -2983,7 +2889,6 @@ const Expert = {
       .split(/\n\s*\n/).map(p=>`<p style="font-size:14px;line-height:1.65;margin:0 0 10px;">${escapeHTML(p.trim())}</p>`).join('');
     const kp = Array.isArray(h.key_points) ? h.key_points : [];
     const pf = Array.isArray(h.pitfalls)   ? h.pitfalls   : [];
-    const ev = Array.isArray(h.recent_evidence) ? h.recent_evidence : [];
     const refs = Array.isArray(h.refs) ? h.refs
                : Array.isArray(h.references) ? h.references : [];
     return `
@@ -2995,21 +2900,14 @@ const Expert = {
         ${kp.length?`<h4>Key points</h4><ul>${kp.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul>`:''}
         ${pf.length?`<div class="pitfalls"><strong>⚠ Pitfalls</strong>
           <ul>${pf.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul></div>`:''}
-        ${ev.length?`<div class="evidence-block">
-          <div class="ev-label">📈 Recent evidence &amp; trials</div>
-          <ul>${ev.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul>
-        </div>`:''}
       </div>
       ${refs.length?`<div class="explain" style="margin-top:12px;">
         <strong>References</strong>
         <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;">
           ${refs.map(r=>`<li style="margin-bottom:3px;">${escapeHTML(r)}</li>`).join('')}
-        </ul>
-        <div style="margin-top:6px;color:var(--text-faint);font-size:11.5px;">
-          Anchored on the EACVI Echo Handbook (Lancellotti &amp; Cosyns, OUP 2016) and the latest ASE / EACVI guidelines.
-        </div></div>`:''}
+        </ul></div>`:''}
       <div class="faint" style="margin-top:8px;font-size:11.5px;">
-        AI answer — confirm against the source guideline for clinical decisions.
+        AI answer anchored to verified ASE/EACVI reference values — confirm against the source guideline for clinical decisions.
       </div>`;
   },
 
@@ -3040,7 +2938,6 @@ const Expert = {
         answer: a.answer || 'No answer returned.',
         key_points: Array.isArray(a.key_points) ? a.key_points : [],
         pitfalls:   Array.isArray(a.pitfalls)   ? a.pitfalls   : [],
-        recent_evidence: Array.isArray(a.recent_evidence) ? a.recent_evidence : [],
         refs:       Array.isArray(a.references) ? a.references : []
       };
       const card = document.getElementById(pendId);
@@ -3131,92 +3028,148 @@ const Weak = {
 /* ---- prompt builders for daily topic & scenario ----------- */
 function buildTopicPrompt(weakName){
   const focus = weakName
-    ? `Choose a focused subtopic within or strongly related to the user's current weak area: "${weakName}". Pick something specific (a single measurement, a single comparison, a single technique, a single syndrome) — not the whole domain.`
-    : `Choose ONE specific, focused high-yield echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title (e.g. "Diastolic function") — pick something narrower (e.g. "Grading diastolic dysfunction by the 2025 ASE algorithm" or "Low-flow low-gradient AS with preserved EF — paradoxical AS").`;
+    ? `Choose a focused subtopic within or strongly related to the user's current weak area: "${weakName}". Pick something specific (a single measurement, a single comparison, a single technique, a single syndrome) — NOT the whole domain.`
+    : `Choose ONE specific, narrow echocardiography topic — a single measurement, technique, comparison, or syndrome. Do NOT pick a broad domain title. Examples of acceptable narrowness: "Grading aortic stenosis severity by the 2020 ACC/AHA + EACVI integrated approach", "Constrictive pericarditis vs restrictive cardiomyopathy on echo", "Quantifying secondary MR — EROA, RVol, vena contracta cutoffs". Examples of TOO BROAD (do NOT pick these): "Diastolic function", "Aortic stenosis", "Cardiomyopathies".`;
 
-  return `You are a senior consultant echocardiographer writing the "Topic of the Day" for a board-prep app used by cardiology fellows and consultants. This is the central daily learning entry — it must be SELF-CONTAINED, COMPREHENSIVE, and at EXPERT level. Treat this single card the way a chapter section of a top echo handbook would treat the topic.
+  return `You are a senior consultant echocardiographer writing the "Topic of the Day" for a board-prep app. This single card is the user's main daily study unit — it must be self-contained, comprehensive, and at full board-examiner depth.
 
 ${focus}
 
-SOURCING & DEPTH REQUIREMENTS (non-negotiable):
-- Anchor the bedside framework in the EACVI Echo Handbook (Lancellotti P, Cosyns B, eds; OUP, 2016) — its style of concise, structured bedside reference is the baseline tone. You may reference the Handbook explicitly in the "sources" field.
-- Layer in the MOST RECENT relevant guideline. Examples (use the right one for the topic):
-   * Diastolic function / HFpEF -> 2025 ASE update (Nagueh et al., JASE 2025; 38(7):537-569). Three primary variables (e' velocity, E/e', TR velocity); LA reservoir strain (LARS) <=18% as tiebreaker; LAVI >34 mL/m^2; supplementary criteria (pulmonary vein S/D <=0.67, IVRT <=70 ms). Phenotype-specific algorithms (AF, MAC, valve disease, heart transplant, PH). Do NOT use the 2016 tiered E/e' cutoffs.
-   * Right heart / pulmonary hypertension -> 2025 ASE right-heart guideline.
-   * Strain echo -> 2025 ASE/EACVI clinical consensus on strain (Sept 2025 JASE).
-   * Echo reporting -> 2025 ASE adult echo reporting standardization (July 2025 JASE).
-   * Valve disease severity -> 2021 ESC/EACTS valvular heart disease guidelines + EACVI recommendations.
-   * Cardiomyopathies -> 2023 ESC cardiomyopathy guidelines.
-- Where current evidence has shifted practice, name the trial or registry (e.g. EARLY-TAVR, PARTNER 3, RESHAPE-HF2, DanGer Shock, PROTECTED-TAVR) WITHOUT fabricating numbers. If unsure of a specific result, describe the direction of evidence qualitatively rather than inventing.
+================ DEPTH CONTRACT (NON-NEGOTIABLE) ================
 
-DEPTH FLOOR:
-- Every numeric cutoff must reflect CURRENT guideline practice. If you are not confident in an exact number, give the parameter and the qualitative direction, NOT a fabricated number.
-- Methodology must be concrete and acquisition-aware (e.g. "PW Doppler sample volume 1-3 mm at the leaflet tips, sweep 50-100 mm/s, align with inflow" — not "use Doppler").
-- Pitfalls must explain WHY they mislead, not just name them.
-- Exam pearls must reflect how a board examiner would actually phrase a question stem.
+(1) EXACT CUTOFFS, NOT QUALITATIVE. Every key measurement must have a real numeric threshold with units, in the format the guideline uses. Forbidden output: vague phrases like "elevated", "low", "abnormal", "reduced", "above normal". Required output: numbers and direction (e.g. ">2.8 m/s", "≤6 cm/s", "≥34 mL/m²"). If you do not know the current exact cutoff with confidence, pick a different topic where you do — DO NOT publish a vague one.
 
-Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
+(2) ALGORITHM EXPLICIT. If the topic has an algorithm or grading scheme (and almost every echo topic does), you MUST give the decision path as ordered branches with the EXACT threshold at each branch and the EXACT conclusion. Format each step as: "STEP N — Test/measurement → branch A (cutoff): conclusion / branch B (cutoff): conclusion". Do not summarise as prose — give the branches.
+
+(3) ACQUISITION-AWARE METHODOLOGY. Every step must name: view (PLAX, A4C, A2C, etc.), probe modality (2D, M-mode, PW, CW, TDI, colour, strain), sample volume location and size, sweep speed, gain/Nyquist where it matters, alignment angle requirement, averaging convention. Forbidden: "use Doppler", "obtain views", "measure carefully".
+
+(4) THE 4 SOURCES YOU MUST ANCHOR ON.
+   - EACVI Echo Handbook (Lancellotti & Cosyns, OUP 2016) — bedside framework and acquisition style.
+   - The most recent ASE or EACVI guideline relevant to the topic. Examples:
+       * Diastolic function / HFpEF → 2025 ASE update (Nagueh et al., JASE 2025; 38(7):537–569). Three primary variables: septal e′ ≤7 cm/s OR lateral e′ ≤10 cm/s; average E/e′ >14 (septal >15, lateral >13); TR velocity >2.8 m/s. Supplementary: LAVI >34 mL/m², LARS ≤18%, pulmonary vein S/D <1, IVRT ≤70 ms. Phenotype mini-algorithms for AF, MAC, valve disease, transplant, PH.
+       * RV / pulmonary hypertension → 2025 ASE right-heart guideline. TAPSE <17 mm, S′ <9.5 cm/s, FAC <35%, RV GLS less negative than −20% as cutoffs for abnormal.
+       * Strain echo → 2025 ASE/EACVI clinical consensus on strain (Sept 2025 JASE). GLS less negative than −18% suggests abnormal.
+       * Echo reporting → 2025 ASE adult reporting standardization (July 2025 JASE).
+       * Aortic stenosis → 2017 EACVI/ASE recommendations + 2020 ACC/AHA & 2021 ESC/EACTS VHD. Severe: Vmax ≥4 m/s, mean gradient ≥40 mmHg, AVA ≤1.0 cm², AVAi ≤0.6 cm²/m².
+       * Mitral regurgitation → 2017 ASE recommendations. Severe primary MR: EROA ≥0.40 cm², RVol ≥60 mL, VC ≥0.7 cm. Severe secondary MR: EROA ≥0.40 cm² (or ≥0.20 per ESC) — flag the discrepancy.
+       * Cardiomyopathies → 2023 ESC cardiomyopathy guidelines + 2024 AHA HCM guideline.
+   - Landmark / current trials where they have changed practice: PARTNER 3, EARLY-TAVR, RESHAPE-HF2, COAPT, MITRA-FR, DanGer Shock, PROTECTED-TAVR, EMPEROR-Preserved, DELIVER, etc.
+   - The EACVI Echo Handbook chapter is your fallback for bedside technique.
+
+(5) NO HEDGING WITHOUT VALUE. If you mention a parameter, give its current cutoff. If you genuinely don't know it, change topic.
+
+================ WORKED EXAMPLE OF ACCEPTABLE DEPTH ================
+
+Below is a partial example of the DEPTH the model must produce. Match this density of specifics for your chosen topic. DO NOT copy this example unless it matches your chosen topic.
+
+Example (for "LV diastolic function grading — 2025 ASE algorithm"):
 {
-  "title": "specific, focused topic name (5-14 words, not a broad domain)",
-  "background": "3-4 sentences of clinical context — why this matters at the bedside AND on the exam, with the disease prevalence or clinical setting where it appears",
-  "learning_objectives": [
-    "specific, measurable learning objective starting with an action verb (Acquire, Classify, Apply, Differentiate, Estimate, Recognise, Integrate)",
-    "next objective",
-    "aim for 4-6 objectives that together cover acquisition technique, interpretation, current algorithm/grading, special-population deviations, and clinical translation"
-  ],
+  "title": "LV diastolic function grading — 2025 ASE 3-variable algorithm",
   "key_measurements": [
-    {"name": "named measurement or criterion", "value": "actual current cutoff/range with units", "note": "brief note on how it is obtained, why it matters, and the source guideline if recently updated"}
-  ],
-  "methodology": [
-    "concrete, ordered, acquisition-aware step (probe position, sample volume placement, sweep speed, alignment, averaging conventions)",
-    "next step",
-    "next step (aim for 5-8 steps total)"
+    {"name":"Septal e′", "value":"<7 cm/s = abnormal", "note":"PW TDI at the septal mitral annulus, A4C, sweep 100 mm/s, sample volume 5 mm, average ≥3 beats. Less reliable in MAC, septal infarct/scar, LBBB."},
+    {"name":"Lateral e′", "value":"<10 cm/s = abnormal", "note":"PW TDI at the lateral mitral annulus, A4C. Drops with age — use age-adjusted reference if borderline."},
+    {"name":"Average E/e′", "value":">14 = abnormal (septal >15, lateral >13)", "note":"E (transmitral PW at leaflet tips) / mean(septal e′ + lateral e′). Correlates with PCWP at population level — unreliable as a one-off number in AF, MAC, MV disease, constrictive physiology."},
+    {"name":"TR peak velocity", "value":">2.8 m/s = abnormal", "note":"CW from RV inflow, parasternal RV, subcostal — pick best alignment. Use saline contrast if envelope poor."},
+    {"name":"LA volume index (LAVI)", "value":">34 mL/m² = abnormal", "note":"Biplane Simpson, A4C + A2C, end-systole just before mitral opening. Excludes appendage and pulmonary vein ostia."},
+    {"name":"LA reservoir strain (LARS)", "value":"≤18% = abnormal", "note":"Speckle tracking, A4C non-foreshortened, R-R gating, exclude PV roof. Vendor-specific — use validated cutoff for your platform."}
   ],
   "algorithm_steps": [
-    "if the topic involves an algorithm or grading scheme, give the decision path as ordered steps with the exact threshold at each branch; omit this field with an empty array if not applicable",
-    "next branch"
+    "STEP 1 — Assess the 3 primary variables (e′, average E/e′, TR velocity). All 3 normal → diastolic function normal (LAP normal). All 3 abnormal → diastolic dysfunction with elevated LAP.",
+    "STEP 2 — If 1 of 3 abnormal: most likely diastolic function normal; check secondary criteria for confirmation.",
+    "STEP 3 — If 2 of 3 abnormal: indeterminate → go to supplementary criteria (LAVI >34 mL/m², LARS ≤18%, pulmonary vein S/D <1, IVRT ≤70 ms). ≥2 supplementary abnormal → elevated LAP.",
+    "STEP 4 — Grade once LAP is elevated. E/A <0.8 with E ≤50 cm/s → Grade I (impaired relaxation, normal LAP at rest). E/A 0.8–2 → Grade II (pseudonormal). E/A ≥2 with DT <160 ms → Grade III (restrictive); apply Valsalva — drop of ≥50% in E/A → reversible (IIIa); no change → fixed (IIIb).",
+    "STEP 5 — Run the phenotype mini-algorithm if AF (use E, septal E/e′, TR velocity, DT, LARS), MAC/MV disease (use IVRT ≤80 ms, pulmonary vein, LARS), transplant (use E/e′ ≤7 normal / ≥14 elevated), PH (use the dedicated PH framework). The standard algorithm does NOT apply in these populations."
+  ]
+}
+
+Notice: every number has units and a direction, every algorithm step has its threshold AND its conclusion, every measurement has acquisition technique baked in.
+
+================ OUTPUT FORMAT ================
+
+Return ONLY a valid JSON object, no markdown, no commentary, in EXACTLY this shape:
+
+{
+  "title": "specific, focused topic (5-14 words, narrow not broad)",
+  "background": "3-4 sentences — clinical context, prevalence, why it matters bedside AND on the exam",
+  "learning_objectives": [
+    "4-6 measurable objectives, each starting with an action verb (Acquire / Classify / Apply / Differentiate / Estimate / Recognise / Integrate)"
+  ],
+  "key_measurements": [
+    {"name":"named measurement or criterion","value":"EXACT current cutoff with units AND direction (e.g. '>2.8 m/s = abnormal')","note":"acquisition (view, modality, sample volume, sweep speed, alignment, averaging) + source guideline if recently updated"}
+  ],
+  "methodology": [
+    "5-8 acquisition-aware ordered steps; each must name view, probe modality, sample volume placement, sweep speed, alignment angle, averaging convention as relevant"
+  ],
+  "algorithm_steps": [
+    "Each step formatted as: 'STEP N — Test/measurement → branch A (exact cutoff): conclusion / branch B (exact cutoff): conclusion'. Cover every branch with its threshold. Aim for 4-7 steps. Empty array ONLY if the topic genuinely has no algorithm (rare)."
   ],
   "differentiating_features": [
-    "if relevant: how to tell this entity/finding from its main mimic — name the mimic and the discriminator with the actual parameter that distinguishes them (omit with empty array if not applicable)"
+    "When relevant: how to tell this entity from its main mimic — name the mimic AND the specific discriminator with its exact cutoff. Empty array if not applicable."
   ],
   "special_populations": [
-    "if the standard approach changes in a defined population (AF, MAC, valve disease, heart transplant, pulmonary hypertension, athletes, paediatrics) — name the population and the specific deviation. Omit with empty array if not applicable."
+    "Populations where the standard approach changes (AF, MAC, valve disease, transplant, PH, athletes, paediatrics) — name the population AND the specific deviation with its alternative cutoff. Empty array if none."
   ],
   "pearls": [
-    "specific, non-obvious clinical or technical pearl that a senior consultant would mention",
-    "another pearl (aim for 4-6 pearls)"
+    "4-6 non-obvious specific clinical or technical pearls a senior consultant would mention. Each pearl must contain a concrete number or named criterion."
   ],
   "pitfalls": [
-    "specific mistake or trap with WHY it leads to wrong interpretation and how to avoid it",
-    "another pitfall (aim for 4-6 pitfalls)"
+    "4-6 traps. Each pitfall MUST explain WHY it misleads (the mechanism) AND how to avoid it. Generic warnings forbidden."
   ],
   "recent_evidence": [
-    "one piece of post-2023 evidence, trial, registry, or guideline update RELEVANT to this exact topic — name it, give the direction of its finding (without fabricating numbers), and explain how it changes practice. Aim for 2-4 items. Use empty array only if you genuinely cannot recall any reliable item."
+    "2-4 post-2023 items (trial / registry / guideline update) directly relevant to this topic. Name the item; describe the direction of finding without fabricating specific p-values or absolute numbers if unsure. Explain how it changes practice."
   ],
   "exam_pearls": [
-    "what the board examiners specifically test on this topic — likely question stems, classic distractors, must-know associations and named criteria/eponyms",
-    "another exam pearl (aim for 3-5 items)"
+    "3-5 items reflecting how a board examiner would phrase the question stem — likely distractors, must-know associations, named criteria/eponyms with their exact cutoffs"
   ],
-  "guideline_note": "if the topic has had a recent (2023-2025) guideline update, name the updated guideline, the lead author/issuing body, the year, and WHAT specifically changed. Empty string only if genuinely unchanged.",
+  "guideline_note": "If a 2023-2025 guideline update affects this topic: name the guideline (issuing body, year, lead author if known) AND what specifically changed. Empty string only if genuinely unchanged.",
   "sources": [
-    "EACVI Echo Handbook (Lancellotti & Cosyns, OUP 2016) — relevant chapter if applicable",
-    "the most recent guideline that anchors current practice (issuing body, year, lead author if known)",
-    "any other primary references (society consensus, landmark trial). Do NOT fabricate page numbers, figure numbers, or DOIs."
+    "EACVI Echo Handbook (Lancellotti & Cosyns, OUP 2016) — relevant chapter",
+    "Most recent guideline anchoring current practice (issuing body, year, lead author)",
+    "Any other primary references (society consensus, landmark trial). Do NOT fabricate page/figure numbers or DOIs."
   ]
-}`;
 }
-function buildScenarioPrompt(weakName){
-  const focus = weakName
-    ? `Theme the case around the user's weak area: ${weakName}.`
-    : `Pick any realistic echo-relevant clinical presentation.`;
-  return `Create a realistic echo-based clinical scenario for board exam practice.
+
+================ SELF-CHECK BEFORE YOU RETURN ================
+Mentally verify each item before outputting:
+- Does every value in key_measurements contain an actual number with units AND a direction? If any says "elevated" / "abnormal" / "low" without a number, REWRITE it.
+- Does algorithm_steps contain at least 4 steps, each with an explicit cutoff AND conclusion? If not, REWRITE.
+- Does each pitfall explain WHY it misleads, not just what to avoid? If not, REWRITE.
+- Is the title narrow (a measurement / comparison / syndrome) rather than broad (a whole domain)? If broad, RENAME.
+
+Return ONLY the JSON.`;
+}
+function buildScenarioPrompt(weakName, topic){
+  const focus = topic && topic.title
+    ? `Pair the case TIGHTLY to today's topic: "${topic.title}".
+The vignette MUST present a clinical situation where the user has to apply the cutoffs, algorithm, and pearls covered in today's topic. The 2 MCQs MUST test the SPECIFIC numeric cutoffs or decision branches in that topic — not generic echo trivia.`
+    : (weakName
+        ? `Theme the case around the user's weak area: ${weakName}. Pick a narrow, board-realistic clinical setting.`
+        : `Pick any realistic echo-relevant clinical presentation.`);
+
+  return `You are writing a board-style clinical scenario for a cardiologist preparing for echo boards.
+
 ${focus}
-Give a short clinical vignette with relevant echo findings, then 2 single-best-answer MCQs about it.
-Base everything on current, well-established echocardiography guidelines. Do not invent guideline
-figure numbers or cutoff values you are unsure of.
+
+REQUIREMENTS:
+- The vignette is a single short paragraph (4-7 sentences) with: age/sex, presenting complaint, 1-2 key history items, vitals if relevant, and a structured set of echo findings WITH ACTUAL NUMBERS (e.g. "LVEF 58%, septal e′ 5 cm/s, lateral e′ 6 cm/s, average E/e′ 16, TR velocity 3.1 m/s, LAVI 42 mL/m², LARS 12%"). Generic findings without numbers are not acceptable.
+- Each MCQ must test the application of a SPECIFIC current cutoff or algorithm branch. Acceptable: "Based on the 2025 ASE algorithm, what is the most likely LV filling pressure?" Unacceptable: "What is the diagnosis?".
+- The 4 options for each MCQ must be plausible board-style distractors — one correct, three near-misses that reflect common misinterpretations (e.g. using an outdated cutoff, picking the wrong algorithm branch, confusing two named criteria).
+- The explanation must NAME the cutoff or algorithm branch that proves the answer, and identify why each wrong option is wrong.
+- Reference must name the issuing body and year (e.g. "2025 ASE diastolic function update, Nagueh et al."). Do NOT fabricate figure or page numbers.
 
 Return ONLY valid JSON, no markdown, exactly:
-{"vignette":"the clinical case with echo findings","questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","reference":"string"}]}`;
+{
+  "vignette": "the clinical case with quantitative echo findings as described above",
+  "questions": [
+    {
+      "q": "stem",
+      "options": ["A","B","C","D"],
+      "answer": 0,
+      "explanation": "names the cutoff/branch that proves the answer AND why each wrong option is wrong",
+      "reference": "issuing body + year of the anchoring guideline"
+    }
+  ]
+}`;
 }
 
 /* ============================================================
@@ -3236,7 +3189,7 @@ const Today = {
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
-      const raw = await AI.complete(buildTopicPrompt(weakName), {json:true, maxTokens:3200, temperature:0.2});
+      const raw = await AI.complete(buildTopicPrompt(weakName), {json:true, maxTokens:4800, temperature:0.15});
       const t = extractJSON(raw);
       S.today = S.today || {};
       S.today.topic = { ...t, date:new Date().toISOString().slice(0,10) };
@@ -3261,7 +3214,8 @@ const Today = {
     try{
       const weak = Weak.weakestId();
       const weakName = weak ? DOMAINS.find(d=>d.id===weak)?.name : '';
-      const raw = await AI.complete(buildScenarioPrompt(weakName), {json:true, maxTokens:2400});
+      const topic = S.today?.topic;
+      const raw = await AI.complete(buildScenarioPrompt(weakName, topic), {json:true, maxTokens:2400});
       const s = extractJSON(raw);
       const qs = (s.questions||[]).filter(validMcq);
       S.today = S.today || {};
@@ -3305,15 +3259,6 @@ const Today = {
 
     // Build sections in order; tolerate missing fields and tolerate older (flat) schema
     const sections = [];
-
-    // Learning objectives — first-class, callout style
-    if(Array.isArray(t.learning_objectives) && t.learning_objectives.length){
-      sections.push(`<div class="lo-block">
-        <div class="lo-label">Learning objectives</div>
-        <ol class="lo-list">${t.learning_objectives.map(o=>`<li>${escapeHTML(o)}</li>`).join('')}</ol>
-      </div>`);
-    }
-
     if(t.background || t.summary){
       sections.push(`<h4>Background</h4><p>${escapeHTML(t.background || t.summary)}</p>`);
     }
@@ -3326,19 +3271,11 @@ const Today = {
     }
     if(Array.isArray(t.methodology) && t.methodology.length){
       sections.push(`<h4>How to perform / apply</h4>
-        <ol class="ord">${t.methodology.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ol>`);
-    }
-    if(Array.isArray(t.algorithm_steps) && t.algorithm_steps.length){
-      sections.push(`<h4>Algorithm — step by step</h4>
-        <ol class="ord algo">${t.algorithm_steps.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ol>`);
+        <ul>${t.methodology.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
     }
     if(Array.isArray(t.differentiating_features) && t.differentiating_features.length){
       sections.push(`<h4>How to differentiate</h4>
         <ul>${t.differentiating_features.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
-    }
-    if(Array.isArray(t.special_populations) && t.special_populations.length){
-      sections.push(`<h4>Special populations &amp; deviations</h4>
-        <ul>${t.special_populations.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
     }
     if(Array.isArray(t.pitfalls) && t.pitfalls.length){
       sections.push(`<div class="pitfalls"><strong>⚠ Pitfalls</strong>
@@ -3347,12 +3284,6 @@ const Today = {
     if(Array.isArray(t.pearls) && t.pearls.length){
       sections.push(`<div class="pearls"><strong>★ Clinical pearls</strong>
         <ul>${t.pearls.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul></div>`);
-    }
-    if(Array.isArray(t.recent_evidence) && t.recent_evidence.length){
-      sections.push(`<div class="evidence-block">
-        <div class="ev-label">📈 Recent evidence &amp; trials</div>
-        <ul>${t.recent_evidence.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>
-      </div>`);
     }
     if(Array.isArray(t.exam_pearls) && t.exam_pearls.length){
       sections.push(`<h4>Exam focus</h4>
@@ -3364,11 +3295,6 @@ const Today = {
         <ul>${t.key_points.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ul>`);
     }
 
-    // Sources block — accept either the new `sources` array OR the legacy single `reference` string
-    const sourcesList = Array.isArray(t.sources) && t.sources.length
-      ? t.sources
-      : (t.reference ? [t.reference] : []);
-
     body.innerHTML = `
       ${datebadge}
       <h3 style="font-family:var(--font-display);font-weight:600;font-size:20px;margin:6px 0 14px;letter-spacing:-.01em;">${escapeHTML(t.title||'Topic')}</h3>
@@ -3377,20 +3303,10 @@ const Today = {
         <p>${escapeHTML(t.guideline_note)}</p>
       </div>`:''}
       <div class="rich">${sections.join('')}</div>
-      ${sourcesList.length?`<div class="explain" style="margin-top:14px;font-size:12.5px;">
-        <strong>Sources:</strong>
-        <ul style="margin:6px 0 0 18px;padding:0;">${sourcesList.map(s=>`<li style="margin-bottom:3px;">${escapeHTML(s)}</li>`).join('')}</ul>
-        <div style="margin-top:8px;color:var(--text-faint);">Anchored on the EACVI Echo Handbook (Lancellotti &amp; Cosyns, OUP 2016) and the latest ASE / EACVI guidelines. AI-generated — verify cutoffs against the primary source.</div>
+      ${t.reference?`<div class="explain" style="margin-top:14px;font-size:12.5px;">
+        <strong>Reference:</strong> ${escapeHTML(t.reference)}
+        <div style="margin-top:5px;color:var(--text-faint);">AI-generated — verify cutoffs against the current source guideline. Recent ASE updates: 2025 diastolic function, 2025 right-heart.</div>
       </div>`:''}`;
-
-    // Auto-sync the Video of the Day to this topic + objectives
-    // (only if we have AI access and either no synced video yet or the synced
-    //  one is from a different topic / older date)
-    try{
-      if(typeof VideoExtras !== 'undefined' && VideoExtras.maybeAutoSync){
-        VideoExtras.maybeAutoSync(t);
-      }
-    }catch(e){ /* non-fatal */ }
   },
   renderScenario(){
     const s = S.today?.scenario;
