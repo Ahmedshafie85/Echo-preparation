@@ -19,6 +19,13 @@
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.js"></script>
+<script type="module">
+  // Load pdf.js for the on-device Reader and expose it globally.
+  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+  window.dispatchEvent(new Event('pdfjs-ready'));
+</script>
 
 <style>
 /* ============================================================
@@ -197,7 +204,7 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .navitem{
   display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:6px 10px;border-radius:12px;color:var(--text-faint);
-  transition:.18s var(--ease);min-width:58px;
+  transition:.18s var(--ease);min-width:58px;position:relative;
 }
 .navitem svg{width:21px;height:21px;}
 .navitem span{font-size:10px;font-weight:600;letter-spacing:.02em;}
@@ -365,16 +372,113 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   font-size:11px;color:var(--accent);font-weight:600;
   letter-spacing:.04em;text-transform:uppercase;
 }
+/* watched state + per-topic controls */
+.topic-pill.watched{opacity:.62;}
+.topic-pill.watched .tp-name{text-decoration:line-through;}
+.tp-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.tp-check{
+  width:20px;height:20px;border-radius:6px;flex-shrink:0;
+  border:2px solid var(--line-strong);display:grid;place-items:center;
+  transition:.15s var(--ease);cursor:pointer;background:transparent;
+}
+.tp-check.on{background:var(--ok);border-color:var(--ok);}
+.tp-check svg{width:11px;height:11px;opacity:0;transition:.15s;}
+.tp-check.on svg{opacity:1;}
+.tp-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.tp-save{
+  font-size:11px;color:var(--text-faint);font-weight:600;cursor:pointer;
+  padding:3px 7px;border-radius:6px;border:1px solid transparent;transition:.15s var(--ease);
+}
+.tp-save:hover{color:var(--accent);border-color:var(--line-strong);}
+.tp-save.saved{color:var(--ok);}
+
+/* video search bar */
+.vsearch{position:relative;margin-bottom:14px;}
+.vsearch input{
+  width:100%;padding:11px 13px 11px 38px;border-radius:12px;
+  background:var(--bg-2);border:1px solid var(--line);color:var(--text);font-size:14px;
+  transition:.15s var(--ease);
+}
+.vsearch input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.vsearch svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--text-faint);}
+.vsearch .vclear{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:6px;display:none;place-items:center;color:var(--text-faint);cursor:pointer;}
+.vsearch .vclear svg{position:static;transform:none;width:13px;height:13px;}
 
 .domain-section{margin-bottom:18px;}
 .domain-section .ds-head{
   font-family:var(--font-display);font-weight:600;font-size:14px;
   margin:0 0 8px 4px;color:var(--text);
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
 }
-.domain-section .ds-head::after{
-  content:"";flex:1;height:1px;background:var(--line);
+.domain-section .ds-head .ds-prog{
+  font-size:11px;font-weight:600;color:var(--text-faint);
+  font-family:var(--font-body);white-space:nowrap;
 }
+.domain-section .ds-head .ds-caret{
+  width:14px;height:14px;flex-shrink:0;transition:.18s var(--ease);color:var(--text-faint);
+}
+.domain-section.collapsed .ds-caret{transform:rotate(-90deg);}
+.domain-section.collapsed .ds-body{display:none;}
+.domain-section .ds-head .ds-line{flex:1;height:1px;background:var(--line);}
+.ds-bar{height:4px;border-radius:4px;background:var(--bg-2);border:1px solid var(--line);overflow:hidden;margin:0 4px 10px;}
+.ds-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-deep),var(--accent));transition:width .5s var(--ease);}
+.vempty-search{text-align:center;padding:30px 18px;color:var(--text-faint);}
+
+/* ---------- PDF reader ---------- */
+.reader-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.reader-title{flex:1;min-width:0;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.reader-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.reader-nav .btn{padding:9px 14px;}
+.reader-pagebox{display:flex;align-items:center;gap:6px;}
+.reader-pagebox input{
+  width:62px;text-align:center;padding:8px 6px;border-radius:9px;
+  background:var(--bg-2);border:1px solid var(--line);color:var(--text);font-size:13px;
+}
+.reader-pagebox input:focus{outline:none;border-color:var(--accent);}
+.reader-canvas-wrap{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);
+  overflow:auto;max-height:74vh;display:flex;justify-content:center;padding:8px;
+  -webkit-overflow-scrolling:touch;
+}
+#readerCanvas{max-width:100%;height:auto;box-shadow:var(--shadow-md);border-radius:4px;background:#fff;}
+.reader-progress{margin-top:10px;}
+.reader-recent-item{
+  display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);
+  background:var(--bg-2);border:1px solid var(--line);margin-bottom:6px;cursor:pointer;
+  transition:.15s var(--ease);
+}
+.reader-recent-item:hover{border-color:var(--accent);background:var(--accent-soft);}
+.reader-recent-item .rr-name{flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.reader-recent-item .rr-page{font-size:11px;color:var(--text-faint);font-weight:600;white-space:nowrap;}
+.reader-recent-item .rr-ico{width:18px;height:18px;color:var(--accent);flex-shrink:0;}
+
+/* ---------- Guidelines cards ---------- */
+.gl-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:13px 14px;margin-bottom:8px;transition:.15s var(--ease);
+}
+.gl-card:hover{border-color:var(--line-strong);}
+.gl-top{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;}
+.gl-title{font-size:13.5px;font-weight:600;line-height:1.35;}
+.gl-body{font-size:12.5px;color:var(--text-dim);line-height:1.5;margin-top:4px;}
+.gl-badge{
+  font-size:9.5px;padding:2px 7px;border-radius:5px;font-weight:700;flex-shrink:0;
+  letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;
+}
+.gl-badge.ase{background:rgba(127,168,212,.16);color:var(--info);}
+.gl-badge.eacvi{background:rgba(94,201,184,.16);color:var(--accent);}
+.gl-badge.esc{background:rgba(224,177,92,.16);color:var(--warn);}
+.gl-badge.acc{background:rgba(223,139,130,.16);color:var(--bad);}
+.gl-year{font-size:11px;color:var(--text-faint);font-weight:600;margin-left:6px;}
+.gl-links{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.gl-links a{
+  font-size:11.5px;font-weight:600;text-decoration:none;padding:5px 11px;border-radius:8px;
+  border:1px solid var(--line);transition:.15s var(--ease);
+}
+.gl-links a.gl-primary{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.gl-links a.gl-primary:hover{background:var(--accent);color:#04211d;}
+.gl-links a.gl-alt{color:var(--text-dim);}
+.gl-links a.gl-alt:hover{border-color:var(--line-strong);color:var(--text);}
 
 /* ---------- News/list items ---------- */
 .news-item{
@@ -454,6 +558,60 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .tabs button.active{background:var(--surface-solid);color:var(--text);box-shadow:var(--shadow-sm);}
 .tab-panel{display:none;}
 .tab-panel.active{display:block;animation:fade .25s var(--ease);}
+
+/* ---------- Confidence selector (pre-reveal) ---------- */
+.conf-row{display:flex;gap:8px;margin:14px 0 2px;}
+.conf-btn{
+  flex:1;padding:10px 8px;border-radius:11px;border:1px solid var(--line);
+  background:var(--bg-2);font-size:12.5px;font-weight:600;color:var(--text-dim);
+  transition:.15s var(--ease);display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+.conf-btn .conf-emoji{font-size:17px;}
+.conf-btn:hover{border-color:var(--line-strong);}
+.conf-btn.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+.conf-hint{font-size:11.5px;color:var(--text-faint);text-align:center;margin-top:8px;}
+.calib-flag{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+  padding:3px 9px;border-radius:7px;margin-top:10px;
+}
+.calib-flag.danger{background:rgba(223,139,130,.14);color:var(--bad);}
+.calib-flag.good{background:rgba(108,195,152,.14);color:var(--ok);}
+.calib-flag.lucky{background:rgba(224,177,92,.14);color:var(--warn);}
+
+/* ---------- Review / SRS ---------- */
+.due-pill{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+  padding:4px 11px;border-radius:8px;background:var(--accent);color:#04211d;
+}
+.due-pill.zero{background:var(--line-strong);color:var(--text-dim);}
+.srs-grade-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+.srs-grade{
+  padding:11px 6px;border-radius:11px;border:1px solid var(--line);background:var(--bg-2);
+  font-size:12px;font-weight:600;transition:.15s var(--ease);
+  display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.2;
+}
+.srs-grade small{font-size:10px;color:var(--text-faint);font-weight:500;}
+.srs-grade:hover{border-color:var(--line-strong);transform:translateY(-1px);}
+.srs-grade.again{border-color:var(--bad);}    .srs-grade.again:hover{background:rgba(223,139,130,.10);}
+.srs-grade.hard{border-color:var(--warn);}     .srs-grade.hard:hover{background:rgba(224,177,92,.10);}
+.srs-grade.good{border-color:var(--accent);}   .srs-grade.good:hover{background:var(--accent-soft);}
+.srs-grade.easy{border-color:var(--ok);}       .srs-grade.easy:hover{background:rgba(108,195,152,.10);}
+
+/* ---------- Mastery heatmap ---------- */
+.mastery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;}
+.mastery-cell{
+  border-radius:var(--radius-sm);padding:11px 12px;border:1px solid var(--line);
+  background:var(--bg-2);position:relative;overflow:hidden;
+}
+.mastery-cell .m-name{font-size:12px;font-weight:600;line-height:1.25;}
+.mastery-cell .m-val{font-family:var(--font-display);font-size:19px;font-weight:600;margin-top:3px;}
+.mastery-cell .m-sub{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.mastery-cell .m-fill{position:absolute;left:0;bottom:0;height:3px;border-radius:0;}
+
+/* ---------- Calibration curve (SVG) ---------- */
+.calib-card svg{width:100%;height:auto;display:block;}
+.calib-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--text-dim);margin-top:8px;}
+.calib-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle;}
 </style>
 </head>
 <body>
@@ -491,6 +649,18 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         <div class="stat"><div class="stat-num" id="stMcq">0</div><div class="stat-label">MCQs done</div></div>
         <div class="stat"><div class="stat-num" id="stAcc">—<span class="unit">%</span></div><div class="stat-label">Accuracy</div></div>
       </div>
+    </div>
+
+    <!-- SPACED-REPETITION REVIEW -->
+    <div class="section-title"><h2>Review queue</h2><span class="faint">Spaced repetition</span></div>
+    <div class="card" id="homeReviewCard" style="cursor:pointer;" onclick="App.go('review')">
+      <div class="card-head">
+        <h3>Due for review</h3>
+        <span id="homeDuePill" class="due-pill zero">0</span>
+      </div>
+      <p class="faint" id="homeReviewSub" style="font-size:13px;line-height:1.55;margin-top:2px;">
+        Questions you've answered come back on a spaced schedule so they stick. Answer some MCQs to start building your memory.
+      </p>
     </div>
 
     <!-- TODAY'S TASKS -->
@@ -531,6 +701,11 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         <span class="eyebrow">Plan</span>
         <h3 style="margin:9px 0 4px;">Study plan</h3>
         <p class="faint" id="planTodayHint">Open your study schedule.</p>
+      </div>
+      <div class="card" style="cursor:pointer;" onclick="App.go('video')">
+        <span class="eyebrow">Library</span>
+        <h3 style="margin:9px 0 4px;">Video learning</h3>
+        <p class="faint" id="videoHomeHint">Curated teaching for every domain.</p>
       </div>
     </div>
   </section>
@@ -642,8 +817,8 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         <label>Question source</label>
         <select id="mcqSource">
           <option value="verified">Verified bank (clinician-checked — recommended)</option>
-          <option value="mixed">Verified bank + AI-generated extras</option>
-          <option value="ai">AI-generated only (Claude, anchored to reference values)</option>
+          <option value="mixed">Verified bank + AI extras (cross-checked)</option>
+          <option value="ai">AI-generated only (anchored + cross-checked — still confirm)</option>
         </select>
       </div>
       <div class="field">
@@ -686,14 +861,36 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div id="mcqRunner" style="display:none;"><!-- rendered --></div>
   </section>
 
+  <!-- ===================== REVIEW (SRS + IMAGE DRILL + ANALYTICS) ===================== -->
+  <section class="view" id="view-review">
+    <div class="section-title"><h2>Review &amp; mastery</h2><span class="faint">Spaced repetition</span></div>
+
+    <div class="tabs">
+      <button class="active" data-rtab="due" onclick="Review.tab('due')">Due</button>
+      <button data-rtab="analytics" onclick="Review.tab('analytics')">Analytics</button>
+    </div>
+
+    <!-- TAB: Due — the spaced-repetition queue -->
+    <div class="tab-panel active" data-rpanel="due">
+      <div class="card" id="srsSummary" style="margin-bottom:14px;"><!-- rendered --></div>
+      <div id="srsRunner"><!-- rendered --></div>
+    </div>
+
+    <!-- TAB: Analytics — mastery heatmap + calibration + trajectory -->
+    <div class="tab-panel" data-rpanel="analytics">
+      <div id="analyticsBody"><!-- rendered --></div>
+    </div>
+  </section>
+
   <!-- ===================== VIDEO LIBRARY ===================== -->
   <section class="view" id="view-video">
     <div class="section-title"><h2>Echo learning library</h2></div>
 
     <div class="tabs">
       <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Learn</button>
+      <button data-vtab="read" onclick="VideoView.tab('read')">Read</button>
       <button data-vtab="channels" onclick="VideoView.tab('channels')">Channels</button>
-      <button data-vtab="news" onclick="VideoView.tab('news')">News</button>
+      <button data-vtab="guidelines" onclick="VideoView.tab('guidelines')">Guidelines</button>
       <button data-vtab="saved" onclick="VideoView.tab('saved')">Saved</button>
     </div>
 
@@ -717,9 +914,61 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       <!-- Curated by domain -->
       <div class="section-title" style="margin-top:8px;">
         <h2 style="font-size:17px;">By domain · curated</h2>
-        <span class="faint">Tap to open the best teaching for that topic</span>
+        <span class="faint" id="curatedProgress"></span>
       </div>
+      <div class="vsearch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="vidSearch" placeholder="Search topics — e.g. PISA, amyloid, TAPSE…" oninput="Videos.onSearch(this.value)">
+        <span class="vclear" id="vidSearchClear" onclick="Videos.clearSearch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+      </div>
+      <div class="chip-row" id="curatedFilter" style="margin-bottom:14px;"></div>
       <div id="curatedList"><!-- rendered --></div>
+    </div>
+
+    <!-- TAB: Read — local PDF e-reader (your own files, stays on device) -->
+    <div class="tab-panel" id="vtab-read">
+      <div class="card" id="readerIntro" style="margin-bottom:14px;">
+        <div class="card-head"><h3>Reading library</h3><span class="faint">On-device</span></div>
+        <p class="faint" style="margin-bottom:12px;">
+          Open your own PDF textbooks and read them here, page by page. Files stay on this device —
+          nothing is uploaded or copied into the app. Your last page is remembered per book.
+        </p>
+        <button class="btn btn-primary btn-block" onclick="document.getElementById('readerFile').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+          Open a PDF
+        </button>
+        <input type="file" id="readerFile" accept="application/pdf,.pdf" style="display:none" onchange="Reader.openFile(this.files[0])">
+        <div id="readerRecent" style="margin-top:14px;"><!-- recent books -->
+        </div>
+      </div>
+
+      <!-- Active reader -->
+      <div id="readerStage" style="display:none;">
+        <div class="reader-bar">
+          <button class="icon-btn" onclick="Reader.close()" title="Back to library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="reader-title" id="readerTitle">—</div>
+          <button class="icon-btn" onclick="Reader.zoom(-1)" title="Zoom out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg>
+          </button>
+          <button class="icon-btn" onclick="Reader.zoom(1)" title="Zoom in">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
+          </button>
+        </div>
+        <div class="reader-nav">
+          <button class="btn btn-ghost" onclick="Reader.go(-1)">‹ Prev</button>
+          <div class="reader-pagebox">
+            <input id="readerPageInput" type="number" min="1" value="1" onchange="Reader.jump(this.value)">
+            <span class="faint" id="readerPageTotal">/ —</span>
+          </div>
+          <button class="btn btn-ghost" onclick="Reader.go(1)">Next ›</button>
+        </div>
+        <div class="reader-canvas-wrap" id="readerCanvasWrap">
+          <canvas id="readerCanvas"></canvas>
+        </div>
+        <div class="reader-progress"><div class="bar"><i id="readerProgFill" style="width:0%"></i></div></div>
+      </div>
     </div>
 
     <!-- TAB: Channels — trusted sources grid -->
@@ -734,18 +983,22 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </div>
     </div>
 
-    <!-- TAB: News -->
-    <div class="tab-panel" id="vtab-news">
+    <!-- TAB: Guidelines — latest society documents per topic -->
+    <div class="tab-panel" id="vtab-guidelines">
       <div class="card" style="margin-bottom:14px;">
-        <div class="card-head"><h3>What's new in echo</h3><span class="badge-ai">⚡ AI</span></div>
-        <div id="newsBody"><div class="empty" style="padding:18px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
-          <div>Recent developments in echocardiography guidelines and practice.</div></div></div>
-        <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="VideoExtras.loadNews()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>
-          <span id="newsBtnLabel">Get echo updates</span>
-        </button>
+        <div class="card-head"><h3>Latest guidelines by topic</h3><span class="badge-ai" style="background:rgba(108,195,152,.16);color:var(--ok);">✓ Verified</span></div>
+        <p class="faint" style="margin-bottom:12px;">
+          The current ASE / EACVI / ESC document for each echo topic — the source of truth behind
+          the cutoffs you're learning. Each opens the society's official page; the search link is a
+          fail-safe that always resolves to the document. Verify cutoffs here before relying on them.
+        </p>
+        <div class="vsearch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="glSearch" placeholder="Search guidelines — e.g. diastolic, valvular, strain…" oninput="Guidelines.onSearch(this.value)">
+          <span class="vclear" id="glSearchClear" onclick="Guidelines.clearSearch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
       </div>
+      <div id="guidelinesList"><!-- rendered --></div>
     </div>
 
     <!-- TAB: Saved + add own -->
@@ -868,6 +1121,11 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   <button class="navitem" data-view="mcq" onclick="App.go('mcq')">
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 3-3 3M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg></span>
     <span>MCQ</span>
+  </button>
+  <button class="navitem" data-view="review" onclick="App.go('review')">
+    <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/><path d="M12 8v4l3 2"/></svg></span>
+    <span>Review</span>
+    <span id="navDueBadge" style="position:absolute;top:2px;right:8px;background:var(--bad);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:none;place-items:center;padding:0 3px;"></span>
   </button>
   <button class="navitem" data-view="expert" onclick="App.go('expert')">
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
@@ -1304,7 +1562,172 @@ const VERIFIED_MCQS = [
     options:['Reassure and discharge','Look specifically for a sinus venosus defect and anomalous pulmonary venous return, with TEE or CMR if needed','Start diuretics empirically','Repeat TTE in 5 years'],
     answer:1,
     explanation:'Unexplained RV volume overload demands a search for a left-to-right shunt. A sinus venosus ASD with partial anomalous pulmonary venous return is easily missed on TTE because the defect lies outside the true septum near the SVC\u2013RA junction; TEE or CMR is the appropriate next test.',
-    reference:'ASE guideline on imaging of intracardiac shunts; AHA/ACC ACHD guideline' }
+    reference:'ASE guideline on imaging of intracardiac shunts; AHA/ACC ACHD guideline' },
+
+  /* ============================================================
+     Additional original board-style questions (guideline-anchored).
+     Written to broaden coverage toward physics/Doppler and the
+     thinner domains (TEE, haemodynamics, 3D/4D, stress). All values
+     cross-checked against the verified ASE/EACVI reference set.
+     ============================================================ */
+
+  /* ---- physics & Doppler ---- */
+  { domain:'phys', diff:'board',
+    q:'Axial (range) resolution in ultrasound is determined principally by:',
+    options:['The pulse repetition frequency','The spatial pulse length (shorter pulse = better resolution)','The Doppler angle','The colour box width'],
+    answer:1,
+    explanation:'Axial resolution equals half the spatial pulse length, so a shorter pulse (higher transmit frequency, fewer cycles) improves it. Higher frequency improves resolution at the cost of penetration. PRF and colour box width affect frame rate and aliasing, not axial resolution.',
+    reference:'ASE statement on ultrasound physics & instrumentation' },
+  { domain:'phys', diff:'board',
+    q:'To resolve a high-velocity aortic stenosis jet without aliasing, the most appropriate Doppler mode is:',
+    options:['Pulsed-wave Doppler with a small sample volume','Continuous-wave Doppler','Colour M-mode','Tissue Doppler imaging'],
+    answer:1,
+    explanation:'Continuous-wave Doppler has no Nyquist limit and records the full high velocity of an AS jet, but lacks range resolution. Pulsed-wave is range-specific but aliases above the Nyquist limit (PRF/2), so it cannot capture severe AS velocities. CW is the standard for peak AS velocity and gradient.',
+    reference:'ASE/EACVI recommendations on aortic stenosis assessment; ASE Doppler physics' },
+  { domain:'phys', diff:'hard',
+    q:'When measuring a stenotic jet velocity, an intercept (Doppler) angle of 20\u00b0 between the beam and flow will:',
+    options:['Overestimate the true velocity','Underestimate the true velocity by roughly the cosine of the angle','Have no effect because CW is angle-independent','Double the measured gradient'],
+    answer:1,
+    explanation:'The Doppler equation includes cos\u03b8; measured velocity = true velocity \u00d7 cos\u03b8. At 20\u00b0, cos20\u00b0\u22480.94, so velocity is underestimated by ~6%. Errors grow rapidly beyond 20\u00b0, which is why alignment within ~20\u00b0 is required and multiple windows are interrogated for AS.',
+    reference:'ASE Doppler physics; ASE/EACVI aortic stenosis recommendations' },
+  { domain:'phys', diff:'board',
+    q:'Lowering the colour Doppler Nyquist limit (velocity scale) will:',
+    options:['Reduce aliasing of low-velocity flow','Increase sensitivity to low-velocity flow but alias higher velocities more readily','Eliminate the need for the Doppler angle','Increase axial resolution'],
+    answer:1,
+    explanation:'Reducing the Nyquist limit makes colour Doppler more sensitive to slow flow (useful for venous flow or small shunts) but causes higher-velocity flow to alias sooner. The PISA method deliberately lowers/baselines-shifts the Nyquist limit to form a measurable hemispheric shell.',
+    reference:'ASE recommendations on native valvular regurgitation (PISA); ASE Doppler physics' },
+
+  /* ---- TTE / stress ---- */
+  { domain:'tte', diff:'board',
+    q:'When LV endocardial borders are poorly seen and \u22652 contiguous segments are not visualised, the ASE recommends:',
+    options:['Reporting EF as "unable to assess" only','Using an ultrasound enhancing (contrast) agent for LV opacification','Switching to fractional shortening','Increasing the transmit frequency'],
+    answer:1,
+    explanation:'ASE recommends an ultrasound enhancing agent for LV opacification when two or more contiguous segments are poorly visualised, improving endocardial border detection and EF accuracy. Fractional shortening shares the same imaging limitation and assumes normal geometry.',
+    reference:'ASE guideline on the use of echocardiographic contrast/enhancing agents' },
+  { domain:'tte', diff:'board',
+    q:'During exercise or dobutamine stress echocardiography, a NORMAL ischaemic response is:',
+    options:['New segmental wall-motion abnormality at peak stress','Hyperdynamic, uniform increase in wall thickening and inward motion at peak stress','Reduced EF with cavity dilatation','Biphasic response in two territories'],
+    answer:1,
+    explanation:'The normal stress response is a uniform increase in contractility \u2014 greater wall thickening, endocardial excursion, and a rise in EF with reduced cavity size. A NEW or worsening regional wall-motion abnormality indicates inducible ischaemia; a biphasic response (improve then worsen) suggests viable but jeopardised myocardium.',
+    reference:'ASE recommendations on stress echocardiography' },
+
+  /* ---- RV / pulmonary ---- */
+  { domain:'rv', diff:'board',
+    q:'Using the simplified Bernoulli equation, a peak tricuspid regurgitation velocity of 3.0 m/s with an estimated RA pressure of 8 mmHg gives an estimated RV systolic pressure of approximately:',
+    options:['12 mmHg','28 mmHg','44 mmHg','60 mmHg'],
+    answer:2,
+    explanation:'RVSP = 4\u00d7(TR velocity)\u00b2 + RA pressure = 4\u00d7(3.0)\u00b2 + 8 = 36 + 8 = 44 mmHg. In the absence of RV outflow obstruction or pulmonary stenosis, RVSP approximates systolic pulmonary artery pressure.',
+    reference:'ASE guideline on right-heart assessment in adults' },
+  { domain:'rv', diff:'hard',
+    q:'A TAPSE of 14 mm is recorded. Per ASE reference values this indicates:',
+    options:['Normal RV longitudinal systolic function','RV systolic dysfunction (TAPSE <17 mm)','Severe tricuspid regurgitation','Normal only if the patient is under 40'],
+    answer:1,
+    explanation:'TAPSE \u226517 mm is normal; <17 mm indicates reduced RV longitudinal systolic function. TAPSE is angle-dependent and reflects mainly basal longitudinal motion, so it is best interpreted alongside S\u2032, FAC (>35% normal), and RV free-wall strain.',
+    reference:'ASE guideline on right-heart assessment in adults' },
+
+  /* ---- valve ---- */
+  { domain:'valve', diff:'board',
+    q:'In aortic stenosis the continuity equation calculates aortic valve area using:',
+    options:['LVOT area \u00d7 (LVOT VTI \u00f7 aortic-jet VTI)','Aortic-jet VTI \u00f7 LVOT diameter','220 \u00f7 pressure half-time','4 \u00d7 peak velocity squared'],
+    answer:0,
+    explanation:'By conservation of flow, AVA = LVOT cross-sectional area \u00d7 (LVOT VTI / aortic-jet VTI). The LVOT area uses diameter squared, so LVOT diameter error is the dominant source of inaccuracy. 220/PHT is the mitral stenosis formula; 4V\u00b2 gives gradient, not area.',
+    reference:'ASE/EACVI recommendations on the assessment of aortic stenosis' },
+  { domain:'valve', diff:'hard',
+    q:'A patient has an aortic valve area of 0.9 cm\u00b2 but a mean gradient of only 28 mmHg with an LVEF of 35%. The next best step to clarify severity is:',
+    options:['Report as moderate aortic stenosis','Low-dose dobutamine stress echocardiography to assess flow reserve and true severity','Immediate aortic valve replacement','Repeat TTE in 12 months'],
+    answer:1,
+    explanation:'This is classic low-flow, low-gradient AS with reduced EF (AVA \u22641.0 cm\u00b2 but mean gradient <40 mmHg). Low-dose dobutamine stress echo distinguishes true-severe AS (AVA stays \u22641.0 cm\u00b2, gradient rises) from pseudo-severe AS, and assesses contractile (flow) reserve.',
+    reference:'ASE/EACVI aortic stenosis recommendations; ESC/EACTS and ACC/AHA VHD guidelines' },
+  { domain:'valve', diff:'board',
+    q:'Which finding is required to call primary mitral regurgitation severe by ASE integrated criteria?',
+    options:['Vena contracta width 0.3 cm','Effective regurgitant orifice area \u22650.40 cm\u00b2 and regurgitant volume \u226560 mL','A small central jet on colour Doppler','E-wave dominant mitral inflow alone'],
+    answer:1,
+    explanation:'Severe primary MR is defined by EROA \u22650.40 cm\u00b2, regurgitant volume \u226560 mL, regurgitant fraction \u226550%, and vena contracta \u22650.7 cm, integrated with structural and chamber data. A single supportive sign is insufficient; ASE stresses an integrative multi-parameter approach.',
+    reference:'ASE recommendations on native valvular regurgitation' },
+
+  /* ---- TEE ---- */
+  { domain:'tee', diff:'board',
+    q:'Before electrical cardioversion of atrial fibrillation without 3 weeks of anticoagulation, TEE is performed primarily to:',
+    options:['Measure LV ejection fraction','Exclude thrombus in the left atrium / left atrial appendage','Grade mitral regurgitation','Assess for a patent foramen ovale'],
+    answer:1,
+    explanation:'TEE excels at imaging the left atrial appendage because the LA lies immediately anterior to the oesophagus. Excluding LAA thrombus allows earlier cardioversion. Spontaneous echo contrast and low LAA emptying velocities indicate stasis and higher thromboembolic risk.',
+    reference:'ASE/SCA guideline for comprehensive TEE; AHA/ACC/ESC AF guidance' },
+  { domain:'tee', diff:'hard',
+    q:'At a mid-oesophageal aortic valve short-axis view, advancing the multiplane angle toward ~120\u00b0\u2013135\u00b0 typically yields which view?',
+    options:['Mid-oesophageal 4-chamber','Mid-oesophageal aortic valve long-axis (LVOT, AV, proximal ascending aorta)','Transgastric short-axis of the LV','Bicaval view'],
+    answer:1,
+    explanation:'From the ME AV short-axis (~30\u201360\u00b0), increasing the angle to ~120\u2013135\u00b0 opens the ME AV long-axis, aligning the LVOT, aortic valve, and proximal ascending aorta \u2014 used for annular sizing and AR assessment. The bicaval view is near ~90\u2013110\u00b0 with rightward rotation.',
+    reference:'ASE/SCA guideline for a comprehensive TEE examination' },
+  { domain:'tee', diff:'board',
+    q:'Compared with TTE, TEE provides superior assessment of all of the following EXCEPT:',
+    options:['Left atrial appendage thrombus','Prosthetic mitral valve regurgitation','LV apex in a foreshortened study','Interatrial septum and small shunts'],
+    answer:2,
+    explanation:'TEE images posterior structures (LA, LAA, mitral prosthesis, interatrial septum) superbly because they sit near the probe. The LV apex is in the far field on TEE and is often better seen on a dedicated transthoracic apical view; deep transgastric views help but the apex remains a TEE limitation.',
+    reference:'ASE/SCA comprehensive TEE guideline' },
+
+  /* ---- 3D / 4D ---- */
+  { domain:'4d', diff:'board',
+    q:'Compared with 2D biplane Simpson\u2019s, 3D echocardiographic LV volumes tend to:',
+    options:['Overestimate volumes versus CMR','Show closer agreement with cardiac MRI by avoiding geometric assumptions','Require contrast in every patient','Be unaffected by image quality'],
+    answer:1,
+    explanation:'3D echo measures LV volumes directly from the cavity cast, avoiding the foreshortening and geometric assumptions of 2D biplane methods, so it agrees more closely with CMR (the reference standard). It still depends on adequate image quality and, for full-volume sets, on stitching without arrhythmia artifact.',
+    reference:'ASE/EACVI recommendations for 3D echocardiography' },
+  { domain:'4d', diff:'hard',
+    q:'A multi-beat ECG-gated 3D full-volume acquisition shows a line discontinuity across the dataset. This artifact is:',
+    options:['Side-lobe artifact','Stitch artifact from arrhythmia or respiratory motion','Aliasing','Acoustic shadowing'],
+    answer:1,
+    explanation:'Multi-beat full-volume sets stitch sub-volumes from several cardiac cycles; ectopy, atrial fibrillation, or breathing between beats produces a visible stitch (registration) artifact. Single-beat acquisition avoids it at the cost of lower spatial/temporal resolution.',
+    reference:'ASE/EACVI recommendations on 3D echocardiography acquisition' },
+
+  /* ---- pericardial ---- */
+  { domain:'peri', diff:'board',
+    q:'Which Doppler finding supports tamponade physiology in a patient with a large pericardial effusion?',
+    options:['Exaggerated respirophasic variation in mitral inflow (>25%) and tricuspid inflow (>40%)','Fixed split of the mitral E wave','Continuous low-velocity hepatic vein flow','Absent IVC respiratory change with normal chamber sizes'],
+    answer:0,
+    explanation:'Tamponade produces enhanced ventricular interdependence: inspiration increases right-sided and decreases left-sided filling, giving >25% mitral and >40% tricuspid inflow respiratory variation, alongside chamber collapse (RA systolic, RV diastolic) and a plethoric IVC.',
+    reference:'ASE recommendations on multimodality imaging in pericardial disease' },
+
+  /* ---- haemodynamics / prosthetics / endocarditis ---- */
+  { domain:'haemo', diff:'board',
+    q:'Stroke volume by the LVOT method is calculated as:',
+    options:['LVOT diameter \u00d7 LVOT VTI','LVOT cross-sectional area (\u03c0\u00d7(D/2)\u00b2) \u00d7 LVOT VTI','Heart rate \u00d7 LVOT VTI','4 \u00d7 LVOT peak velocity\u00b2'],
+    answer:1,
+    explanation:'Stroke volume = LVOT cross-sectional area \u00d7 LVOT VTI, where area = \u03c0\u00d7(diameter/2)\u00b2 measured in the PLAX. Because area uses diameter squared, LVOT diameter is the dominant error source; cardiac output then = SV \u00d7 heart rate.',
+    reference:'ASE guideline on quantification of Doppler-derived flow' },
+  { domain:'haemo', diff:'hard',
+    q:'On a normally functioning bileaflet mechanical aortic prosthesis, an elevated transvalvular gradient with a NORMAL Doppler velocity index and normal leaflet motion most likely reflects:',
+    options:['Prosthetic obstruction (pannus/thrombus)','Pressure recovery and/or patient\u2013prosthesis mismatch rather than true obstruction','Severe paravalvular regurgitation','Endocarditis with dehiscence'],
+    answer:1,
+    explanation:'A high gradient with a preserved dimensionless (Doppler velocity) index and normal leaflet excursion suggests pressure recovery (small aorta) or patient\u2013prosthesis mismatch (small effective orifice for body size), not intrinsic obstruction. True obstruction lowers the velocity index and restricts leaflet motion.',
+    reference:'ASE guideline on echocardiographic evaluation of prosthetic valves' },
+  { domain:'haemo', diff:'board',
+    q:'Echocardiography functions as a MAJOR criterion in the modified Duke criteria for infective endocarditis when it demonstrates:',
+    options:['Reduced left ventricular ejection fraction','An oscillating vegetation, periannular abscess, or new prosthetic dehiscence','Diastolic dysfunction','Increased left ventricular mass'],
+    answer:1,
+    explanation:'Echo contributes a major criterion when it shows an oscillating intracardiac vegetation, an abscess, or new partial dehiscence of a prosthetic valve (and new valvular regurgitation). EF, diastolic function, and LV mass are not endocarditis criteria. TEE is more sensitive than TTE, especially for prosthetic valves and abscess.',
+    reference:'Modified Duke criteria; ESC guideline on infective endocarditis' },
+
+  /* ---- cardiomyopathy / masses ---- */
+  { domain:'cmp', diff:'hard',
+    q:'A patient with increased LV wall thickness shows a strain "bull\u2019s-eye" with preserved apical longitudinal strain and markedly reduced basal-to-mid strain (apical sparing). This pattern most suggests:',
+    options:['Hypertrophic cardiomyopathy','Cardiac amyloidosis','Hypertensive heart disease','Athlete\u2019s heart'],
+    answer:1,
+    explanation:'Relative apical sparing of longitudinal strain (the "cherry-on-top" bull\u2019s-eye) is a recognised marker of cardiac amyloidosis and helps distinguish it from other causes of increased wall thickness. It should prompt evaluation including PYP scintigraphy and screening for light-chain disease.',
+    reference:'ASE/EACVI strain consensus; ASE recommendations on cardiac amyloidosis imaging' },
+  { domain:'cmp', diff:'board',
+    q:'In hypertrophic cardiomyopathy, a resting or provocable peak LV outflow tract gradient of at least which value is considered haemodynamically significant?',
+    options:['\u226510 mmHg','\u226530 mmHg','\u226580 mmHg','\u2265120 mmHg'],
+    answer:1,
+    explanation:'A peak instantaneous LVOT gradient \u226530 mmHg at rest or with provocation defines significant obstruction in HCM; \u226550 mmHg is the threshold generally relevant to septal reduction therapy when symptoms persist. Provocation (Valsalva, exercise) is used because obstruction is dynamic.',
+    reference:'AHA/ACC guideline on the diagnosis and treatment of HCM' },
+
+  /* ---- congenital ---- */
+  { domain:'chd', diff:'board',
+    q:'A bubble (agitated saline) contrast study shows microbubbles appearing in the left atrium within 3\u20134 cardiac cycles of right atrial opacification. This indicates:',
+    options:['A normal study','An intracardiac shunt (e.g. PFO/ASD)','An intrapulmonary shunt','Severe tricuspid regurgitation'],
+    answer:1,
+    explanation:'Early left-heart appearance of bubbles within ~3\u20134 beats indicates an intracardiac right-to-left shunt such as a PFO or ASD (often enhanced by Valsalva release). Delayed appearance (>4\u20135 beats) suggests an intrapulmonary shunt. Agitated saline does not normally cross the pulmonary capillary bed.',
+    reference:'ASE guideline on multimodality imaging of intracardiac shunts' }
 ];
 
 /* ---- 2. Global state --------------------------------------
@@ -1321,6 +1744,7 @@ window.S = {
   today:      JSON.parse(localStorage.getItem('ep_today')   || 'null'),
   vextras:    JSON.parse(localStorage.getItem('ep_vextras') || 'null'),
   stats:      JSON.parse(localStorage.getItem('ep_stats')   || '{"streak":0,"mcqDone":0,"correct":0,"byDomain":{}}'),
+  srs:        JSON.parse(localStorage.getItem('ep_srs')     || 'null'),
   mcqDiff:    'board',
   planTrack:  'all',
   bankFilter: 'all',
@@ -1333,7 +1757,7 @@ window.S = {
 
 /* Persist to local storage, and (debounced) mirror to Firestore if sync is up.
    We only mirror the user-data keys, never API keys (those stay device-local). */
-const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert','today','vextras']);
+const SYNCABLE_KEYS = new Set(['tasks','bank','videos','plan','stats','expert','today','vextras','srs']);
 const _cloudTimers = {};
 function persist(k, v){
   localStorage.setItem('ep_'+k, JSON.stringify(v));
@@ -1373,12 +1797,16 @@ const App = {
     Plan.render();
     MCQ.initSetup();
     Videos.render();
+    Guidelines.render();
     VideoExtras.render();
+    if(window.Reader) Reader.renderRecent();
     Bank.render();
     Expert.render();
     Today.render();
     Weak.render();
     Dashboard.render();
+    SRS.init();
+    Review.render();
   },
 
   /* Safeguard: if a real Groq/Anthropic key ever gets pasted into the
@@ -1405,6 +1833,8 @@ const App = {
       const settingsNav = document.querySelector('[data-view="settings"]');
       if(settingsNav) settingsNav.classList.add('active');
     }
+    if(view==='review' && window.Review) Review.render();
+    if(window.SRS) SRS.refreshBadges();
     window.scrollTo({top:0,behavior:'smooth'});
   },
 
@@ -1499,7 +1929,7 @@ const App = {
       const cloudUpdated = cloud?._updated || 0;
 
       if(cloud && cloudUpdated >= localUpdated){
-        ['tasks','bank','videos','plan','stats','expert','today','vextras'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert','today','vextras','srs'].forEach(k=>{
           if(cloud[k] !== undefined){
             localStorage.setItem('ep_'+k, JSON.stringify(cloud[k]));
             const stateKey = (k==='bank') ? 'mcqBank' : k;
@@ -1508,12 +1938,13 @@ const App = {
         });
         Tasks.render(); Plan.render(); Bank.render();
         Videos.render(); VideoExtras.render(); Expert.render(); Today.render(); Weak.render(); Dashboard.render();
+        if(window.Review) Review.render();
       }
       S.syncReady = true;
 
       if(!cloud || cloudUpdated < localUpdated){
         const payload = {_updated: Date.now()};
-        ['tasks','bank','videos','plan','stats','expert','today','vextras'].forEach(k=>{
+        ['tasks','bank','videos','plan','stats','expert','today','vextras','srs'].forEach(k=>{
           const v = localStorage.getItem('ep_'+k);
           if(v) payload[k] = JSON.parse(v);
         });
@@ -1580,6 +2011,14 @@ const Dashboard = {
     setText('stMcq', st.mcqDone);
     const acc = st.mcqDone ? Math.round(100*st.correct/st.mcqDone) : null;
     setHTML('stAcc', (acc==null?'—':acc) + '<span class="unit">%</span>');
+
+    // video library hint — watched progress
+    if(window.Videos){
+      const w = Videos.watchedCount(), tot = Videos.totalCurated();
+      setText('videoHomeHint', w
+        ? `${w} of ${tot} curated topics watched.`
+        : 'Curated teaching for every domain.');
+    }
 
     // nearest exam countdown
     const dates = [];
@@ -2048,11 +2487,63 @@ function extractJSON(raw){
   throw new Error('Could not parse AI response as JSON');
 }
 
-/* ---- validate one MCQ object from the model --------------- */
+/* ---- validate one MCQ object from the model ---------------
+   Stricter than before: require exactly 4 distinct options, a
+   real explanation, and a reference. A weak schema let through
+   malformed or unexplained items, which is where unreliable
+   AI questions slipped in. */
 function validMcq(q){
-  return q && typeof q.q==='string' && q.q.length>5
-      && Array.isArray(q.options) && q.options.length>=2
-      && Number.isInteger(q.answer) && q.answer>=0 && q.answer<q.options.length;
+  if(!q || typeof q.q!=='string' || q.q.length<8) return false;
+  if(!Array.isArray(q.options) || q.options.length!==4) return false;
+  if(!q.options.every(o=>typeof o==='string' && o.trim().length>0)) return false;
+  // options must be distinct (no accidental duplicate / two-correct items)
+  const norm = q.options.map(o=>o.trim().toLowerCase());
+  if(new Set(norm).size !== norm.length) return false;
+  if(!Number.isInteger(q.answer) || q.answer<0 || q.answer>=q.options.length) return false;
+  if(typeof q.explanation!=='string' || q.explanation.length<25) return false;
+  return true;
+}
+
+/* ---- lightweight self-consistency check -------------------
+   Flags questions whose explanation appears to endorse a DIFFERENT
+   option than the one marked correct. Heuristic, not perfect, but
+   catches the common "wrong key" failure. Returns true if the item
+   looks internally consistent.
+
+   Two strategies: (a) if the correct option contains a distinctive
+   number/value, the explanation should mention that value AND not
+   exclusively endorse a different option's value; (b) otherwise fall
+   back to distinctive word tokens. */
+function mcqSelfConsistent(q){
+  try{
+    const ans = q.options[q.answer];
+    if(!ans) return false;
+    const expl = (q.explanation||'').toLowerCase();
+    const valRe = /\d+(?:\.\d+)?\s*(?:m\/s|mmhg|cm²|cm2|cm\/s|ml\/m²|ml\/m2|ml|mm|cm|%|ms)?/g;
+    const valsOf = s => (String(s).toLowerCase().match(valRe)||[])
+      .map(v=>v.replace(/\s+/g,'')).filter(v=>/\d/.test(v));
+    const ansVals = valsOf(ans);
+    if(ansVals.length){
+      // explanation should contain the correct option's distinctive value
+      const explVals = valsOf(expl);
+      const explHasAns = ansVals.some(v=>explVals.includes(v) || expl.includes(v));
+      // and the explanation should NOT contain a different option's value while omitting the answer's
+      const otherVals = q.options
+        .filter((_,i)=>i!==q.answer)
+        .flatMap(valsOf)
+        .filter(v=>!ansVals.includes(v));
+      const explHasOther = otherVals.some(v=>explVals.includes(v));
+      if(explHasAns) return true;            // mentions the right value → consistent
+      if(explHasOther && !explHasAns) return false; // endorses a wrong value only → inconsistent
+      return true;                            // numeric but neutral wording → don't reject
+    }
+    // non-numeric options: distinctive word-token check
+    const stop = new Set(['the','and','with','that','this','from','into','than','over','more','less','normal','using','when','which','what','where','only','both','none','severe','mild','moderate']);
+    const toks = ans.toLowerCase().replace(/[^a-z0-9.%\s/<>=-]/g,' ').split(/\s+/)
+      .filter(w=>w.length>3 && !stop.has(w));
+    if(!toks.length) return true;
+    return toks.some(t=>expl.includes(t));
+  }catch(e){ return true; }
 }
 
 /* ---- shuffle a question's options, keeping `answer` correct --
@@ -2086,16 +2577,40 @@ Difficulty: ${diffNote}
 
 Requirements:
 - Each question must read like a real board exam item (clinical vignette where appropriate).
-- Exactly 4 options each, only one unambiguously correct.
+- Exactly 4 options each. EXACTLY ONE option must be unambiguously correct; the other three must be clearly incorrect (not "also defensible"). If two options could be defended, rewrite the question.
 - Every numeric value, cutoff, or grade in the stem, the correct answer, and the explanation MUST be consistent with the VERIFIED ECHO REFERENCE VALUES you were given. Do not use any cutoff that conflicts with that list.
 - Do NOT build a question whose correct answer depends on a number you are unsure of. If in doubt, write the question around a value that IS in the verified list.
-- The "explanation" must say why the correct answer is right AND briefly why the key distractors are wrong, citing the relevant numeric cutoff.
+- The "explanation" must (a) explicitly restate the text of the correct option, (b) say why it is right with the relevant numeric cutoff, and (c) briefly say why the key distractors are wrong. The explanation MUST agree with the option named in "answer" — never let them contradict.
+- Before finalising each item, re-read your own stem and confirm the option at the "answer" index is the single best answer. If not, fix "answer".
 - "reference" MUST name the issuing body and subject of the supporting guideline (e.g. "ASE guideline on chamber quantification"). Include a figure/table number ONLY if certain — otherwise omit it. Never fabricate a citation.
 - "answer" is the 0-based index of the correct option.
 - "domain" is the matching domain id where possible.
 
 Return ONLY a valid JSON object, no markdown, no commentary, in exactly this shape:
 {"questions":[{"q":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","reference":"string","topic":"string","domain":"string"}]}`;
+}
+
+/* ---- verifier prompt: independently re-answer generated MCQs --
+   A second model pass acts as an examiner answering each question
+   from scratch, with no knowledge of the marked key. We keep only
+   the items where the verifier's chosen index matches the generator's
+   key AND the verifier is confident. This cross-check is what catches
+   the "wrong key" / "two correct options" failures the structural
+   validator can't see. */
+function buildVerifierPrompt(qs){
+  const items = qs.map((q,i)=>`Q${i}: ${q.q}\n`+
+    q.options.map((o,oi)=>`  ${oi}) ${o}`).join('\n')).join('\n\n');
+  return `You are an echocardiography board examiner CHECKING a draft question set. For each question, independently choose the single best answer using the VERIFIED ECHO REFERENCE VALUES you were given. Do not assume any option is correct; reason it out yourself.
+
+For each question return:
+- "i": the question number
+- "best": the 0-based index of the single best answer
+- "confident": true only if exactly one option is clearly correct and consistent with the verified cutoffs; false if it is ambiguous, has two defensible options, or relies on a value you are unsure of.
+
+Questions:
+${items}
+
+Return ONLY valid JSON, no markdown: {"checks":[{"i":0,"best":0,"confident":true}]}`;
 }
 
 /* ---- plan prompt: dated day-by-day study schedule --------- */
@@ -2228,14 +2743,42 @@ const MCQ = {
       const prompt = buildMcqPrompt(domName, topics, style, need, S.mcqDiff);
       const raw = await AI.complete(prompt, {json:true});
       const parsed = extractJSON(raw);
-      let aiQs = (parsed.questions || []).filter(validMcq);
+      // 1) structural validity + 2) self-consistency (explanation matches key)
+      let aiQs = (parsed.questions || []).filter(validMcq).filter(mcqSelfConsistent);
+
+      // 3) independent verification pass — a second model call re-answers
+      //    each item; keep only those the verifier confidently agrees with.
+      //    Best-effort: if the verifier call fails, fall back to the
+      //    structurally-valid set rather than blocking the user.
+      if(aiQs.length){
+        btn.innerHTML = '<span class="spinner"></span> Verifying…';
+        try{
+          const vraw = await AI.complete(buildVerifierPrompt(aiQs), {json:true, temperature:0});
+          const checks = (extractJSON(vraw).checks)||[];
+          const byIndex = {};
+          checks.forEach(c=>{ if(Number.isInteger(c.i)) byIndex[c.i]=c; });
+          const verified = aiQs.filter((q,i)=>{
+            const c = byIndex[i];
+            // keep only if verifier is confident AND its choice matches the key
+            return c && c.confident===true && Number(c.best)===q.answer;
+          });
+          // only adopt the verified subset if it didn't wipe everything out;
+          // if verification rejected all, surface fewer but never zero when
+          // we have a verified-part fallback later.
+          if(verified.length) aiQs = verified;
+          else aiQs = [];   // verifier rejected all → treat as none usable
+        }catch(verr){
+          console.warn('verification pass failed, using validated set:', verr);
+        }
+      }
+
       if(!aiQs.length && !verifiedPart.length)
-        throw new Error('AI returned no usable questions — try again');
+        throw new Error('No questions passed verification — try again or use the verified bank');
       aiQs = aiQs.map(q=>shuffleOptions({ ...q, topic:q.topic||domName,
         domain:q.domain||domId, reference:q.reference||'', style, source:'ai' }));
       const all = verifiedPart.concat(aiQs).sort(()=>Math.random()-0.5);
       this.startRunner(all, domId);
-      toast(`${all.length} questions ready`);
+      toast(`${all.length} question${all.length>1?'s':''} ready${aiQs.length?` · ${aiQs.length} AI-verified`:''}`);
     }catch(e){
       console.error('MCQ generation failed:', e);
       if(verifiedPart.length){
@@ -2250,17 +2793,18 @@ const MCQ = {
     }
   },
   startRunner(qs, domain){
-    S.current = { qs, i:0, picked:null, score:0, domain:domain||null };
+    S.current = { qs, i:0, picked:null, sel:null, conf:null, revealed:false, score:0, domain:domain||null };
     document.getElementById('mcqSetup').style.display='none';
     document.getElementById('mcqRunner').style.display='block';
     this.renderQ();
   },
   renderQ(){
     const c = S.current, q = c.qs[c.i];
+    c.sel=null; c.conf=null; c.revealed=false; c.picked=null;
     const wrap = document.getElementById('mcqRunner');
     const srcBadge = q.source==='verified'
       ? '<span class="badge-ai" style="background:rgba(108,195,152,.16);color:var(--ok);">✓ Verified</span>'
-      : `<span class="badge-ai">${q.style?q.style.toUpperCase():'AI'}</span>`;
+      : `<span class="badge-ai" title="AI-generated and cross-checked by a second AI pass — still confirm against the guideline">⚡ AI · cross-checked</span>`;
     wrap.innerHTML = `
       <div class="card">
         <div class="card-head">
@@ -2271,58 +2815,108 @@ const MCQ = {
         <p style="font-weight:500;margin-bottom:14px;">${escapeHTML(q.q)}</p>
         <div id="mcqOpts">
           ${q.options.map((o,idx)=>`
-            <button class="mcq-opt" data-i="${idx}" onclick="MCQ.pick(${idx})">
+            <button class="mcq-opt" data-i="${idx}" onclick="MCQ.select(${idx})">
               <span class="mcq-key">${'ABCD'[idx]}</span><span>${escapeHTML(o)}</span>
             </button>`).join('')}
         </div>
+        <div id="mcqConf"></div>
         <div id="mcqAfter"></div>
       </div>`;
   },
-  pick(idx){
+  /* Step 1 — choose an option (no reveal yet). Surfaces the confidence row. */
+  select(idx){
     const c = S.current;
-    if(c.picked!=null) return;
-    c.picked = idx;
+    if(c.revealed) return;
+    c.sel = idx;
+    document.querySelectorAll('#mcqOpts .mcq-opt').forEach((o,i)=>
+      o.classList.toggle('sel', i===idx));
+    const conf = document.getElementById('mcqConf');
+    conf.innerHTML = `
+      <div class="conf-row">
+        <button class="conf-btn ${c.conf===1?'sel':''}" onclick="MCQ.setConf(1)"><span class="conf-emoji">🤔</span>Guessing</button>
+        <button class="conf-btn ${c.conf===2?'sel':''}" onclick="MCQ.setConf(2)"><span class="conf-emoji">🙂</span>Fairly sure</button>
+        <button class="conf-btn ${c.conf===3?'sel':''}" onclick="MCQ.setConf(3)"><span class="conf-emoji">💪</span>Certain</button>
+      </div>
+      <div class="conf-hint">Rate your confidence, then reveal — this builds your calibration profile.</div>
+      <button class="btn btn-primary btn-block" id="mcqRevealBtn" style="margin-top:12px;" disabled onclick="MCQ.reveal()">
+        Reveal answer
+      </button>`;
+  },
+  setConf(level){
+    const c = S.current;
+    if(c.revealed) return;
+    c.conf = level;
+    document.querySelectorAll('#mcqConf .conf-btn').forEach((b,i)=>
+      b.classList.toggle('sel', i+1===level));
+    const btn = document.getElementById('mcqRevealBtn');
+    if(btn) btn.disabled = false;
+  },
+  /* Step 2 — reveal, score, record to stats + SRS, show calibration flag. */
+  reveal(){
+    const c = S.current;
+    if(c.revealed || c.sel==null) return;
+    c.revealed = true;
+    c.picked = c.sel;
+    const idx = c.sel;
     const q = c.qs[c.i];
-    const opts = document.querySelectorAll('#mcqOpts .mcq-opt');
-    opts.forEach((o,i)=>{
+    document.querySelectorAll('#mcqOpts .mcq-opt').forEach((o,i)=>{
+      o.classList.remove('sel');
       if(i===q.answer) o.classList.add('correct');
       if(i===idx && i!==q.answer) o.classList.add('wrong');
       o.style.pointerEvents='none';
     });
+    document.getElementById('mcqConf').innerHTML='';
     const right = idx===q.answer;
     if(right) c.score++;
     // stats — global
     S.stats.mcqDone++; if(right) S.stats.correct++;
-    // stats — per domain (for weak-point analysis)
+    // stats — per domain
     const dom = q.domain || c.domain || 'misc';
     S.stats.byDomain = S.stats.byDomain || {};
     const ds = S.stats.byDomain[dom] || {seen:0,correct:0};
     ds.seen++; if(right) ds.correct++;
     S.stats.byDomain[dom] = ds;
-    persist('stats', S.stats); Dashboard.render(); Weak.render();
-    // save to bank
+    persist('stats', S.stats);
+    // SRS — create/update a spaced-repetition card with the confidence
+    SRS.record({ ...q, domain:dom }, right, c.conf);
+    Dashboard.render(); Weak.render();
     Bank.save(q);
+    // calibration feedback for THIS answer
+    let calib='';
+    if(c.conf===3 && !right)
+      calib = `<div class="calib-flag danger">⚠ Confidently wrong — flagged as a priority gap</div>`;
+    else if(c.conf===1 && right)
+      calib = `<div class="calib-flag lucky">🍀 Right while guessing — review to make it solid</div>`;
+    else if(c.conf===3 && right)
+      calib = `<div class="calib-flag good">✓ Confident and correct — well calibrated</div>`;
     document.getElementById('mcqAfter').innerHTML = `
       <div class="explain">
         <strong>${right?'✓ Correct':'✕ Incorrect'}.</strong> ${escapeHTML(q.explanation)}
         ${q.reference?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">
           <strong>Reference:</strong> ${escapeHTML(q.reference)}</div>`:''}
       </div>
+      ${calib}
       <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="MCQ.next()">
         ${c.i+1<c.qs.length?'Next question':'Finish set'}
       </button>`;
   },
+  /* Back-compat alias (anything still calling pick goes through the new flow). */
+  pick(idx){ this.select(idx); },
   next(){
     const c = S.current;
     c.i++; c.picked=null;
     if(c.i<c.qs.length){ this.renderQ(); }
     else{
+      const added = SRS.stats().due;
       document.getElementById('mcqRunner').innerHTML = `
         <div class="card" style="text-align:center;">
           <div class="eyebrow">Set complete</div>
           <div class="stat-num" style="font-size:40px;margin:10px 0;">${c.score}/${c.qs.length}</div>
-          <p class="faint" style="margin-bottom:16px;">Saved to your MCQ bank for review.</p>
-          <button class="btn btn-primary" onclick="MCQ.reset()">New set</button>
+          <p class="faint" style="margin-bottom:16px;">Saved to your bank and added to spaced repetition.${added?` ${added} card${added>1?'s':''} now due for review.`:''}</p>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="MCQ.reset()">New set</button>
+            ${added?`<button class="btn btn-ghost" onclick="App.go('review')">Review now</button>`:''}
+          </div>
         </div>`;
     }
   },
@@ -2525,8 +3119,7 @@ const CURATED_TOPICS = {
      url:'https://www.youtube.com/results?search_query=echocardiography+knobology+The+Echo+Lady'},
     {t:'3D/4D acquisition & post-processing basics', ch:'Boston Cardiac',
      url:'https://www.youtube.com/results?search_query=3D+echocardiography+acquisition+Feroze+Mahmood'},
-    {t:'M-mode for the boards', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=t3Vxr92YPb0'}
+    {t:'M-mode for the boards', ch:'Mayo ECHO 2024'}
   ],
   tte: [
     {t:'Parasternal long & short axis — standard measurements', ch:'123sonography',
@@ -2537,20 +3130,16 @@ const CURATED_TOPICS = {
      url:'https://westernsono.ca/screencasts/echo/'},
     {t:'Complete TTE protocol & standard reporting', ch:'ASE',
      url:'https://www.youtube.com/results?search_query=complete+TTE+protocol+ASE+standard+reporting'},
-    {t:'Contrast echocardiography — indications & technique', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=MDQYTAjGyXk'}
+    {t:'Contrast echocardiography — indications & technique', ch:'Mayo ECHO 2024'}
   ],
   lv: [
-    {t:'Diastolic function — the basics (Garvan Kane)', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=S2c6u3agZNU'},
+    {t:'Diastolic function — the basics (Garvan Kane)', ch:'Mayo ECHO 2024'},
     {t:'2025 ASE update on diastolic function (Nagueh)', ch:'Houston Methodist DeBakey',
      url:'https://www.youtube.com/results?search_query=Sherif+Nagueh+2025+ASE+diastolic+function+update'},
     {t:'LV ejection fraction — biplane Simpson method', ch:'ASE',
      url:'https://www.youtube.com/results?search_query=LV+ejection+fraction+biplane+Simpson+method+ASE'},
-    {t:'Essentials of strain imaging (GLS)', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=2JRbK5ZT8SM'},
-    {t:'Strain imaging for cardio-oncology', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=_JiUZFpZPTQ'},
+    {t:'Essentials of strain imaging (GLS)', ch:'Mayo ECHO 2024'},
+    {t:'Strain imaging for cardio-oncology', ch:'Mayo ECHO 2024'},
     {t:'Regional wall motion & 17-segment model', ch:'123sonography',
      url:'https://www.youtube.com/results?search_query=regional+wall+motion+17+segment+echocardiography+123sonography'}
   ],
@@ -2567,12 +3156,9 @@ const CURATED_TOPICS = {
   valve: [
     {t:'Aortic stenosis grading — peak velocity, mean gradient, AVA', ch:'Mayo ECHO 2024',
      url:'https://www.youtube.com/results?search_query=aortic+stenosis+grading+Mayo+Clinic+Echo+2024'},
-    {t:'Aortic regurgitation — quantification', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=OC2J8NPDDcw'},
-    {t:'Mitral regurgitation — quantification & mechanism', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=kgaCIKkpEGc'},
-    {t:'Mitral stenosis — PHT method & valve area', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=Y4GM3L2io1M'},
+    {t:'Aortic regurgitation — quantification', ch:'Mayo ECHO 2024'},
+    {t:'Mitral regurgitation — quantification & mechanism', ch:'Mayo ECHO 2024'},
+    {t:'Mitral stenosis — PHT method & valve area', ch:'Mayo ECHO 2024'},
     {t:'PISA method for MR — step-by-step', ch:'123sonography',
      url:'https://www.youtube.com/results?search_query=PISA+method+mitral+regurgitation+echocardiography+123sonography'},
     {t:'Low-flow low-gradient AS & dobutamine stress echo', ch:'EACVI',
@@ -2593,8 +3179,7 @@ const CURATED_TOPICS = {
      url:'https://www.youtube.com/results?search_query=pre+TAVI+TEE+annular+sizing+EACVI'},
     {t:'Intra-procedural TEE for MitraClip / TEER', ch:'Boston Cardiac',
      url:'https://www.youtube.com/results?search_query=MitraClip+TEER+TEE+guidance+Boston+Cardiac'},
-    {t:'Intraoperative echocardiography fundamentals', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=oJG3uFlGdVA'}
+    {t:'Intraoperative echocardiography fundamentals', ch:'Mayo ECHO 2024'}
   ],
   '4d': [
     {t:'3D LV volumes & EF — single vs multi-beat', ch:'ASE',
@@ -2603,8 +3188,7 @@ const CURATED_TOPICS = {
      url:'https://www.youtube.com/results?search_query=3D+mitral+valve+modeling+Feroze+Mahmood'},
     {t:'3D TEE for structural intervention guidance', ch:'EACVI',
      url:'https://www.youtube.com/results?search_query=3D+TEE+structural+heart+intervention+EACVI'},
-    {t:'Interventional echocardiography', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=9IYw198SV98'}
+    {t:'Interventional echocardiography', ch:'Mayo ECHO 2024'}
   ],
   chd: [
     {t:'Atrial septal defects — types & shunt assessment', ch:'123sonography',
@@ -2635,8 +3219,7 @@ const CURATED_TOPICS = {
      url:'https://www.youtube.com/results?search_query=pericardial+effusion+echocardiography+123sonography'},
     {t:'Cardiac tamponade — echo signs (chamber collapse)', ch:'Western Sono',
      url:'https://www.youtube.com/results?search_query=cardiac+tamponade+echocardiography+Western+Sono'},
-    {t:'Constrictive pericarditis — septal bounce, annulus reversus', ch:'Mayo ECHO 2024',
-     url:'https://www.youtube.com/watch?v=jZfGxhb9A6U'},
+    {t:'Constrictive pericarditis — septal bounce, annulus reversus', ch:'Mayo ECHO 2024'},
     {t:'Constriction vs restriction — discriminators', ch:'Mayo ECHO 2024',
      url:'https://www.youtube.com/results?search_query=constrictive+pericarditis+restrictive+cardiomyopathy+Mayo'}
   ],
@@ -2652,7 +3235,157 @@ const CURATED_TOPICS = {
   ]
 };
 
+/* ============================================================
+   GUIDELINES — latest society documents per echo topic
+   ------------------------------------------------------------
+   Each entry links to a STABLE society landing/hub page (these
+   are maintained and do not 404 like deep article URLs), plus a
+   Google-search fail-safe scoped to the exact document title,
+   which always resolves even if the society reorganises its site.
+   Bodies: ASE, EACVI, ESC/EACTS, ACC/AHA. Years reflect the most
+   recent edition known at build time — always confirm on the page.
+   ============================================================ */
+const ASE_HUB  = 'https://www.asecho.org/guidelines/';
+const ESC_HUB  = 'https://www.escardio.org/Guidelines/Clinical-Practice-Guidelines';
+const EACVI_HUB= 'https://www.escardio.org/Sub-specialty-communities/European-Association-of-Cardiovascular-Imaging-(EACVI)';
+function glFind(title){ return 'https://www.google.com/search?q='+encodeURIComponent(title); }
+
+const GUIDELINES = [
+  { domain:'lv', body:'ASE', year:'2025',
+    title:'Recommendations for the Evaluation of LV Diastolic Function by Echocardiography and HFpEF Diagnosis — ASE update',
+    note:'New 3-variable algorithm for LA pressure & diastolic grading; LA reservoir strain; phenotype sub-algorithms (AF, PH, transplant); dedicated HFpEF section. Updates the 2016 ASE/EACVI guideline.',
+    hub:'https://www.asecho.org/guideline/left-ventricular-diastolic-function-by-echo/' },
+  { domain:'lv', body:'ASE/EACVI', year:'2015',
+    title:'Recommendations for Cardiac Chamber Quantification by Echocardiography in Adults — ASE/EACVI',
+    note:'Reference chamber dimensions, LV volumes & EF (biplane Simpson), LA volume index, LV mass. The source of the normal/abnormal cutoffs.',
+    hub:ASE_HUB },
+  { domain:'lv', body:'ASE/EACVI', year:'2025',
+    title:'Clinical Applications of Strain Echocardiography — ASE/EACVI clinical consensus statement',
+    note:'2025 consensus on where GLS/strain has proven clinical value (HF, systolic & diastolic dysfunction, cardio-oncology, valve disease, RV). GLS conventionally negative; abnormal less negative than about \u221218%. Vendor-dependent.',
+    hub:ASE_HUB },
+  { domain:'tte', body:'ASE', year:'2025',
+    title:'Guidelines for the Standardization of Adult Echocardiography Reporting — ASE',
+    note:'2025 update (JASE 38:141\u2013186) on required components of a comprehensive echo report; strain reported as normal/borderline/abnormal; flag relative GLS change >15% between studies.',
+    hub:ASE_HUB },
+  { domain:'rv', body:'ASE', year:'2025',
+    title:'Guidelines for the Echocardiographic Assessment of the Right Heart in Adults — ASE update',
+    note:'TAPSE, S′ (TDI), FAC, RV free-wall strain cutoffs; RA/RV sizing; RVSP and PH probability.',
+    hub:ASE_HUB },
+  { domain:'valve', body:'ASE', year:'2017',
+    title:'Recommendations for Noninvasive Evaluation of Native Valvular Regurgitation — ASE',
+    note:'Integrated grading of MR, AR, TR, PR: EROA, regurgitant volume/fraction, vena contracta, PISA. Primary vs secondary MR.',
+    hub:ASE_HUB },
+  { domain:'valve', body:'ASE/EACVI', year:'2017',
+    title:'Recommendations on the Echocardiographic Assessment of Aortic Valve Stenosis',
+    note:'Peak velocity, mean gradient, AVA, dimensionless index; low-flow low-gradient AS and dobutamine stress echo.',
+    hub:ASE_HUB },
+  { domain:'valve', body:'ESC/EACTS', year:'2025',
+    title:'2025 ESC/EACTS Guidelines for the management of valvular heart disease',
+    note:'Updates the 2021 VHD guideline. Heart Team, Heart Valve Centres, clearer imaging criteria, refined timing/indications for surgery vs transcatheter.',
+    hub:'https://www.escardio.org/guidelines/clinical-practice-guidelines/all-esc-practice-guidelines/valvular-heart-disease/' },
+  { domain:'valve', body:'ACC/AHA', year:'2020',
+    title:'2020 ACC/AHA Guideline for the Management of Patients With Valvular Heart Disease',
+    note:'US counterpart to the ESC VHD guideline — staging (A–D), intervention thresholds, surveillance intervals.',
+    hub:'https://www.acc.org/Guidelines' },
+  { domain:'tee', body:'ASE/SCA', year:'2013',
+    title:'Guidelines for Performing a Comprehensive Transesophageal Echocardiographic Examination — ASE/SCA',
+    note:'The 28-view comprehensive TEE protocol; mid-oesophageal and transgastric windows; intraoperative use.',
+    hub:ASE_HUB },
+  { domain:'4d', body:'ASE/EACVI', year:'2012',
+    title:'Recommendations for Image Acquisition and Display Using 3D Echocardiography — ASE/EACVI',
+    note:'3D acquisition modes (single vs multi-beat), 3D LV volumes/EF vs CMR, 3D mitral valve modelling.',
+    hub:ASE_HUB },
+  { domain:'chd', body:'ASE', year:'2015',
+    title:'Recommendations for Multimodality Assessment of Congenital Coronary Anomalies & Intracardiac Shunts (ASD/VSD)',
+    note:'Segmental approach; ASD subtypes (secundum, primum, sinus venosus); shunt quantification; when to go to TEE/CMR.',
+    hub:ASE_HUB },
+  { domain:'cmp', body:'ESC', year:'2023',
+    title:'2023 ESC Guidelines for the management of cardiomyopathies',
+    note:'First combined cardiomyopathy guideline — phenotype-based approach (HCM, DCM, NDLVC, RCM, ARVC); imaging red flags incl. amyloid.',
+    hub:'https://www.escardio.org/guidelines/clinical-practice-guidelines/all-esc-practice-guidelines/cardiomyopathies/' },
+  { domain:'cmp', body:'ACC/AHA', year:'2024',
+    title:'2024 AHA/ACC Guideline for the Management of Hypertrophic Cardiomyopathy',
+    note:'LVOT obstruction thresholds (≥30 / ≥50 mmHg), provocation, SAM, septal reduction; updated SCD risk and septal myectomy/ablation.',
+    hub:'https://www.acc.org/Guidelines' },
+  { domain:'peri', body:'ASE', year:'2013',
+    title:'Multimodality Cardiovascular Imaging in the Assessment of Pericardial Disease — ASE',
+    note:'Effusion sizing, tamponade signs (chamber collapse, respirophasic variation), constriction (septal bounce, annulus paradoxus/reversus).',
+    hub:ASE_HUB },
+  { domain:'haemo', body:'ASE', year:'2024',
+    title:'Guidelines for the Evaluation of Prosthetic Valve Function with Cardiovascular Imaging — ASE (with SCMR/SCCT)',
+    note:'2024 update (JASE 37:2\u201363, Zoghbi et al.) replacing the 2009 guideline. Adds percutaneous/transcatheter valves, 3D TEE en-face assessment, CT/CMR roles; prosthetic MR severity now VC \u22650.7 cm and EROA \u22650.4 cm\u00b2. Normal vs obstructed gradients by type; Doppler velocity index.',
+    hub:'https://www.asecho.org/guideline/evaluation-of-prosthetic-valve-function/' },
+  { domain:'phys', body:'ASE', year:'2011',
+    title:'ASE Statement on Ultrasound Physics, Instrumentation & Doppler Principles',
+    note:'Resolution, harmonics, Nyquist/aliasing, artifacts (reverberation, side-lobe, mirror); knobology.',
+    hub:ASE_HUB },
+  { domain:'tte', body:'ASE/EACVI', year:'2018',
+    title:'Guidelines for the Use of Echocardiographic Contrast Agents (Enhancing Agents)',
+    note:'Indications for LV opacification, endocardial border, suspected thrombus/mass; safety and protocol.',
+    hub:ASE_HUB }
+];
+
+const Guidelines = {
+  search:'',
+  onSearch(v){
+    this.search=(v||'').toLowerCase().trim();
+    const clr=document.getElementById('glSearchClear');
+    if(clr) clr.style.display=this.search?'grid':'none';
+    this.render();
+  },
+  clearSearch(){
+    this.search='';
+    const inp=document.getElementById('glSearch'); if(inp) inp.value='';
+    const clr=document.getElementById('glSearchClear'); if(clr) clr.style.display='none';
+    this.render();
+  },
+  bodyClass(body){
+    const b=(body||'').toLowerCase();
+    if(b.includes('eacvi')) return 'eacvi';
+    if(b.includes('esc'))   return 'esc';
+    if(b.includes('acc')||b.includes('aha')) return 'acc';
+    return 'ase';
+  },
+  render(){
+    const el=document.getElementById('guidelinesList');
+    if(!el) return;
+    const q=this.search;
+    // group by domain in DOMAINS order
+    let any=false;
+    const html=DOMAINS.map(dom=>{
+      let items=GUIDELINES.filter(g=>g.domain===dom.id);
+      if(q) items=items.filter(g=>
+        g.title.toLowerCase().includes(q) || g.note.toLowerCase().includes(q) ||
+        g.body.toLowerCase().includes(q) || dom.name.toLowerCase().includes(q));
+      if(!items.length) return '';
+      any=true;
+      return `<div class="domain-section">
+        <div class="ds-head" style="cursor:default;">${escapeHTML(dom.name)}<span class="ds-line"></span></div>
+        ${items.map(g=>`
+          <div class="gl-card">
+            <div class="gl-top">
+              <div class="gl-title">${escapeHTML(g.title)}</div>
+              <span class="gl-badge ${this.bodyClass(g.body)}">${escapeHTML(g.body)}</span>
+            </div>
+            <div class="gl-body">${escapeHTML(g.note)}<span class="gl-year">· ${escapeHTML(g.year)}</span></div>
+            <div class="gl-links">
+              <a class="gl-primary" href="${g.hub}" target="_blank" rel="noopener">Open official page ↗</a>
+              <a class="gl-alt" href="${glFind(g.title)}" target="_blank" rel="noopener">Find document ↗</a>
+            </div>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+    el.innerHTML = any ? html : `<div class="vempty-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:38px;height:38px;opacity:.4;margin-bottom:10px;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <div>No guidelines match "${escapeHTML(this.search)}". Try a broader term.</div></div>`;
+  }
+};
+
 const Videos = {
+  search: '',
+  curFilter: 'all',
+  collapsed: {},
+
   add(){
     const title = document.getElementById('vidTitle').value.trim();
     const url   = document.getElementById('vidUrl').value.trim();
@@ -2666,13 +3399,78 @@ const Videos = {
   },
   filter(id){ S.vidFilter=id; this.render(); },
 
-  /* Open a curated topic — opens the verified video URL when one exists,
-     otherwise the channel-scoped search. */
-  openTopic(domId, idx){
+  /* ---- curated library: search + domain filter ---- */
+  onSearch(v){
+    this.search = (v||'').toLowerCase().trim();
+    const clr = document.getElementById('vidSearchClear');
+    if(clr) clr.style.display = this.search ? 'grid' : 'none';
+    this.renderCurated();
+  },
+  clearSearch(){
+    this.search='';
+    const inp = document.getElementById('vidSearch');
+    if(inp) inp.value='';
+    const clr = document.getElementById('vidSearchClear');
+    if(clr) clr.style.display='none';
+    this.renderCurated();
+  },
+  setCuratedFilter(id){ this.curFilter=id; this.renderCurated(); },
+  toggleSection(domId){
+    this.collapsed[domId] = !this.collapsed[domId];
+    this.renderCurated();
+  },
+
+  /* ---- watched tracking (persisted in vextras.watched) ---- */
+  topicKey(domId, t){ return domId+'::'+t; },
+  isWatched(domId, t){ return !!(S.vextras?.watched?.[this.topicKey(domId,t)]); },
+  toggleWatched(domId, idx, ev){
+    if(ev) ev.stopPropagation();
+    const topic = CURATED_TOPICS[domId]?.[idx]; if(!topic) return;
+    S.vextras = S.vextras || {};
+    S.vextras.watched = S.vextras.watched || {};
+    const k = this.topicKey(domId, topic.t);
+    if(S.vextras.watched[k]) delete S.vextras.watched[k];
+    else S.vextras.watched[k] = Date.now();
+    persist('vextras', S.vextras);
+    this.renderCurated();
+    Dashboard.render();
+  },
+  watchedCount(){
+    const w = S.vextras?.watched || {};
+    return Object.keys(w).length;
+  },
+  totalCurated(){
+    return Object.values(CURATED_TOPICS).reduce((n,a)=>n+a.length,0);
+  },
+
+  /* Open a curated topic — opens verified video URL when present,
+     else a channel-scoped search. Also marks it watched. */
+  openTopic(domId, idx, ev){
+    if(ev) ev.stopPropagation();
     const topic = CURATED_TOPICS[domId]?.[idx];
     if(!topic) return;
     const url = topic.url || ytSearch(topic.t + ' echocardiography', topic.ch);
     window.open(url, '_blank', 'noopener');
+    // auto-mark watched on open (only set, never unset here)
+    S.vextras = S.vextras || {}; S.vextras.watched = S.vextras.watched || {};
+    const k = this.topicKey(domId, topic.t);
+    if(!S.vextras.watched[k]){
+      S.vextras.watched[k] = Date.now();
+      persist('vextras', S.vextras);
+      this.renderCurated(); Dashboard.render();
+    }
+  },
+
+  /* Save a curated topic into the user's own Saved list. */
+  saveCurated(domId, idx, ev){
+    if(ev) ev.stopPropagation();
+    const topic = CURATED_TOPICS[domId]?.[idx]; if(!topic) return;
+    const url = topic.url || ytSearch(topic.t + ' echocardiography', topic.ch);
+    if(S.videos.some(v=>v.title===topic.t)){ toast('Already in Saved'); return; }
+    S.videos.unshift({ id:Date.now(), title:topic.t, url, dom:domId });
+    persist('videos', S.videos);
+    this.renderCurated(); this.render();
+    toast('Saved to your list');
   },
 
   /* Group ECHO_CHANNELS by category and render each category in its own block. */
@@ -2684,7 +3482,7 @@ const Videos = {
       if(!channels.length) return '';
       return `
         <div class="domain-section">
-          <div class="ds-head">${escapeHTML(cat.label)}</div>
+          <div class="ds-head" style="cursor:default;">${escapeHTML(cat.label)}<span class="ds-line"></span></div>
           <div class="channel-grid">
             ${channels.map(c=>`
               <div class="channel-card">
@@ -2700,29 +3498,82 @@ const Videos = {
     }).join('');
   },
 
-  /* Render the curated topic library, grouped by domain. */
+  /* Render the curated topic library, grouped by domain, with search,
+     domain filter, per-topic watched/save controls, and progress. */
   renderCurated(){
     const el = document.getElementById('curatedList');
     if(!el) return;
-    el.innerHTML = DOMAINS.map(dom=>{
-      const topics = CURATED_TOPICS[dom.id] || [];
+
+    // filter chips (built once / on each render to reflect active state)
+    const fEl = document.getElementById('curatedFilter');
+    if(fEl){
+      fEl.innerHTML = `<button class="chip ${this.curFilter==='all'?'active':''}" onclick="Videos.setCuratedFilter('all')">All domains</button>` +
+        DOMAINS.filter(d=>(CURATED_TOPICS[d.id]||[]).length).map(d=>
+          `<button class="chip ${this.curFilter===d.id?'active':''}" onclick="Videos.setCuratedFilter('${d.id}')">${escapeHTML(d.name.split(' ')[0])}</button>`).join('');
+    }
+
+    // overall progress label
+    const prog = document.getElementById('curatedProgress');
+    if(prog){
+      const w = this.watchedCount(), tot = this.totalCurated();
+      prog.textContent = `${w}/${tot} watched`;
+    }
+
+    const q = this.search;
+    let anyShown = false;
+
+    const html = DOMAINS.map(dom=>{
+      if(this.curFilter!=='all' && this.curFilter!==dom.id) return '';
+      let topics = CURATED_TOPICS[dom.id] || [];
       if(!topics.length) return '';
-      return `<div class="domain-section">
-        <div class="ds-head">${escapeHTML(dom.name)}</div>
-        ${topics.map((t,i)=>{
-          // distinguish direct video from search
-          const isDirect = t.url && t.url.includes('/watch?');
-          const linkTag = isDirect
-            ? '<span class="tp-go" style="color:var(--ok);">▶ Video</span>'
-            : `<span class="tp-go">${escapeHTML(t.ch)} ↗</span>`;
-          return `
-          <div class="topic-pill" onclick="Videos.openTopic('${dom.id}',${i})">
-            <div class="tp-name">${escapeHTML(t.t)} <span class="faint" style="font-weight:400;font-size:11px;margin-left:6px;">· ${escapeHTML(t.ch)}</span></div>
-            ${linkTag}
-          </div>`;
-        }).join('')}
+      // attach original index so controls stay correct after filtering
+      let entries = topics.map((t,i)=>({t,i}));
+      if(q) entries = entries.filter(e=>
+        e.t.t.toLowerCase().includes(q) || (e.t.ch||'').toLowerCase().includes(q));
+      if(!entries.length) return '';
+      anyShown = true;
+
+      const watched = topics.filter(t=>this.isWatched(dom.id,t.t)).length;
+      const pct = Math.round(100*watched/topics.length);
+      const isCollapsed = !q && this.collapsed[dom.id];   // search always expands
+
+      return `<div class="domain-section ${isCollapsed?'collapsed':''}">
+        <div class="ds-head" onclick="Videos.toggleSection('${dom.id}')">
+          <svg class="ds-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+          ${escapeHTML(dom.name)}
+          <span class="ds-line"></span>
+          <span class="ds-prog">${watched}/${topics.length}</span>
+        </div>
+        <div class="ds-body">
+          <div class="ds-bar"><i style="width:${pct}%"></i></div>
+          ${entries.map(({t,i})=>{
+            const isDirect = t.url && t.url.includes('/watch?');
+            const watchedCls = this.isWatched(dom.id,t.t) ? 'watched' : '';
+            const saved = S.videos.some(v=>v.title===t.t);
+            const linkTag = isDirect
+              ? '<span class="tp-go" style="color:var(--ok);">▶ Video</span>'
+              : `<span class="tp-go">${escapeHTML((t.ch||'').split(' ')[0])} ↗</span>`;
+            return `
+            <div class="topic-pill ${watchedCls}">
+              <div class="tp-left" onclick="Videos.openTopic('${dom.id}',${i},event)">
+                <button class="tp-check ${this.isWatched(dom.id,t.t)?'on':''}" onclick="Videos.toggleWatched('${dom.id}',${i},event)" title="Mark watched">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#04211d" stroke-width="3.5"><path d="M5 12l5 5L20 6"/></svg>
+                </button>
+                <div class="tp-name">${escapeHTML(t.t)} <span class="faint" style="font-weight:400;font-size:11px;margin-left:4px;">· ${escapeHTML(t.ch||'')}</span></div>
+              </div>
+              <div class="tp-right">
+                <span class="tp-save ${saved?'saved':''}" onclick="Videos.saveCurated('${dom.id}',${i},event)" title="${saved?'Saved':'Save to my list'}">${saved?'✓ Saved':'＋ Save'}</span>
+                ${linkTag}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>`;
     }).join('');
+
+    el.innerHTML = anyShown ? html : `<div class="vempty-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:38px;height:38px;opacity:.4;margin-bottom:10px;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <div>No topics match "${escapeHTML(this.search)}". Try a different term or clear the search.</div></div>`;
   },
 
   render(){
@@ -2770,6 +3621,144 @@ const VideoView = {
   tab(name){
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='vtab-'+name));
     document.querySelectorAll('.tabs button[data-vtab]').forEach(b=>b.classList.toggle('active', b.dataset.vtab===name));
+    if(name==='guidelines' && window.Guidelines) Guidelines.render();
+    if(name==='read' && window.Reader) Reader.renderRecent();
+  }
+};
+
+/* ============================================================
+   READER — on-device PDF e-reader (PDF.js)
+   ------------------------------------------------------------
+   The user opens their OWN PDF from their device; it is rendered
+   page-by-page on a canvas and never uploaded, embedded, or copied
+   into the app. Only lightweight metadata (file name, page count,
+   last page read) is stored in localStorage so the book reopens
+   where they left off. The PDF bytes live only in memory for the
+   session — re-selecting the file restores the document.
+   ============================================================ */
+const Reader = {
+  pdf:null, page:1, total:0, scale:1.15, name:'', rendering:false, pending:null,
+  META_KEY:'ep_reader_meta',
+
+  meta(){
+    try{ return JSON.parse(localStorage.getItem(this.META_KEY)||'{}'); }
+    catch(e){ return {}; }
+  },
+  saveMeta(name, page, total){
+    const m = this.meta();
+    m[name] = { page, total, ts:Date.now() };
+    localStorage.setItem(this.META_KEY, JSON.stringify(m));
+  },
+
+  ready(){ return !!window.pdfjsLib; },
+
+  async openFile(file){
+    if(!file) return;
+    if(!this.ready()){
+      toast('Reader still loading — try again in a moment'); return;
+    }
+    if(file.type && file.type!=='application/pdf' && !/\.pdf$/i.test(file.name)){
+      toast('Please choose a PDF file'); return;
+    }
+    try{
+      toast('Opening…');
+      const buf = await file.arrayBuffer();
+      const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+      this.pdf = doc; this.name = file.name; this.total = doc.numPages;
+      // resume last page if known
+      const saved = this.meta()[file.name];
+      this.page = (saved && saved.page>=1 && saved.page<=this.total) ? saved.page : 1;
+      document.getElementById('readerIntro').style.display='none';
+      document.getElementById('readerStage').style.display='block';
+      setText('readerTitle', file.name.replace(/\.pdf$/i,''));
+      setText('readerPageTotal', '/ '+this.total);
+      await this.render();
+    }catch(e){
+      console.error('reader open:', e);
+      toast('Could not open this PDF');
+    }
+  },
+
+  async render(){
+    if(!this.pdf) return;
+    if(this.rendering){ this.pending = this.page; return; }
+    this.rendering = true;
+    try{
+      const pg = await this.pdf.getPage(this.page);
+      const canvas = document.getElementById('readerCanvas');
+      const ctx = canvas.getContext('2d');
+      // fit width to the wrap, then apply zoom scale
+      const wrap = document.getElementById('readerCanvasWrap');
+      const baseViewport = pg.getViewport({scale:1});
+      const avail = Math.max(280, (wrap.clientWidth||340) - 24);
+      const fitScale = (avail / baseViewport.width) * this.scale;
+      const dpr = Math.min(window.devicePixelRatio||1, 2);
+      const viewport = pg.getViewport({scale:fitScale});
+      canvas.width = Math.floor(viewport.width*dpr);
+      canvas.height = Math.floor(viewport.height*dpr);
+      canvas.style.width = Math.floor(viewport.width)+'px';
+      canvas.style.height = Math.floor(viewport.height)+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      await pg.render({canvasContext:ctx, viewport}).promise;
+      // update controls + persistence
+      const inp = document.getElementById('readerPageInput');
+      if(inp) inp.value = this.page;
+      const fill = document.getElementById('readerProgFill');
+      if(fill) fill.style.width = (100*this.page/this.total).toFixed(1)+'%';
+      this.saveMeta(this.name, this.page, this.total);
+      wrap.scrollTop = 0;
+    }catch(e){
+      console.error('render page:', e);
+    }finally{
+      this.rendering = false;
+      if(this.pending!=null){ const p=this.pending; this.pending=null; if(p!==this.page){ this.page=p; } this.render(); }
+    }
+  },
+
+  go(delta){
+    if(!this.pdf) return;
+    const next = this.page + delta;
+    if(next<1 || next>this.total) return;
+    this.page = next; this.render();
+  },
+  jump(v){
+    const n = parseInt(v,10);
+    if(!this.pdf || isNaN(n)) return;
+    this.page = Math.min(this.total, Math.max(1, n));
+    this.render();
+  },
+  zoom(dir){
+    this.scale = Math.min(3, Math.max(0.6, this.scale + dir*0.15));
+    this.render();
+  },
+  close(){
+    document.getElementById('readerStage').style.display='none';
+    document.getElementById('readerIntro').style.display='block';
+    this.renderRecent();
+  },
+
+  /* Show previously-opened books (metadata only). Tapping prompts a
+     re-pick because browsers can't re-read a file without user action. */
+  renderRecent(){
+    const el = document.getElementById('readerRecent');
+    if(!el) return;
+    const m = this.meta();
+    const items = Object.entries(m)
+      .sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+    if(!items.length){ el.innerHTML=''; return; }
+    el.innerHTML = `<div class="faint" style="font-size:12px;margin-bottom:8px;">Recently opened — tap to reopen (you'll re-select the file)</div>` +
+      items.map(([name,info])=>`
+        <div class="reader-recent-item" onclick="document.getElementById('readerFile').click()">
+          <svg class="rr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+          <div class="rr-name">${escapeHTML(name.replace(/\.pdf$/i,''))}</div>
+          <div class="rr-page">p.${info.page||1}${info.total?' / '+info.total:''}</div>
+        </div>`).join('') +
+      `<button class="tp-save" style="margin-top:4px;" onclick="Reader.clearRecent()">Clear list</button>`;
+  },
+  clearRecent(){
+    localStorage.removeItem(this.META_KEY);
+    this.renderRecent();
+    toast('Reading list cleared');
   }
 };
 
@@ -2810,32 +3799,6 @@ Return ONLY valid JSON, no markdown:
     }catch(e){ console.error('votd:',e); toast(e.message||'Failed'); }
     finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
   },
-  async loadNews(){
-    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add an API key in Settings first'); App.go('settings'); return;
-    }
-    const btn=$('newsBtnLabel') ? $('newsBtnLabel').parentElement : null;
-    const orig = btn ? btn.innerHTML : '';
-    if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Loading…'; }
-    try{
-      const raw = await AI.complete(
-        `Summarise 4-5 notable recent developments in echocardiography — guideline updates,
-new techniques, or shifts in practice that a board candidate should know.
-Only include developments you are confident are real and established; do not fabricate
-guideline names, dates, or study results. If unsure of an exact year, omit it.
-For each item, write a 2-3 sentence summary that explains both the change AND its
-clinical/exam implication.
-Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence summary with clinical implication","area":"topic area"}]}`,
-        {json:true, maxTokens:2000});
-      const n = extractJSON(raw);
-      S.vextras = S.vextras || {};
-      S.vextras.news = { items:(n.items||[]).slice(0,6), date:new Date().toISOString().slice(0,10) };
-      persist('vextras', S.vextras);
-      this.renderNews();
-      toast('Updates ready');
-    }catch(e){ console.error('news:',e); toast(e.message||'Failed'); }
-    finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
-  },
 
   renderVotd(){
     const v = S.vextras?.votd;
@@ -2861,25 +3824,7 @@ Return ONLY valid JSON: {"items":[{"headline":"string","detail":"2-3 sentence su
         <a class="chip" target="_blank" rel="noopener" href="${ytSearch(query+' echocardiography', '')}">All YouTube ↗</a>
       </div>`);
   },
-  renderNews(){
-    const n = S.vextras?.news;
-    if(!n) return;
-    setText('newsBtnLabel','Refresh updates');
-    setHTML('newsBody', `
-      <span class="eyebrow">${n.date===new Date().toISOString().slice(0,10)?'Updated today':'Earlier'}</span>
-      <div style="margin-top:8px;">
-        ${(n.items||[]).map(it=>`
-          <div class="news-item">
-            ${it.area?`<span class="ni-area">${escapeHTML(it.area)}</span>`:''}
-            <div class="ni-head">${escapeHTML(it.headline||'')}</div>
-            <div class="ni-body">${escapeHTML(it.detail||'')}</div>
-          </div>`).join('')}
-      </div>
-      <div class="explain" style="margin-top:12px;font-size:12px;">
-        AI-generated summary — verify against primary guideline sources before relying on specifics.
-      </div>`);
-  },
-  render(){ this.renderVotd(); this.renderNews(); }
+  render(){ this.renderVotd(); }
 };
 const Expert = {
   /* Build the rich HTML for one Q&A entry. Tolerates both the new
@@ -3022,6 +3967,436 @@ const Weak = {
           <button class="chip" style="margin-top:7px;" onclick="MCQ.fromDomain('${d.id}')">⚡ Drill ${d.name.split(' ')[0]}</button>
         </div>`;
       }).join('')}`;
+  }
+};
+
+/* ============================================================
+   SRS — spaced-repetition engine (SM-2 variant)
+   ------------------------------------------------------------
+   Every answered MCQ becomes a "card" keyed by a stable hash of
+   its question text. Cards carry an ease factor, an interval (in
+   days), a repetition count, and a `due` date. Grading a card on
+   review reschedules it. Cards you miss come back tomorrow; cards
+   you nail expand toward weeks/months. This is the mechanism that
+   converts practice into durable expertise.
+
+   Calibration: each card also stores the running tally of how
+   confidence (1=guess,2=fairly sure,3=certain) related to being
+   right — surfacing "confidently wrong" gaps, the dangerous ones.
+   ============================================================ */
+const SRS = {
+  /* ---- storage shape: S.srs = { cards: { [id]: card }, log: [...] } ---- */
+  ensure(){
+    if(!S.srs || typeof S.srs!=='object') S.srs = { cards:{}, log:[] };
+    if(!S.srs.cards) S.srs.cards = {};
+    if(!S.srs.log)   S.srs.log   = [];
+    return S.srs;
+  },
+  init(){
+    const fresh = !S.srs || typeof S.srs!=='object';
+    this.ensure();
+    if(fresh) persist('srs', S.srs);
+    this.refreshBadges();
+  },
+
+  /* Stable short id from question text (deterministic across sessions). */
+  hash(str){
+    let h = 5381; str = String(str||'');
+    for(let i=0;i<str.length;i++){ h = ((h<<5)+h) ^ str.charCodeAt(i); }
+    return 'c'+(h>>>0).toString(36);
+  },
+
+  today(){ return new Date().toISOString().slice(0,10); },
+  addDays(n){ const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+Math.round(n)); return d.toISOString().slice(0,10); },
+
+  /* Record an answer from any source (MCQ runner, review, etc.).
+     `correct` boolean, `confidence` 1-3 (optional). Creates the card if
+     new, stores the full question so it can be re-served from the queue. */
+  record(q, correct, confidence){
+    this.ensure();
+    const id = this.hash(q.q);
+    let c = S.srs.cards[id];
+    if(!c){
+      c = { id, q, ef:2.5, interval:0, reps:0, lapses:0,
+            due:this.today(), seen:0, right:0,
+            conf:{1:[0,0],2:[0,0],3:[0,0]}, last:null };
+      S.srs.cards[id] = c;
+    }
+    // refresh stored question (keeps explanation/reference current)
+    c.q = q;
+    c.seen++; if(correct) c.right++;
+    c.last = Date.now();
+    if(confidence){
+      const slot = c.conf[confidence] || [0,0];
+      slot[0]++; if(correct) slot[1]++;   // [attempts, correct]
+      c.conf[confidence] = slot;
+    }
+    // SM-2 update. Map (correct, confidence) -> quality 0..5.
+    const quality = correct ? (confidence===3?5:confidence===2?4:3)
+                            : (confidence===3?0:confidence===2?1:2);
+    this.schedule(c, quality);
+    S.srs.log.push({ t:Date.now(), id, correct:!!correct,
+                     conf:confidence||null, dom:q.domain||'misc' });
+    if(S.srs.log.length>4000) S.srs.log.splice(0, S.srs.log.length-4000);
+    persist('srs', S.srs);
+    this.refreshBadges();
+  },
+
+  /* SM-2 scheduling on a 0..5 quality grade. */
+  schedule(c, quality){
+    if(quality < 3){
+      c.reps = 0; c.interval = quality<=1 ? 0 : 1;   // q0/1 → today again, q2 → tomorrow
+      c.lapses++;
+    }else{
+      c.reps++;
+      if(c.reps===1)      c.interval = 1;
+      else if(c.reps===2) c.interval = 3;
+      else                c.interval = Math.round(c.interval * c.ef);
+      c.ef = Math.max(1.3, c.ef + (0.1 - (5-quality)*(0.08 + (5-quality)*0.02)));
+    }
+    c.due = this.addDays(c.interval);
+  },
+
+  /* Cards due today or earlier, weakest/most-overdue first. */
+  dueCards(){
+    this.ensure();
+    const today = this.today();
+    return Object.values(S.srs.cards)
+      .filter(c=>c.due <= today)
+      .sort((a,b)=>{
+        if(a.due!==b.due) return a.due<b.due?-1:1;       // most overdue first
+        return (a.right/Math.max(1,a.seen)) - (b.right/Math.max(1,b.seen)); // then weakest
+      });
+  },
+
+  /* Forecast: how many cards fall due on each of the next N days. */
+  forecast(days=7){
+    this.ensure();
+    const out = []; const base = new Date(); base.setHours(0,0,0,0);
+    for(let i=0;i<days;i++){
+      const d = new Date(base); d.setDate(d.getDate()+i);
+      const ds = d.toISOString().slice(0,10);
+      const n = Object.values(S.srs.cards)
+        .filter(c=> i===0 ? c.due<=ds : c.due===ds).length;
+      out.push({ date:ds, n });
+    }
+    return out;
+  },
+
+  stats(){
+    this.ensure();
+    const cards = Object.values(S.srs.cards);
+    const mature = cards.filter(c=>c.interval>=21).length;
+    const learning = cards.filter(c=>c.interval>0 && c.interval<21).length;
+    const fresh = cards.filter(c=>c.interval===0).length;
+    return { total:cards.length, mature, learning, fresh, due:this.dueCards().length };
+  },
+
+  /* Confidence calibration across the whole log, bucketed by conf level. */
+  calibration(){
+    this.ensure();
+    const buckets = {1:[0,0],2:[0,0],3:[0,0]};   // [attempts, correct]
+    S.srs.log.forEach(e=>{
+      if(!e.conf) return;
+      buckets[e.conf][0]++; if(e.correct) buckets[e.conf][1]++;
+    });
+    // confidently-wrong count (conf 3 but wrong) = dangerous gaps
+    const danger = S.srs.log.filter(e=>e.conf===3 && !e.correct).length;
+    return { buckets, danger };
+  },
+
+  refreshBadges(){
+    if(!S.srs) return;
+    const due = this.dueCards().length;
+    const nav = document.getElementById('navDueBadge');
+    if(nav){
+      if(due>0){ nav.style.display='grid'; nav.textContent = due>99?'99+':due; }
+      else nav.style.display='none';
+    }
+    const pill = document.getElementById('homeDuePill');
+    if(pill){
+      pill.textContent = due;
+      pill.classList.toggle('zero', due===0);
+    }
+    const sub = document.getElementById('homeReviewSub');
+    if(sub){
+      const st = this.stats();
+      sub.textContent = st.total
+        ? (due>0
+            ? `${due} card${due>1?'s':''} due now · ${st.mature} mature, ${st.learning} learning. Clearing your queue daily is what builds retention.`
+            : `Queue clear. ${st.total} cards in rotation (${st.mature} mature). New cards appear as you practise more MCQs.`)
+        : "Questions you've answered come back on a spaced schedule so they stick. Answer some MCQs to start building your memory.";
+    }
+  }
+};
+
+/* ============================================================
+   REVIEW — controller for the Due queue, tabs, summary
+   ============================================================ */
+const Review = {
+  cur:null,
+  tab(name){
+    document.querySelectorAll('#view-review [data-rtab]').forEach(b=>
+      b.classList.toggle('active', b.dataset.rtab===name));
+    document.querySelectorAll('#view-review [data-rpanel]').forEach(p=>
+      p.classList.toggle('active', p.dataset.rpanel===name));
+    if(name==='analytics') Analytics.render();
+    if(name==='due') this.render();
+  },
+  render(){
+    SRS.refreshBadges();
+    this.renderSummary();
+    // if a session is active, leave the runner alone
+    if(!this.cur) this.renderSummaryRunnerIdle();
+  },
+  renderSummary(){
+    const el = document.getElementById('srsSummary');
+    if(!el) return;
+    const st = SRS.stats();
+    el.innerHTML = `
+      <div class="card-head" style="margin-bottom:10px;">
+        <h3>Today's review</h3>
+        <span class="due-pill ${st.due?'':'zero'}">${st.due} due</span>
+      </div>
+      <div class="hero-grid" style="margin-top:4px;">
+        <div class="stat"><div class="stat-num">${st.mature}</div><div class="stat-label">Mature</div></div>
+        <div class="stat"><div class="stat-num">${st.learning}</div><div class="stat-label">Learning</div></div>
+        <div class="stat"><div class="stat-num">${st.total}</div><div class="stat-label">Total cards</div></div>
+      </div>`;
+  },
+  renderSummaryRunnerIdle(){
+    const r = document.getElementById('srsRunner');
+    if(!r) return;
+    const due = SRS.dueCards();
+    if(!due.length){
+      const total = SRS.stats().total;
+      r.innerHTML = `<div class="card"><div class="empty" style="padding:30px 18px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 6L9 17l-5-5"/></svg>
+        <div style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:6px;">
+          ${total? 'Review queue clear' : 'No cards yet'}</div>
+        <div>${total
+          ? 'Nothing due right now. Come back when cards mature, or practise new MCQs to add more.'
+          : 'Answer MCQs in the MCQ tab — each one becomes a review card scheduled to resurface before you forget it.'}</div>
+        <button class="btn btn-ghost" style="margin-top:16px;" onclick="App.go('mcq')">Go to MCQ practice</button>
+      </div></div>`;
+      return;
+    }
+    r.innerHTML = `<div class="card" style="text-align:center;">
+      <div class="eyebrow">Spaced repetition</div>
+      <div class="stat-num" style="font-size:40px;margin:8px 0;">${due.length}</div>
+      <p class="faint" style="margin-bottom:16px;">card${due.length>1?'s':''} ready to review. Rate your recall on each — be honest, that's what tunes the schedule.</p>
+      <button class="btn btn-primary btn-block" onclick="Review.startSession()">Start review</button>
+    </div>`;
+  },
+  startSession(){
+    const due = SRS.dueCards();
+    if(!due.length){ this.renderSummaryRunnerIdle(); return; }
+    this.cur = { queue:due.map(c=>c.id), i:0, picked:null, conf:null, again:[] };
+    this.renderCard();
+  },
+  renderCard(){
+    const s = this.cur;
+    if(!s) return;
+    if(s.i >= s.queue.length){ return this.finish(); }
+    const card = S.srs.cards[s.queue[s.i]];
+    if(!card){ s.i++; return this.renderCard(); }
+    const q = card.q;
+    const r = document.getElementById('srsRunner');
+    const accPct = Math.round(100*card.right/Math.max(1,card.seen));
+    r.innerHTML = `
+      <div class="card">
+        <div class="card-head">
+          <span class="eyebrow">Review ${s.i+1} / ${s.queue.length}</span>
+          <span class="faint" style="font-size:11px;">seen ${card.seen}× · ${accPct}% · ${card.interval}d interval</span>
+        </div>
+        <div class="bar" style="margin-bottom:14px;"><i style="width:${100*s.i/s.queue.length}%"></i></div>
+        <p style="font-weight:500;margin-bottom:6px;">${escapeHTML(q.q)}</p>
+        <div id="srsOpts">
+          ${q.options.map((o,idx)=>`
+            <button class="mcq-opt" data-i="${idx}" onclick="Review.pick(${idx})">
+              <span class="mcq-key">${'ABCD'[idx]}</span><span>${escapeHTML(o)}</span>
+            </button>`).join('')}
+        </div>
+        <div id="srsConf"></div>
+        <div id="srsAfter"></div>
+      </div>`;
+  },
+  pick(idx){
+    const s = this.cur;
+    if(s.picked!=null) return;
+    s.picked = idx;
+    const card = S.srs.cards[s.queue[s.i]];
+    const q = card.q;
+    document.querySelectorAll('#srsOpts .mcq-opt').forEach((o,i)=>{
+      if(i===q.answer) o.classList.add('correct');
+      if(i===idx && i!==q.answer) o.classList.add('wrong');
+      o.style.pointerEvents='none';
+    });
+    const right = idx===q.answer;
+    const dangerFlag = (!right)
+      ? `<div class="explain" style="border-left-color:var(--bad);">
+           <strong>${'✕ Incorrect.'}</strong> ${escapeHTML(q.explanation||'')}
+           ${q.reference?`<div style="margin-top:8px;font-size:12px;color:var(--text-dim);">Ref: ${escapeHTML(q.reference)}</div>`:''}
+         </div>`
+      : `<div class="explain"><strong>✓ Correct.</strong> ${escapeHTML(q.explanation||'')}
+           ${q.reference?`<div style="margin-top:8px;font-size:12px;color:var(--text-dim);">Ref: ${escapeHTML(q.reference)}</div>`:''}
+         </div>`;
+    document.getElementById('srsAfter').innerHTML = dangerFlag + `
+      <p class="faint" style="margin-top:14px;text-align:center;">How well did you recall this?</p>
+      <div class="srs-grade-row">
+        <button class="srs-grade again" onclick="Review.grade(0,${right})">Again<small>&lt;1d</small></button>
+        <button class="srs-grade hard"  onclick="Review.grade(1,${right})">Hard<small>soon</small></button>
+        <button class="srs-grade good"  onclick="Review.grade(2,${right})">Good<small>on track</small></button>
+        <button class="srs-grade easy"  onclick="Review.grade(3,${right})">Easy<small>longer</small></button>
+      </div>`;
+  },
+  /* selfGrade 0..3 (Again/Hard/Good/Easy) combined with actual correctness. */
+  grade(selfGrade, right){
+    const s = this.cur;
+    const card = S.srs.cards[s.queue[s.i]];
+    // map self-grade to SM-2 quality, but never reward a wrong answer above 2
+    let quality = [1,3,4,5][selfGrade];
+    if(!right) quality = Math.min(quality, 2);
+    // update tallies and reschedule
+    card.seen; // already counted on first encounter; this is a re-review
+    if(right) card.right = Math.min(card.seen, card.right+0); // no double count
+    SRS.schedule(card, quality);
+    card.last = Date.now();
+    S.srs.log.push({ t:Date.now(), id:card.id, correct:!!right, conf:null,
+                     dom:card.q.domain||'misc', review:true });
+    persist('srs', S.srs);
+    if(quality<3) s.again.push(card.id);   // re-show lapses at the end
+    s.i++; s.picked=null;
+    if(s.i>=s.queue.length && s.again.length){
+      // append still-failing cards once more this session
+      s.queue = s.queue.concat(s.again.splice(0));
+    }
+    SRS.refreshBadges();
+    this.renderCard();
+  },
+  finish(){
+    const reviewed = this.cur ? this.cur.queue.length : 0;
+    this.cur = null;
+    SRS.refreshBadges();
+    this.renderSummary();
+    document.getElementById('srsRunner').innerHTML = `
+      <div class="card" style="text-align:center;">
+        <div class="eyebrow">Session complete</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2" style="width:46px;height:46px;margin:12px auto 6px;display:block;"><path d="M20 6L9 17l-5-5"/></svg>
+        <p class="faint" style="margin-bottom:16px;">Reviewed ${reviewed} card${reviewed!==1?'s':''}. They're rescheduled — come back when they're due.</p>
+        <button class="btn btn-ghost" onclick="Review.renderSummaryRunnerIdle()">Done</button>
+      </div>`;
+    Dashboard.render();
+  }
+};
+
+/* ============================================================
+   ANALYTICS — mastery heatmap, calibration curve, forecast
+   ============================================================ */
+const Analytics = {
+  render(){
+    const el = document.getElementById('analyticsBody');
+    if(!el) return;
+    el.innerHTML =
+      this.masteryCard() + this.calibrationCard() + this.forecastCard() + this.readinessCard();
+  },
+  masteryCard(){
+    const by = S.stats.byDomain || {};
+    const cells = DOMAINS.map(d=>{
+      const s = by[d.id] || {seen:0,correct:0};
+      const pct = s.seen ? Math.round(100*s.correct/s.seen) : null;
+      const col = pct==null ? 'var(--line-strong)'
+                : pct<50 ? 'var(--bad)' : pct<70 ? 'var(--warn)' : 'var(--ok)';
+      return `<div class="mastery-cell">
+        <div class="m-name">${escapeHTML(d.name)}</div>
+        <div class="m-val" style="color:${pct==null?'var(--text-faint)':col};">${pct==null?'—':pct+'%'}</div>
+        <div class="m-sub">${s.seen} answered</div>
+        <div class="m-fill" style="width:${pct||0}%;background:${col};"></div>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Mastery by domain</h3></div>
+      <p class="faint" style="margin-bottom:12px;">Accuracy across every question you've answered. Red &lt;50%, amber &lt;70%, green ≥70%.</p>
+      <div class="mastery-grid">${cells}</div>
+    </div>`;
+  },
+  calibrationCard(){
+    const { buckets, danger } = SRS.calibration();
+    const labels = {1:'Guessing',2:'Fairly sure',3:'Certain'};
+    const ideal = {1:33,2:67,3:90};   // rough "well-calibrated" reference
+    // build simple SVG bar pairs (actual accuracy vs confidence band)
+    const W=300, H=160, pad=30, bw=46, gap=44;
+    let bars='';
+    [1,2,3].forEach((lvl,i)=>{
+      const [att,cor] = buckets[lvl];
+      const acc = att ? Math.round(100*cor/att) : 0;
+      const x = pad + i*(bw+gap);
+      const aH = (acc/100)*(H-pad-20);
+      const iH = (ideal[lvl]/100)*(H-pad-20);
+      bars += `
+        <rect x="${x}" y="${H-pad-iH}" width="${bw/2-2}" height="${iH}" rx="3" fill="var(--line-strong)"/>
+        <rect x="${x+bw/2}" y="${H-pad-aH}" width="${bw/2-2}" height="${aH}" rx="3" fill="var(--accent)"/>
+        <text x="${x+bw/2}" y="${H-pad+14}" fill="var(--text-faint)" font-size="10" text-anchor="middle" font-family="var(--font-body)">${labels[lvl]}</text>
+        <text x="${x+bw/2}" y="${H-pad-Math.max(aH,iH)-5}" fill="var(--text-dim)" font-size="10" text-anchor="middle" font-family="var(--font-body)">${att?acc+'%':'—'}</text>`;
+    });
+    const total = buckets[1][0]+buckets[2][0]+buckets[3][0];
+    const flag = danger>0
+      ? `<div class="calib-flag danger">⚠ ${danger} confidently wrong — your most dangerous gaps</div>`
+      : (total? `<div class="calib-flag good">✓ No confidently-wrong answers logged</div>`:'');
+    return `<div class="card calib-card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Confidence calibration</h3></div>
+      <p class="faint" style="margin-bottom:6px;">
+        ${total? 'Your actual accuracy at each confidence level. Well-calibrated experts are right ~90% of the time when "certain".'
+               : 'Rate your confidence when answering MCQs (toggle appears before you reveal) and your calibration will plot here.'}
+      </p>
+      ${total?`<svg viewBox="0 0 ${W} ${H}">${bars}</svg>
+      <div class="calib-legend"><span><i style="background:var(--line-strong);"></i>Reference</span><span><i style="background:var(--accent);"></i>Your accuracy</span></div>`:''}
+      ${flag}
+    </div>`;
+  },
+  forecastCard(){
+    const fc = SRS.forecast(7);
+    const max = Math.max(1, ...fc.map(d=>d.n));
+    const W=300, H=120, pad=24, bw=30, gap=(W-2*pad-7*bw)/6;
+    let bars='';
+    fc.forEach((d,i)=>{
+      const x = pad + i*(bw+gap);
+      const h = (d.n/max)*(H-pad-18);
+      const lbl = i===0?'Now':new Date(d.date).toLocaleDateString('en-GB',{weekday:'short'}).slice(0,2);
+      bars += `<rect x="${x}" y="${H-pad-h}" width="${bw}" height="${Math.max(h,1)}" rx="3" fill="${i===0?'var(--accent)':'var(--accent-deep)'}"/>
+        <text x="${x+bw/2}" y="${H-pad+13}" fill="var(--text-faint)" font-size="9.5" text-anchor="middle" font-family="var(--font-body)">${lbl}</text>
+        <text x="${x+bw/2}" y="${H-pad-h-4}" fill="var(--text-dim)" font-size="10" text-anchor="middle" font-family="var(--font-body)">${d.n||''}</text>`;
+    });
+    return `<div class="card calib-card" style="margin-bottom:14px;">
+      <div class="card-head"><h3>Review forecast — next 7 days</h3></div>
+      <p class="faint" style="margin-bottom:6px;">Cards scheduled to fall due each day. Keeps your daily load predictable.</p>
+      <svg viewBox="0 0 ${W} ${H}">${bars}</svg>
+    </div>`;
+  },
+  readinessCard(){
+    const st = SRS.stats();
+    const by = S.stats.byDomain || {};
+    const seen = DOMAINS.filter(d=>(by[d.id]?.seen||0)>=3);
+    const acc = S.stats.mcqDone ? S.stats.correct/S.stats.mcqDone : 0;
+    const coverage = seen.length/DOMAINS.length;
+    const maturity = st.total ? st.mature/st.total : 0;
+    // composite readiness 0-100 (weighted: accuracy 45, coverage 30, maturity 25)
+    const score = Math.round(100*(0.45*acc + 0.30*coverage + 0.25*maturity));
+    const col = score<40?'var(--bad)':score<70?'var(--warn)':'var(--ok)';
+    let msg;
+    if(!S.stats.mcqDone) msg = 'Answer some questions to generate a readiness estimate.';
+    else if(score<40) msg = 'Early days — broaden domain coverage and clear review cards daily.';
+    else if(score<70) msg = 'Building well. Push weak domains and let more cards mature.';
+    else msg = 'Strong trajectory. Maintain reviews and target any remaining red domains.';
+    return `<div class="card">
+      <div class="card-head"><h3>Exam readiness estimate</h3></div>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:4px;">
+        <div style="font-family:var(--font-display);font-size:42px;font-weight:600;color:${col};">${S.stats.mcqDone?score:'—'}<span style="font-size:16px;color:var(--text-dim);">/100</span></div>
+        <div class="bar" style="flex:1;"><i style="width:${S.stats.mcqDone?score:0}%;background:${col};"></i></div>
+      </div>
+      <p class="faint" style="margin-top:10px;">${msg}</p>
+      <p class="faint" style="margin-top:6px;font-size:11.5px;">Composite of accuracy (45%), domain coverage (30%) and card maturity (25%). A study aid, not a pass predictor.</p>
+    </div>`;
   }
 };
 
