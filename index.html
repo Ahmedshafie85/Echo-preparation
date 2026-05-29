@@ -452,6 +452,49 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .reader-recent-item .rr-page{font-size:11px;color:var(--text-faint);font-weight:600;white-space:nowrap;}
 .reader-recent-item .rr-ico{width:18px;height:18px;color:var(--accent);flex-shrink:0;}
 
+/* Reader contents / jump panel */
+.reader-toc{
+  background:var(--surface-solid);border:1px solid var(--line-strong);
+  border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;
+  max-height:52vh;overflow:auto;animation:fade .2s var(--ease);
+}
+.reader-toc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.toc-section-label{
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);
+  font-weight:700;margin:12px 2px 6px;
+}
+.toc-section-label:first-child{margin-top:2px;}
+.toc-item{
+  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;
+  cursor:pointer;transition:.12s var(--ease);border:1px solid transparent;
+}
+.toc-item:hover{background:var(--accent-soft);border-color:var(--accent);}
+.toc-item .toc-name{flex:1;min-width:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.toc-item .toc-pg{font-size:11px;color:var(--text-faint);font-weight:600;white-space:nowrap;}
+.toc-item.depth1{padding-left:22px;}
+.toc-item.depth2{padding-left:34px;}
+.toc-item.answer{border-color:var(--ok);background:rgba(108,195,152,.08);}
+.toc-item.answer .toc-name{color:var(--ok);}
+.toc-item .toc-ico{width:15px;height:15px;flex-shrink:0;color:var(--accent);}
+.toc-item.answer .toc-ico{color:var(--ok);}
+.toc-empty{font-size:12.5px;color:var(--text-faint);padding:10px 4px;line-height:1.5;}
+.toc-scanning{font-size:12px;color:var(--text-dim);padding:8px 4px;display:flex;align-items:center;gap:8px;}
+
+/* Reader fullscreen */
+#readerStage:fullscreen{
+  background:var(--bg);padding:14px;overflow:auto;
+  display:flex;flex-direction:column;
+}
+#readerStage:-webkit-full-screen{
+  background:var(--bg);padding:14px;overflow:auto;
+}
+#readerStage:fullscreen .reader-canvas-wrap{max-height:none;flex:1;}
+#readerStage.reader-fs-fallback{
+  position:fixed;inset:0;z-index:9999;background:var(--bg);
+  padding:14px;overflow:auto;margin:0;
+}
+#readerStage.reader-fs-fallback .reader-canvas-wrap{max-height:88vh;}
+
 /* ---------- Guidelines cards ---------- */
 .gl-card{
   background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);
@@ -703,9 +746,9 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         <p class="faint" id="planTodayHint">Open your study schedule.</p>
       </div>
       <div class="card" style="cursor:pointer;" onclick="App.go('video')">
-        <span class="eyebrow">Library</span>
-        <h3 style="margin:9px 0 4px;">Video learning</h3>
-        <p class="faint" id="videoHomeHint">Curated teaching for every domain.</p>
+        <span class="eyebrow">Learn</span>
+        <h3 style="margin:9px 0 4px;">Learn</h3>
+        <p class="faint" id="videoHomeHint">Daily video pick, your PDFs, channels &amp; guidelines.</p>
       </div>
     </div>
   </section>
@@ -884,17 +927,17 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
   <!-- ===================== VIDEO LIBRARY ===================== -->
   <section class="view" id="view-video">
-    <div class="section-title"><h2>Echo learning library</h2></div>
+    <div class="section-title"><h2>Learn</h2></div>
 
     <div class="tabs">
-      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Learn</button>
+      <button class="active" data-vtab="learn" onclick="VideoView.tab('learn')">Today</button>
       <button data-vtab="read" onclick="VideoView.tab('read')">Read</button>
       <button data-vtab="channels" onclick="VideoView.tab('channels')">Channels</button>
       <button data-vtab="guidelines" onclick="VideoView.tab('guidelines')">Guidelines</button>
       <button data-vtab="saved" onclick="VideoView.tab('saved')">Saved</button>
     </div>
 
-    <!-- TAB: Learn — curated topic-by-domain library with best-channel pointers -->
+    <!-- TAB: Today — video of the day -->
     <div class="tab-panel active" id="vtab-learn">
 
       <!-- Pick of the day -->
@@ -910,19 +953,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
           <span id="votdBtnLabel">Pick today's video topic</span>
         </button>
       </div>
-
-      <!-- Curated by domain -->
-      <div class="section-title" style="margin-top:8px;">
-        <h2 style="font-size:17px;">By domain · curated</h2>
-        <span class="faint" id="curatedProgress"></span>
-      </div>
-      <div class="vsearch">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input id="vidSearch" placeholder="Search topics — e.g. PISA, amyloid, TAPSE…" oninput="Videos.onSearch(this.value)">
-        <span class="vclear" id="vidSearchClear" onclick="Videos.clearSearch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
-      </div>
-      <div class="chip-row" id="curatedFilter" style="margin-bottom:14px;"></div>
-      <div id="curatedList"><!-- rendered --></div>
     </div>
 
     <!-- TAB: Read — local PDF e-reader (your own files, stays on device) -->
@@ -949,12 +979,28 @@ input,select,textarea{font-family:inherit;font-size:14px;}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
           <div class="reader-title" id="readerTitle">—</div>
+          <button class="icon-btn" id="readerTocBtn" onclick="Reader.toggleToc()" title="Contents & jump">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          </button>
           <button class="icon-btn" onclick="Reader.zoom(-1)" title="Zoom out">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg>
           </button>
           <button class="icon-btn" onclick="Reader.zoom(1)" title="Zoom in">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
           </button>
+          <button class="icon-btn" id="readerFsBtn" onclick="Reader.toggleFullscreen()" title="Fullscreen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+          </button>
+        </div>
+        <!-- Contents / jump panel -->
+        <div class="reader-toc" id="readerToc" style="display:none;">
+          <div class="reader-toc-head">
+            <span class="eyebrow">Contents &amp; jump</span>
+            <button class="icon-btn" style="width:30px;height:30px;" onclick="Reader.toggleToc()" title="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <div id="readerTocBody"><!-- chapters + answer sections --></div>
         </div>
         <div class="reader-nav">
           <button class="btn btn-ghost" onclick="Reader.go(-1)">‹ Prev</button>
@@ -1122,6 +1168,10 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 3-3 3M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg></span>
     <span>MCQ</span>
   </button>
+  <button class="navitem" data-view="video" onclick="App.go('video')">
+    <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM19 17H6"/><path d="M9 7h6"/></svg></span>
+    <span>Learn</span>
+  </button>
   <button class="navitem" data-view="review" onclick="App.go('review')">
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/><path d="M12 8v4l3 2"/></svg></span>
     <span>Review</span>
@@ -1130,10 +1180,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   <button class="navitem" data-view="expert" onclick="App.go('expert')">
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
     <span>Expert</span>
-  </button>
-  <button class="navitem" data-view="video" onclick="App.go('video')">
-    <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg></span>
-    <span>Videos</span>
   </button>
   <button class="navitem" data-view="settings" onclick="App.go('settings')">
     <span class="navitem-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></span>
@@ -1800,6 +1846,9 @@ const App = {
     Guidelines.render();
     VideoExtras.render();
     if(window.Reader) Reader.renderRecent();
+    // keep the reader page sized correctly when entering/exiting fullscreen
+    ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>
+      document.addEventListener(ev, ()=>{ if(window.Reader && Reader.pdf){ setTimeout(()=>Reader.render(),60); } }));
     Bank.render();
     Expert.render();
     Today.render();
@@ -2012,13 +2061,8 @@ const Dashboard = {
     const acc = st.mcqDone ? Math.round(100*st.correct/st.mcqDone) : null;
     setHTML('stAcc', (acc==null?'—':acc) + '<span class="unit">%</span>');
 
-    // video library hint — watched progress
-    if(window.Videos){
-      const w = Videos.watchedCount(), tot = Videos.totalCurated();
-      setText('videoHomeHint', w
-        ? `${w} of ${tot} curated topics watched.`
-        : 'Curated teaching for every domain.');
-    }
+    // Learn section hint (curated topics removed; keep a simple static hint)
+    setText('videoHomeHint', 'Daily video pick, your PDFs, channels & guidelines.');
 
     // nearest exam countdown
     const dates = [];
@@ -3044,8 +3088,58 @@ const ECHO_CHANNELS = [
     url:'https://westernsono.ca/screencasts/echo/',
     tag:'POCUS',
     note:'Critical-care POCUS echo screencasts — diastology, hemodynamics, valve assessment.' },
+  { id:'cardioserv', name:'Cardioserv Echo Education', category:'echo',
+    url:'https://www.cardioserv.net/education/',
+    tag:'CME',
+    note:'Self-paced echo CME and blog — right heart, strain, guideline-based quantification, case reviews.' },
+  { id:'pocus-atlas', name:'The POCUS Atlas — Echo', category:'echo',
+    url:'https://www.thepocusatlas.com/echocardiography-2',
+    tag:'Clips',
+    note:'Free open-access library of real echo POCUS clips organised by pathology — excellent for pattern recognition.' },
+  { id:'asecho-edu', name:'ASE — Learning Hub (ASeLearning)', category:'echo',
+    url:'https://www.asecho.org/education/',
+    tag:'Society',
+    note:'Official ASE education portal — webinars, guideline courses, and exam-prep resources.' },
+  { id:'bsecho', name:'British Society of Echocardiography (BSE)', category:'echo',
+    url:'https://www.youtube.com/results?search_query=British+Society+of+Echocardiography',
+    tag:'Society',
+    note:'BSE teaching — TTE/TOE protocols, accreditation guidance, and minimum-dataset standards.' },
+  { id:'wilson-echo', name:'Wilson Echo Solutions / Echocardiography Academy', category:'echo',
+    url:'https://www.youtube.com/results?search_query=echocardiography+academy+tutorials',
+    tag:'Tutorials',
+    note:'Step-by-step echo measurement and acquisition tutorials for sonographers and trainees.' },
 
-  // ---- Egyptian / Arabic-speaking faculty ----
+  // ---- POCUS & critical-care echo ----
+  { id:'pocus101', name:'POCUS 101', category:'pocus',
+    url:'https://www.pocus101.com/cardiac-ultrasound-echocardiography-made-easy-step-by-step-guide/',
+    tag:'POCUS',
+    note:'Step-by-step cardiac ultrasound guide and image library — clear, practical, free.' },
+  { id:'ultrasound-gel', name:'Ultrasound GEL (evidence podcast)', category:'pocus',
+    url:'https://www.ultrasoundgel.org/',
+    tag:'Evidence',
+    note:'Reviews the latest POCUS literature — what the evidence does and doesn\u2019t support.' },
+  { id:'5min-sono', name:'5 Minute Sono (Jacob Avila)', category:'pocus',
+    url:'https://www.youtube.com/results?search_query=5+minute+sono+echo',
+    tag:'POCUS',
+    note:'Short, high-yield bedside ultrasound teaching including focused cardiac views.' },
+  { id:'ebmedicine-eco', name:'EMRAP / Core Ultrasound (echo)', category:'pocus',
+    url:'https://www.coreultrasound.com/',
+    tag:'POCUS',
+    note:'Core Ultrasound — emergency/critical-care focused cardiac ultrasound education and cases.' },
+
+  // ---- General cardiology (broader than echo) ----
+  { id:'aha', name:'American Heart Association (AHA)', category:'general',
+    url:'https://www.youtube.com/@American_Heart',
+    tag:'Society',
+    note:'AHA scientific sessions, guideline highlights, and clinical updates.' },
+  { id:'cardionerds', name:'CardioNerds', category:'general',
+    url:'https://www.cardionerds.com/',
+    tag:'Podcast',
+    note:'Case-based cardiology podcast & platform — strong imaging and hemodynamics episodes.' },
+  { id:'medscape', name:'Medscape', category:'general',
+    url:'https://www.youtube.com/@Medscape',
+    tag:'News',
+    note:'Trial summaries, guideline reviews, and expert interviews across cardiology.' },
   { id:'abdelbasit', name:'Mohamed Abdelbasit (Zagazig)', category:'arabic',
     url:'https://www.youtube.com/channel/UCbBWE4DA5hEs9r1mbmujDxg',
     tag:'Tutorials',
@@ -3068,14 +3162,6 @@ const ECHO_CHANNELS = [
     note:'Arabic-language cardiology and echo teaching.' },
 
   // ---- General cardiology (broader than echo) ----
-  { id:'aha', name:'American Heart Association (AHA)', category:'general',
-    url:'https://www.youtube.com/@American_Heart',
-    tag:'Society',
-    note:'AHA scientific sessions, guideline highlights, and clinical updates.' },
-  { id:'medscape', name:'Medscape', category:'general',
-    url:'https://www.youtube.com/@Medscape',
-    tag:'News',
-    note:'Trial summaries, guideline reviews, and expert interviews across cardiology.' },
   { id:'radcliffe', name:'Radcliffe Cardiology', category:'general',
     url:'https://www.youtube.com/channel/UCmJZXhuw-rlWXhlP0s26TXA',
     tag:'CME',
@@ -3088,6 +3174,7 @@ const ECHO_CHANNELS = [
 
 const ECHO_CHANNEL_CATEGORIES = [
   {id:'echo',    label:'Echocardiography'},
+  {id:'pocus',   label:'POCUS & critical-care echo'},
   {id:'arabic',  label:'Egyptian & Arabic-speaking faculty'},
   {id:'general', label:'General cardiology'}
 ];
@@ -3638,6 +3725,7 @@ const VideoView = {
    ============================================================ */
 const Reader = {
   pdf:null, page:1, total:0, scale:1.15, name:'', rendering:false, pending:null,
+  toc:[], answerHits:[], tocOpen:false, scanning:false,
   META_KEY:'ep_reader_meta',
 
   meta(){
@@ -3665,6 +3753,9 @@ const Reader = {
       const buf = await file.arrayBuffer();
       const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
       this.pdf = doc; this.name = file.name; this.total = doc.numPages;
+      this.toc = []; this.answerHits = []; this.tocOpen = false; this.scanning = false;
+      const tocPanel = document.getElementById('readerToc');
+      if(tocPanel) tocPanel.style.display='none';
       // resume last page if known
       const saved = this.meta()[file.name];
       this.page = (saved && saved.page>=1 && saved.page<=this.total) ? saved.page : 1;
@@ -3673,6 +3764,8 @@ const Reader = {
       setText('readerTitle', file.name.replace(/\.pdf$/i,''));
       setText('readerPageTotal', '/ '+this.total);
       await this.render();
+      // build the contents (outline) in the background; answer scan is lazy
+      this.buildOutline();
     }catch(e){
       console.error('reader open:', e);
       toast('Could not open this PDF');
@@ -3731,10 +3824,155 @@ const Reader = {
     this.scale = Math.min(3, Math.max(0.6, this.scale + dir*0.15));
     this.render();
   },
+  /* Fullscreen the reader stage using the Fullscreen API. Re-renders
+     the page after the viewport changes so it fits the new width. */
+  toggleFullscreen(){
+    const stage = document.getElementById('readerStage');
+    if(!stage) return;
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    try{
+      if(!fsEl){
+        const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+        if(req) req.call(stage);
+        else { stage.classList.add('reader-fs-fallback'); this._fsFallback=true; setTimeout(()=>this.render(),60); }
+      }else{
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if(exit) exit.call(document);
+        if(this._fsFallback){ stage.classList.remove('reader-fs-fallback'); this._fsFallback=false; setTimeout(()=>this.render(),60); }
+      }
+    }catch(e){ console.warn('fullscreen:', e); }
+  },
   close(){
+    if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
+    const stage = document.getElementById('readerStage');
+    if(stage){ stage.classList.remove('reader-fs-fallback'); this._fsFallback=false; }
     document.getElementById('readerStage').style.display='none';
     document.getElementById('readerIntro').style.display='block';
     this.renderRecent();
+  },
+
+  /* ---- Contents / jump panel ----
+     buildOutline reads the PDF's built-in bookmark tree and resolves
+     each entry to a 1-based page number. answerScan looks through the
+     page text for answer-section headings ("Answers for Chapter N",
+     "Answer Key", "Explanations") and records their pages. Both feed
+     the contents panel. */
+  async resolveDest(dest){
+    // dest may be a named destination (string) or an explicit array
+    try{
+      let explicit = dest;
+      if(typeof dest === 'string'){
+        explicit = await this.pdf.getDestination(dest);
+      }
+      if(!explicit) return null;
+      const ref = explicit[0];
+      const pageIndex = await this.pdf.getPageIndex(ref);
+      return pageIndex + 1;   // 1-based
+    }catch(e){ return null; }
+  },
+  async buildOutline(){
+    this.toc = [];
+    try{
+      const outline = await this.pdf.getOutline();
+      if(outline && outline.length){
+        const flat = [];
+        const walk = async (items, depth) => {
+          for(const it of items){
+            let pg = null;
+            if(it.dest) pg = await this.resolveDest(it.dest);
+            flat.push({ title:(it.title||'').trim(), page:pg, depth:Math.min(depth,2) });
+            if(it.items && it.items.length) await walk(it.items, depth+1);
+          }
+        };
+        await walk(outline, 0);
+        // keep entries that resolved to a page; drop front-matter noise if huge
+        this.toc = flat.filter(e=>e.title);
+      }
+    }catch(e){ console.warn('outline:', e); }
+    if(this.tocOpen) this.renderToc();
+  },
+  /* Scan page text for answer-section markers. Runs once, on demand,
+     because it reads every page's text (slow on 1800-page books). */
+  async answerScan(){
+    if(this.answerHits.length || this.scanning || !this.pdf) return;
+    this.scanning = true;
+    if(this.tocOpen) this.renderToc();
+    const re = /\b(answers?\s+(?:for\s+|to\s+)?(?:chapter|section|case)\s+\d+|answer\s+key|answers?\s+and\s+explanations?|^\s*answers?\s*$|explanations?\s+(?:for\s+)?(?:chapter|section)\s+\d+)/i;
+    const hits = [];
+    const seenLabels = new Set();
+    try{
+      for(let p=1; p<=this.total; p++){
+        const pg = await this.pdf.getPage(p);
+        const tc = await pg.getTextContent();
+        // join the first ~40 text items (headings live near the top)
+        const top = tc.items.slice(0,40).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+        const m = top.match(re);
+        if(m){
+          let label = m[0].replace(/\s+/g,' ').trim();
+          label = label.charAt(0).toUpperCase()+label.slice(1);
+          const key = label.toLowerCase();
+          if(!seenLabels.has(key)){
+            seenLabels.add(key);
+            hits.push({ label, page:p });
+          }
+        }
+        // yield occasionally so the UI stays responsive
+        if(p % 60 === 0){ await new Promise(r=>setTimeout(r,0)); if(this.tocOpen) this.renderToc(true, p); }
+      }
+    }catch(e){ console.warn('answerScan:', e); }
+    this.answerHits = hits.sort((a,b)=>a.page-b.page);
+    this.scanning = false;
+    if(this.tocOpen) this.renderToc();
+  },
+  toggleToc(){
+    this.tocOpen = !this.tocOpen;
+    const panel = document.getElementById('readerToc');
+    if(panel) panel.style.display = this.tocOpen ? 'block' : 'none';
+    if(this.tocOpen){
+      this.renderToc();
+      // kick off the answer scan the first time the panel is opened
+      if(!this.answerHits.length && !this.scanning) this.answerScan();
+    }
+  },
+  renderToc(scanProgress, scannedTo){
+    const el = document.getElementById('readerTocBody');
+    if(!el) return;
+    const tocIco = '<svg class="toc-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>';
+    const ansIco = '<svg class="toc-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+    let html = '';
+
+    // Answer sections (priority — this is the requested feature)
+    html += `<div class="toc-section-label">Answer sections</div>`;
+    if(this.answerHits.length){
+      html += this.answerHits.map(h=>`
+        <div class="toc-item answer" onclick="Reader.jumpTo(${h.page})">
+          ${ansIco}<div class="toc-name">${escapeHTML(h.label)}</div>
+          <div class="toc-pg">p.${h.page}</div>
+        </div>`).join('');
+    }else if(this.scanning){
+      html += `<div class="toc-scanning"><span class="spinner"></span> Scanning for answer sections${scannedTo?` (page ${scannedTo}/${this.total})`:''}…</div>`;
+    }else{
+      html += `<div class="toc-empty">No answer-section headings detected automatically. Use the chapter list or the page box to navigate.</div>`;
+    }
+
+    // Chapter outline
+    html += `<div class="toc-section-label">Chapters</div>`;
+    if(this.toc.length){
+      html += this.toc.map(e=>`
+        <div class="toc-item depth${e.depth}" ${e.page?`onclick="Reader.jumpTo(${e.page})"`:'style="opacity:.5;cursor:default;"'}>
+          ${tocIco}<div class="toc-name">${escapeHTML(e.title)}</div>
+          ${e.page?`<div class="toc-pg">p.${e.page}</div>`:''}
+        </div>`).join('');
+    }else{
+      html += `<div class="toc-empty">This PDF has no built-in chapter bookmarks. You can still jump by page number, and any answer sections found above.</div>`;
+    }
+    el.innerHTML = html;
+  },
+  jumpTo(page){
+    this.tocOpen = false;
+    const panel = document.getElementById('readerToc');
+    if(panel) panel.style.display='none';
+    this.jump(page);
   },
 
   /* Show previously-opened books (metadata only). Tapping prompts a
