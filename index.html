@@ -480,6 +480,20 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .toc-empty{font-size:12.5px;color:var(--text-faint);padding:10px 4px;line-height:1.5;}
 .toc-scanning{font-size:12px;color:var(--text-dim);padding:8px 4px;display:flex;align-items:center;gap:8px;}
 
+/* Plan reading-source block */
+.src-box{margin-top:11px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 12px;background:var(--bg-2);}
+.src-head{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);font-weight:700;margin-bottom:9px;}
+.src-row{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--line);}
+.src-row:first-of-type{border-top:none;padding-top:0;}
+.src-ico{font-size:14px;line-height:1.5;flex-shrink:0;width:18px;text-align:center;}
+.src-body{flex:1;min-width:0;}
+.src-label{display:block;font-size:10.5px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;}
+.src-link{font-size:12.5px;color:var(--accent);font-weight:500;text-decoration:none;line-height:1.4;word-break:break-word;}
+.src-link:hover{text-decoration:underline;}
+.src-text{font-size:12.5px;color:var(--text);line-height:1.5;}
+.src-mini{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:7px;padding:3px 9px;cursor:pointer;}
+.src-mini:hover{background:var(--accent);color:#04211d;}
+
 /* Reader fullscreen */
 #readerStage:fullscreen{
   background:var(--bg);padding:14px;overflow:auto;
@@ -2182,6 +2196,43 @@ const Tasks = {
 /* ============================================================
    PLAN — dual-track domain list + AI schedule generator
    ============================================================ */
+/* ============================================================
+   PLAN READING SOURCES — per-domain structured references
+   ------------------------------------------------------------
+   Replaces the old vague free-text "reference" string. For each
+   domain we point the study day at THREE real, followable sources:
+     1) guideline — jumps to the matching card in the Guidelines tab
+        (linked by the first GUIDELINES entry whose domain matches)
+     2) read — a TEXTBOOK chapter pointer (EACVI / Otto), by chapter
+        TOPIC not page number, followable via the Reader's Contents
+        panel once the book is opened. These are labels only — no
+        book text is reproduced.
+     3) watch — handled by the existing per-day video_search.
+   Chapter labels are best-effort topic names; open the book in the
+   Reader and use Contents to land on the matching chapter.
+   ============================================================ */
+const PLAN_SOURCES = {
+  phys:  { read:['Otto — Principles of Echocardiographic Image Acquisition & Doppler', 'EACVI — Physics & Instrumentation'] },
+  tte:   { read:['Otto — The Echo Exam: A Comprehensive Review', 'EACVI — Standard TTE Examination & Reporting'] },
+  lv:    { read:['Otto — Left Ventricular Systolic Function', 'EACVI — LV Systolic Function & Strain'] },
+  rv:    { read:['Otto — The Right Heart & Pulmonary Pressures', 'EACVI — Right Ventricular Assessment'] },
+  valve: { read:['Otto — Valvular Stenosis / Valvular Regurgitation', 'EACVI — Native Valve Disease'] },
+  tee:   { read:['Otto — Transesophageal Echocardiography', 'EACVI — Transoesophageal Echocardiography'] },
+  '4d':  { read:['Otto — Advanced Echocardiographic Modalities (3D)', 'EACVI — Three-Dimensional Echocardiography'] },
+  chd:   { read:['Otto — Adult Congenital Heart Disease', 'EACVI — Congenital Heart Disease & Shunts'] },
+  cmp:   { read:['Otto — Cardiomyopathies & Hypertrophy', 'EACVI — Cardiomyopathies'] },
+  peri:  { read:['Otto — Pericardial Disease', 'EACVI — Pericardial Disease'] },
+  haemo: { read:['Otto — Quantitative Doppler Hemodynamics / Prosthetic Valves', 'EACVI — Haemodynamics & Prosthetic Valves'] }
+};
+
+/* Resolve the best Guidelines-tab entry for a domain (returns the
+   entry + its index so the plan can deep-link to it). */
+function planGuidelineFor(domId){
+  if(!window.GUIDELINES) return null;
+  const idx = GUIDELINES.findIndex(g=>g.domain===domId);
+  return idx>=0 ? { g:GUIDELINES[idx], idx } : null;
+}
+
 const Plan = {
   /* Generate a dated, checkable study plan via AI. */
   async generate(){
@@ -2296,10 +2347,58 @@ const Plan = {
         <div class="chip-row">
           ${dom?`<button class="chip" onclick="MCQ.fromDomain('${dom.id}')">⚡ Drill MCQs</button>`:''}
         </div>
-        ${d.reference?`<div class="explain" style="margin-top:10px;font-size:12.5px;">
-          <strong>Reference:</strong> ${escapeHTML(d.reference)}</div>`:''}
+        ${this.sourcesBlock(d)}
       </div>`;
     }).join('');
+  },
+
+  /* Structured reading sources for a day: guideline link + textbook
+     chapter pointers + video search — all real, followable targets. */
+  sourcesBlock(d){
+    const gl = planGuidelineFor(d.domain);
+    const src = PLAN_SOURCES[d.domain];
+    const vid = d.video || d.topic;
+    const rows = [];
+    if(gl){
+      rows.push(`<div class="src-row">
+        <span class="src-ico" style="color:var(--info);">📘</span>
+        <div class="src-body"><span class="src-label">Guideline</span>
+          <a class="src-link" href="${gl.g.hub}" target="_blank" rel="noopener" onclick="Plan.openGuideline(event)">${escapeHTML(gl.g.body)} — ${escapeHTML(gl.g.title.split('—')[0].trim())} ↗</a>
+        </div>
+      </div>`);
+    }
+    if(src && src.read && src.read.length){
+      rows.push(`<div class="src-row">
+        <span class="src-ico" style="color:var(--accent);">📖</span>
+        <div class="src-body"><span class="src-label">Read</span>
+          <span class="src-text">${src.read.map(r=>escapeHTML(r)).join('<br>')}</span>
+          <button class="src-mini" onclick="Plan.openReader()">Open in Reader →</button>
+        </div>
+      </div>`);
+    }
+    if(vid){
+      rows.push(`<div class="src-row">
+        <span class="src-ico" style="color:var(--bad);">▶</span>
+        <div class="src-body"><span class="src-label">Watch</span>
+          <a class="src-link" href="${ytSearch(vid)}" target="_blank" rel="noopener">${escapeHTML(vid)} ↗</a>
+        </div>
+      </div>`);
+    }
+    // fallback to any legacy free-text reference only if nothing structured resolved
+    if(!rows.length && d.reference){
+      return `<div class="explain" style="margin-top:10px;font-size:12.5px;"><strong>Reference:</strong> ${escapeHTML(d.reference)}</div>`;
+    }
+    if(!rows.length) return '';
+    return `<div class="src-box"><div class="src-head">Reading sources</div>${rows.join('')}</div>`;
+  },
+  openGuideline(ev){
+    // let the link open the official page in a new tab; also surface the
+    // Guidelines tab in-app for context (non-blocking).
+    try{ App.go('video'); VideoView.tab('guidelines'); }catch(e){}
+  },
+  openReader(){
+    App.go('video'); VideoView.tab('read');
+    toast('Open your EACVI / Otto PDF, then use Contents to jump to the chapter');
   },
 
   discard(){
@@ -2676,10 +2775,11 @@ For each session provide:
 - "domain": the matching domain id from the list above (one of: ${domains.map(d=>d.id).join(', ')})
 - "tasks": 3-5 concrete, checkable study actions for that day
 - "video_search": a SPECIFIC search phrase targeting an actual teaching video on the exact subtopic — include the technique or concept name and the word "echocardiography" (e.g. "PISA method mitral regurgitation echocardiography tutorial", not just "valves"). Be specific enough to surface a focused lecture, not a broad playlist.
-- "reference": the guideline or textbook chapter to read for that topic. Name the issuing body and subject (e.g. "ASE guideline on chamber quantification"); add a chapter number only if confident. Do not invent edition years or chapter numbers.
+
+(The app supplies the guideline and textbook reading links itself from the chosen domain — do NOT invent guideline names, chapter numbers, or citations.)
 
 Return ONLY valid JSON, no markdown, exactly:
-{"days":[{"topic":"string","domain":"string","tasks":["string"],"video_search":"string","reference":"string"}]}`;
+{"days":[{"topic":"string","domain":"string","tasks":["string"],"video_search":"string"}]}`;
 }
 
 /* ---- expert prompt: structured consultant-level answer ----- */
