@@ -450,6 +450,12 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .reader-recent-item:hover{border-color:var(--accent);background:var(--accent-soft);}
 .reader-recent-item .rr-name{flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .reader-recent-item .rr-page{font-size:11px;color:var(--text-faint);font-weight:600;white-space:nowrap;}
+.reader-recent-item .rr-del{
+  width:24px;height:24px;flex-shrink:0;border-radius:6px;display:grid;place-items:center;
+  color:var(--text-faint);background:transparent;border:1px solid transparent;cursor:pointer;transition:.12s var(--ease);
+}
+.reader-recent-item .rr-del:hover{color:var(--bad);border-color:var(--line-strong);}
+.reader-recent-item .rr-del svg{width:13px;height:13px;}
 .reader-recent-item .rr-ico{width:18px;height:18px;color:var(--accent);flex-shrink:0;}
 
 /* Reader contents / jump panel */
@@ -494,20 +500,25 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .src-mini{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:7px;padding:3px 9px;cursor:pointer;}
 .src-mini:hover{background:var(--accent);color:#04211d;}
 
-/* Reader fullscreen */
-#readerStage:fullscreen{
-  background:var(--bg);padding:14px;overflow:auto;
-  display:flex;flex-direction:column;
-}
+/* Reader fullscreen — fill the entire screen */
+#readerStage:fullscreen,
 #readerStage:-webkit-full-screen{
-  background:var(--bg);padding:14px;overflow:auto;
+  width:100vw;height:100vh;max-width:none;
+  background:var(--bg);padding:10px;margin:0;overflow:hidden;
+  display:flex;flex-direction:column;box-sizing:border-box;
 }
-#readerStage:fullscreen .reader-canvas-wrap{max-height:none;flex:1;}
+#readerStage:fullscreen .reader-canvas-wrap,
+#readerStage:-webkit-full-screen .reader-canvas-wrap{
+  max-height:none;flex:1 1 auto;min-height:0;
+}
 #readerStage.reader-fs-fallback{
-  position:fixed;inset:0;z-index:9999;background:var(--bg);
-  padding:14px;overflow:auto;margin:0;
+  position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;
+  background:var(--bg);padding:10px;margin:0;overflow:hidden;
+  display:flex;flex-direction:column;box-sizing:border-box;
 }
-#readerStage.reader-fs-fallback .reader-canvas-wrap{max-height:88vh;}
+#readerStage.reader-fs-fallback .reader-canvas-wrap{
+  max-height:none;flex:1 1 auto;min-height:0;
+}
 
 /* ---------- Guidelines cards ---------- */
 .gl-card{
@@ -974,8 +985,9 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       <div class="card" id="readerIntro" style="margin-bottom:14px;">
         <div class="card-head"><h3>Reading library</h3><span class="faint">On-device</span></div>
         <p class="faint" style="margin-bottom:12px;">
-          Open your own PDF textbooks and read them here, page by page. Files stay on this device —
-          nothing is uploaded or copied into the app. Your last page is remembered per book.
+          Open your own PDF textbooks and read them here, page by page. The first time you open a book
+          it's saved into this app's on-device storage, so afterwards you reopen it with a single tap —
+          no re-selecting. Nothing is uploaded; books stay on this device and per-device.
         </p>
         <button class="btn btn-primary btn-block" onclick="document.getElementById('readerFile').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
@@ -3827,15 +3839,70 @@ const Reader = {
   pdf:null, page:1, total:0, scale:1.15, name:'', rendering:false, pending:null,
   toc:[], answerHits:[], tocOpen:false, scanning:false,
   META_KEY:'ep_reader_meta',
+  DB_NAME:'ep_reader_db', STORE:'pdfs', _db:null,
 
   meta(){
     try{ return JSON.parse(localStorage.getItem(this.META_KEY)||'{}'); }
     catch(e){ return {}; }
   },
-  saveMeta(name, page, total){
+  saveMeta(name, page, total, cached){
     const m = this.meta();
-    m[name] = { page, total, ts:Date.now() };
+    const prev = m[name] || {};
+    m[name] = { page, total, ts:Date.now(),
+                cached: (cached!==undefined ? cached : prev.cached) || false };
     localStorage.setItem(this.META_KEY, JSON.stringify(m));
+  },
+
+  /* ---- IndexedDB: store PDF bytes so books reopen with one click ----
+     Browsers can't silently re-read a file from disk across sessions,
+     so on first open we copy the bytes into IndexedDB (this app's own
+     storage). After that, tapping the book name reopens instantly. */
+  async db(){
+    if(this._db) return this._db;
+    return new Promise((resolve,reject)=>{
+      try{
+        const req = indexedDB.open(this.DB_NAME, 1);
+        req.onupgradeneeded = e=>{
+          const d = e.target.result;
+          if(!d.objectStoreNames.contains(this.STORE)) d.createObjectStore(this.STORE);
+        };
+        req.onsuccess = e=>{ this._db = e.target.result; resolve(this._db); };
+        req.onerror = ()=>reject(req.error);
+      }catch(e){ reject(e); }
+    });
+  },
+  async dbPut(name, buf){
+    try{
+      const d = await this.db();
+      return await new Promise((resolve,reject)=>{
+        const tx = d.transaction(this.STORE,'readwrite');
+        tx.objectStore(this.STORE).put(buf, name);
+        tx.oncomplete = ()=>resolve(true);
+        tx.onerror = ()=>reject(tx.error);
+      });
+    }catch(e){ console.warn('dbPut:', e); return false; }
+  },
+  async dbGet(name){
+    try{
+      const d = await this.db();
+      return await new Promise((resolve,reject)=>{
+        const tx = d.transaction(this.STORE,'readonly');
+        const r = tx.objectStore(this.STORE).get(name);
+        r.onsuccess = ()=>resolve(r.result||null);
+        r.onerror = ()=>reject(r.error);
+      });
+    }catch(e){ console.warn('dbGet:', e); return null; }
+  },
+  async dbDelete(name){
+    try{
+      const d = await this.db();
+      await new Promise((resolve)=>{
+        const tx = d.transaction(this.STORE,'readwrite');
+        tx.objectStore(this.STORE).delete(name);
+        tx.oncomplete = ()=>resolve();
+        tx.onerror = ()=>resolve();
+      });
+    }catch(e){}
   },
 
   ready(){ return !!window.pdfjsLib; },
@@ -3851,25 +3918,52 @@ const Reader = {
     try{
       toast('Opening…');
       const buf = await file.arrayBuffer();
-      const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
-      this.pdf = doc; this.name = file.name; this.total = doc.numPages;
-      this.toc = []; this.answerHits = []; this.tocOpen = false; this.scanning = false;
-      const tocPanel = document.getElementById('readerToc');
-      if(tocPanel) tocPanel.style.display='none';
-      // resume last page if known
-      const saved = this.meta()[file.name];
-      this.page = (saved && saved.page>=1 && saved.page<=this.total) ? saved.page : 1;
-      document.getElementById('readerIntro').style.display='none';
-      document.getElementById('readerStage').style.display='block';
-      setText('readerTitle', file.name.replace(/\.pdf$/i,''));
-      setText('readerPageTotal', '/ '+this.total);
-      await this.render();
-      // build the contents (outline) in the background; answer scan is lazy
-      this.buildOutline();
+      // cache a copy so the book reopens with one click next time
+      let cached = false;
+      try{ cached = await this.dbPut(file.name, buf.slice(0)); }catch(e){}
+      await this._loadBuffer(buf, file.name, cached);
     }catch(e){
       console.error('reader open:', e);
       toast('Could not open this PDF');
     }
+  },
+
+  /* Reopen a previously-cached book by name — no file dialog. */
+  async openCached(name){
+    if(!this.ready()){ toast('Reader still loading…'); return; }
+    try{
+      toast('Opening…');
+      const buf = await this.dbGet(name);
+      if(!buf){
+        // not actually cached (e.g. storage cleared) → fall back to picker
+        toast('Please re-select this PDF once to re-cache it');
+        document.getElementById('readerFile').click();
+        return;
+      }
+      await this._loadBuffer(buf, name, true);
+    }catch(e){
+      console.error('openCached:', e);
+      toast('Could not reopen — try selecting the file');
+      document.getElementById('readerFile').click();
+    }
+  },
+
+  /* Shared loader for both a freshly-picked file and a cached buffer. */
+  async _loadBuffer(buf, name, cached){
+    const doc = await window.pdfjsLib.getDocument({data:buf}).promise;
+    this.pdf = doc; this.name = name; this.total = doc.numPages;
+    this.toc = []; this.answerHits = []; this.tocOpen = false; this.scanning = false;
+    const tocPanel = document.getElementById('readerToc');
+    if(tocPanel) tocPanel.style.display='none';
+    const saved = this.meta()[name];
+    this.page = (saved && saved.page>=1 && saved.page<=this.total) ? saved.page : 1;
+    this.saveMeta(name, this.page, this.total, cached);
+    document.getElementById('readerIntro').style.display='none';
+    document.getElementById('readerStage').style.display='block';
+    setText('readerTitle', name.replace(/\.pdf$/i,''));
+    setText('readerPageTotal', '/ '+this.total);
+    await this.render();
+    this.buildOutline();
   },
 
   async render(){
@@ -3880,11 +3974,19 @@ const Reader = {
       const pg = await this.pdf.getPage(this.page);
       const canvas = document.getElementById('readerCanvas');
       const ctx = canvas.getContext('2d');
-      // fit width to the wrap, then apply zoom scale
       const wrap = document.getElementById('readerCanvasWrap');
       const baseViewport = pg.getViewport({scale:1});
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || this._fsFallback);
+      // fit to available width, then apply zoom
       const avail = Math.max(280, (wrap.clientWidth||340) - 24);
-      const fitScale = (avail / baseViewport.width) * this.scale;
+      let fitScale = (avail / baseViewport.width) * this.scale;
+      // in fullscreen, also cap by available height so the page isn't taller
+      // than the screen (portrait pages should fit fully without scrolling)
+      if(isFs){
+        const availH = Math.max(320, (wrap.clientHeight||window.innerHeight) - 16);
+        const heightScale = (availH / baseViewport.height) * this.scale;
+        fitScale = Math.min(fitScale, heightScale);
+      }
       const dpr = Math.min(window.devicePixelRatio||1, 2);
       const viewport = pg.getViewport({scale:fitScale});
       canvas.width = Math.floor(viewport.width*dpr);
@@ -4084,19 +4186,40 @@ const Reader = {
     const items = Object.entries(m)
       .sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
     if(!items.length){ el.innerHTML=''; return; }
-    el.innerHTML = `<div class="faint" style="font-size:12px;margin-bottom:8px;">Recently opened — tap to reopen (you'll re-select the file)</div>` +
-      items.map(([name,info])=>`
-        <div class="reader-recent-item" onclick="document.getElementById('readerFile').click()">
+    el.innerHTML = `<div class="faint" style="font-size:12px;margin-bottom:8px;">Your books — tap to open</div>` +
+      items.map(([name,info])=>{
+        const cached = !!info.cached;
+        const safe = name.replace(/'/g,"\\'");
+        const action = cached
+          ? `Reader.openCached('${escapeHTML(safe)}')`
+          : `document.getElementById('readerFile').click()`;
+        return `
+        <div class="reader-recent-item" onclick="${action}">
           <svg class="rr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5M14 3l5 5v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
-          <div class="rr-name">${escapeHTML(name.replace(/\.pdf$/i,''))}</div>
+          <div class="rr-name">${escapeHTML(name.replace(/\.pdf$/i,''))}${cached?'':' <span class="faint" style="font-size:10px;">· tap to re-add</span>'}</div>
           <div class="rr-page">p.${info.page||1}${info.total?' / '+info.total:''}</div>
-        </div>`).join('') +
-      `<button class="tp-save" style="margin-top:4px;" onclick="Reader.clearRecent()">Clear list</button>`;
+          <button class="rr-del" onclick="event.stopPropagation();Reader.removeBook('${escapeHTML(safe)}')" title="Remove">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>`;
+      }).join('') +
+      `<button class="tp-save" style="margin-top:4px;" onclick="Reader.clearRecent()">Clear all books</button>`;
   },
-  clearRecent(){
+  async removeBook(name){
+    const m = this.meta();
+    delete m[name];
+    localStorage.setItem(this.META_KEY, JSON.stringify(m));
+    await this.dbDelete(name);
+    this.renderRecent();
+    toast('Removed');
+  },
+  async clearRecent(){
+    if(!confirm('Remove all saved books from the reader?')) return;
+    const m = this.meta();
+    for(const name of Object.keys(m)){ await this.dbDelete(name); }
     localStorage.removeItem(this.META_KEY);
     this.renderRecent();
-    toast('Reading list cleared');
+    toast('All books removed');
   }
 };
 
