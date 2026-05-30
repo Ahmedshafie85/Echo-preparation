@@ -427,7 +427,7 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 /* ---------- PDF reader ---------- */
 .reader-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .reader-title{flex:1;min-width:0;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.reader-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.reader-nav{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;}
 .reader-nav .btn{padding:9px 14px;}
 .reader-pagebox{display:flex;align-items:center;gap:6px;}
 .reader-pagebox input{
@@ -512,25 +512,58 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .src-mini{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:7px;padding:3px 9px;cursor:pointer;}
 .src-mini:hover{background:var(--accent);color:#04211d;}
 
-/* Reader fullscreen — fill the entire screen */
+/* Reader fullscreen — cover the ENTIRE screen: hide the toolbar, page
+   indicator, contents panel and progress bar, leaving only the page and a
+   floating ✕ to exit. Applies to both native fullscreen and the iOS CSS
+   overlay fallback. */
 #readerStage:fullscreen,
-#readerStage:-webkit-full-screen{
-  width:100vw;height:100vh;max-width:none;
-  background:var(--bg);padding:10px;margin:0;overflow:hidden;
-  display:flex;flex-direction:column;box-sizing:border-box;
-}
-#readerStage:fullscreen .reader-canvas-wrap,
-#readerStage:-webkit-full-screen .reader-canvas-wrap{
-  max-height:none;flex:1 1 auto;min-height:0;
-}
+#readerStage:-webkit-full-screen,
 #readerStage.reader-fs-fallback{
-  position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;
-  background:var(--bg);padding:10px;margin:0;overflow:hidden;
+  width:100vw;height:100vh;max-width:none;
+  background:var(--bg);padding:0;margin:0;overflow:hidden;
   display:flex;flex-direction:column;box-sizing:border-box;
 }
-#readerStage.reader-fs-fallback .reader-canvas-wrap{
-  max-height:none;flex:1 1 auto;min-height:0;
+/* Hide every piece of reader chrome while fullscreen */
+#readerStage:fullscreen .reader-bar,
+#readerStage:-webkit-full-screen .reader-bar,
+#readerStage.reader-fs-fallback .reader-bar,
+#readerStage:fullscreen .reader-nav,
+#readerStage:-webkit-full-screen .reader-nav,
+#readerStage.reader-fs-fallback .reader-nav,
+#readerStage:fullscreen .reader-toc,
+#readerStage:-webkit-full-screen .reader-toc,
+#readerStage.reader-fs-fallback .reader-toc,
+#readerStage:fullscreen .reader-progress,
+#readerStage:-webkit-full-screen .reader-progress,
+#readerStage.reader-fs-fallback .reader-progress{
+  display:none !important;
 }
+/* Page fills the whole screen, edge to edge */
+#readerStage:fullscreen .reader-canvas-wrap,
+#readerStage:-webkit-full-screen .reader-canvas-wrap,
+#readerStage.reader-fs-fallback .reader-canvas-wrap{
+  max-height:none;flex:1 1 auto;min-height:0;height:100%;
+  border:0;border-radius:0;padding:0;background:var(--bg);
+  align-items:flex-start;
+}
+#readerStage.reader-fs-fallback{ position:fixed;inset:0;z-index:9999; }
+
+/* Floating exit (✕) — hidden normally, shown only in fullscreen */
+.reader-fs-exit{
+  display:none;position:fixed;top:max(14px,env(safe-area-inset-top));
+  right:max(14px,env(safe-area-inset-right));z-index:10000;
+  width:42px;height:42px;border-radius:50%;
+  align-items:center;justify-content:center;
+  background:rgba(20,20,24,.62);color:#fff;border:1px solid rgba(255,255,255,.22);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  cursor:pointer;box-shadow:0 4px 14px -4px rgba(0,0,0,.5);
+  transition:.15s var(--ease);padding:0;
+}
+.reader-fs-exit svg{width:20px;height:20px;}
+.reader-fs-exit:hover{background:rgba(20,20,24,.82);transform:scale(1.05);}
+#readerStage:fullscreen .reader-fs-exit,
+#readerStage:-webkit-full-screen .reader-fs-exit,
+#readerStage.reader-fs-fallback .reader-fs-exit{ display:flex; }
 
 /* ---------- Guidelines cards ---------- */
 .gl-card{
@@ -974,6 +1007,10 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 
       <!-- Active reader -->
       <div id="readerStage" style="display:none;">
+        <!-- Floating exit button — only visible in fullscreen -->
+        <button id="readerFsExit" class="reader-fs-exit" onclick="Reader.toggleFullscreen()" title="Exit fullscreen" aria-label="Exit fullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
         <div class="reader-bar">
           <button class="icon-btn" onclick="Reader.close()" title="Back to library">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -981,12 +1018,6 @@ input,select,textarea{font-family:inherit;font-size:14px;}
           <div class="reader-title" id="readerTitle">—</div>
           <button class="icon-btn" id="readerTocBtn" onclick="Reader.toggleToc()" title="Contents & jump">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-          </button>
-          <button class="icon-btn" onclick="Reader.zoom(-1)" title="Zoom out">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg>
-          </button>
-          <button class="icon-btn" onclick="Reader.zoom(1)" title="Zoom in">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
           </button>
           <button class="icon-btn" id="readerFsBtn" onclick="Reader.toggleFullscreen()" title="Fullscreen">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -1003,12 +1034,10 @@ input,select,textarea{font-family:inherit;font-size:14px;}
           <div id="readerTocBody"><!-- chapters + answer sections --></div>
         </div>
         <div class="reader-nav">
-          <button class="btn btn-ghost" onclick="Reader.go(-1)">‹ Prev</button>
           <div class="reader-pagebox">
-            <input id="readerPageInput" type="number" min="1" value="1" onchange="Reader.jump(this.value)">
+            <input id="readerPageInput" type="number" min="1" value="1" onchange="Reader.jump(this.value)" title="Page — type to jump">
             <span class="faint" id="readerPageTotal">/ —</span>
           </div>
-          <button class="btn btn-ghost" onclick="Reader.go(1)">Next ›</button>
         </div>
         <div class="reader-canvas-wrap" id="readerCanvasWrap">
           <canvas id="readerCanvas"></canvas>
