@@ -4931,7 +4931,7 @@ const VideoView = {
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='vtab-'+name));
     document.querySelectorAll('.tabs button[data-vtab]').forEach(b=>b.classList.toggle('active', b.dataset.vtab===name));
     if(name==='guidelines' && window.Guidelines) Guidelines.render();
-    if(name==='read' && window.Reader) Reader.renderRecent();
+    if(name==='read' && window.Reader){ Reader.renderRecent(); Reader.resumeLast(); }
   }
 };
 
@@ -4961,6 +4961,33 @@ const Reader = {
     m[name] = { page, total, ts:Date.now(),
                 cached: (cached!==undefined ? cached : prev.cached) || false };
     localStorage.setItem(this.META_KEY, JSON.stringify(m));
+  },
+
+  LAST_KEY:'ep_reader_last',
+  /* Remember which cached book to auto-reopen next time the Read tab is shown. */
+  rememberLast(name){ try{ localStorage.setItem(this.LAST_KEY, name); }catch(e){} },
+  forgetLast(){ try{ localStorage.removeItem(this.LAST_KEY); }catch(e){} },
+
+  /* Auto-reopen the most recent cached book to its saved page — no tap.
+     Called when the Read tab opens. Silent no-op if nothing is resumable
+     or a book is already on screen. */
+  async resumeLast(){
+    if(this.pdf) return;                         // already reading
+    if(this._resumeTried) return;                // only auto-resume once per session
+    this._resumeTried = true;
+    if(!this.ready()){
+      // pdf.js not loaded yet — retry once it signals ready
+      window.addEventListener('pdfjs-ready', ()=>{ this._resumeTried=false; this.resumeLast(); }, {once:true});
+      return;
+    }
+    let name = '';
+    try{ name = localStorage.getItem(this.LAST_KEY) || ''; }catch(e){}
+    const info = name ? this.meta()[name] : null;
+    if(!name || !info || !info.cached) return;   // nothing safely resumable
+    const buf = await this.dbGet(name);
+    if(!buf) return;                             // bytes gone (storage cleared)
+    try{ await this._loadBuffer(buf, name, true); }
+    catch(e){ console.warn('resumeLast:', e); }
   },
 
   /* ---- IndexedDB: store PDF bytes so books reopen with one click ----
@@ -5068,6 +5095,7 @@ const Reader = {
     const saved = this.meta()[name];
     this.page = (saved && saved.page>=1 && saved.page<=this.total) ? saved.page : 1;
     this.saveMeta(name, this.page, this.total, cached);
+    if(cached) this.rememberLast(name);
     document.getElementById('readerIntro').style.display='none';
     document.getElementById('readerStage').style.display='block';
     this._initGestures();
@@ -5268,6 +5296,8 @@ const Reader = {
     document.body.style.overflow='';
     document.getElementById('readerStage').style.display='none';
     document.getElementById('readerIntro').style.display='block';
+    // user chose to leave the book → don't auto-reopen it this session
+    this.pdf = null; this._resumeTried = true; this.forgetLast();
     this.renderRecent();
   },
 
@@ -5428,6 +5458,7 @@ const Reader = {
     delete m[name];
     localStorage.setItem(this.META_KEY, JSON.stringify(m));
     await this.dbDelete(name);
+    try{ if(localStorage.getItem(this.LAST_KEY)===name) this.forgetLast(); }catch(e){}
     this.renderRecent();
     toast('Removed');
   },
@@ -5436,6 +5467,7 @@ const Reader = {
     const m = this.meta();
     for(const name of Object.keys(m)){ await this.dbDelete(name); }
     localStorage.removeItem(this.META_KEY);
+    this.forgetLast();
     this.renderRecent();
     toast('All books removed');
   }
