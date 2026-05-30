@@ -439,6 +439,8 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-sm);
   overflow:auto;max-height:74vh;display:flex;justify-content:center;padding:8px;
   -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;            /* let JS handle horizontal swipes; keep native vertical scroll */
+  position:relative;
 }
 #readerCanvas{max-width:100%;height:auto;box-shadow:var(--shadow-md);border-radius:4px;background:#fff;}
 .reader-progress{margin-top:10px;}
@@ -3017,7 +3019,13 @@ const App = {
     if(window.Reader) Reader.renderRecent();
     // keep the reader page sized correctly when entering/exiting fullscreen
     ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>
-      document.addEventListener(ev, ()=>{ if(window.Reader && Reader.pdf){ setTimeout(()=>Reader.render(),60); } }));
+      document.addEventListener(ev, ()=>{
+        if(window.Reader && Reader.pdf){
+          const stillFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+          if(typeof Reader._setFsIcon==='function') Reader._setFsIcon(stillFs);
+          setTimeout(()=>Reader.render(),60);
+        }
+      }));
     Bank.render();
     Expert.render();
     Today.render();
@@ -3845,13 +3853,48 @@ function mcqSelfConsistent(q){
 /* ---- shuffle a question's options, keeping `answer` correct --
    Returns a NEW question object; the original is untouched so the
    verified bank itself is never mutated. */
+/* Shuffle the options so the correct answer isn't always in the same
+   slot (the authored bank skews heavily to one index). Two things must
+   stay in sync with the new order:
+     1. the answer index  — remapped below, and
+     2. any "Option A/B/C…" references inside the explanation text, which
+        otherwise point at whatever option happens to land in that slot
+        after the shuffle (the source of the "verdict says D, prose argues
+        A" bug). We rewrite those letters to follow each option to its new
+        position. */
 function shuffleOptions(q){
   const idx = q.options.map((_,i)=>i).sort(()=>Math.random()-0.5);
-  return {
+  // oldPos -> newPos : original option i now sits at position idx.indexOf(i)
+  const oldToNew = q.options.map((_,i)=> idx.indexOf(i));
+  const out = {
     ...q,
     options: idx.map(i=>q.options[i]),
     answer:  idx.indexOf(q.answer)
   };
+  if(typeof out.explanation === 'string' && out.explanation){
+    out.explanation = remapOptionLetters(out.explanation, oldToNew);
+  }
+  return out;
+}
+
+/* Rewrite "Option A", "answer B", "choice (C)" etc. in a block of text so
+   each letter follows its option to the post-shuffle slot. Uses a single
+   pass with placeholders so remaps can't chain (A→C then C→A). Letters are
+   1:1 (a permutation), so every reference maps cleanly. */
+function remapOptionLetters(text, oldToNew){
+  const L = ['A','B','C','D','E','F','G','H'];
+  // match an option/answer/choice keyword followed by an optional
+  // bracket and a single A–H letter (word-boundary so "Answerable" etc.
+  // is never touched).
+  const re = /\b(option|answer|choice|statement)(\s*)(\(?)([A-H])(\)?)(?=\b|[.,;:)"])/gi;
+  return text.replace(re, (m, kw, sp, ob, letter, cb) => {
+    const oldPos = L.indexOf(letter.toUpperCase());
+    if(oldPos < 0 || oldPos >= oldToNew.length) return m;       // out of range → leave as-is
+    let newLetter = L[oldToNew[oldPos]] || letter;
+    // preserve original case of the single letter
+    if(letter === letter.toLowerCase()) newLetter = newLetter.toLowerCase();
+    return `${kw}${sp}${ob}${newLetter}${cb}`;
+  });
 }
 function buildMcqPrompt(domain, topics, style, count, diff){
   const styleNote = {
@@ -5027,6 +5070,7 @@ const Reader = {
     this.saveMeta(name, this.page, this.total, cached);
     document.getElementById('readerIntro').style.display='none';
     document.getElementById('readerStage').style.display='block';
+    this._initGestures();
     setText('readerTitle', name.replace(/\.pdf$/i,''));
     setText('readerPageTotal', '/ '+this.total);
     await this.render();
@@ -5093,28 +5137,135 @@ const Reader = {
     this.scale = Math.min(3, Math.max(0.6, this.scale + dir*0.15));
     this.render();
   },
-  /* Fullscreen the reader stage using the Fullscreen API. Re-renders
-     the page after the viewport changes so it fits the new width. */
+  /* ---- Swipe to turn pages -------------------------------------
+     Bound once to the canvas wrap. A mostly-horizontal swipe past a
+     threshold turns the page: left → next, right → previous. Guards:
+     ignore multi-touch (pinch-zoom), ignore when the gesture is more
+     vertical than horizontal, and ignore tiny moves. Works both in the
+     normal stage and in fullscreen. */
+  _initGestures(){
+    if(this._gesturesBound) return;
+    const wrap = document.getElementById('readerCanvasWrap');
+    if(!wrap) return;
+    this._gesturesBound = true;
+
+    let startX=0, startY=0, startT=0, tracking=false, multi=false;
+
+    wrap.addEventListener('touchstart', (e)=>{
+      if(e.touches.length>1){ multi=true; tracking=false; return; }  // pinch → not a swipe
+      multi=false; tracking=true;
+      startX=e.touches[0].clientX; startY=e.touches[0].clientY; startT=Date.now();
+    }, {passive:true});
+
+    wrap.addEventListener('touchend', (e)=>{
+      if(multi || !tracking){ tracking=false; return; }
+      tracking=false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      const dt = Date.now() - startT;
+      const absX = Math.abs(dx), absY = Math.abs(dy);
+      // must be a deliberate, mostly-horizontal flick
+      if(absX < 55) return;                 // too short
+      if(absX < absY * 1.6) return;         // too vertical (e.g. scrolling a zoomed page)
+      if(dt > 800) return;                  // too slow / a drag, not a swipe
+      if(dx < 0) this.go(1);                // swipe left → next page
+      else       this.go(-1);               // swipe right → previous page
+    }, {passive:true});
+
+    // Trackpad / mouse-wheel horizontal swipe (desktop), debounced.
+    wrap.addEventListener('wheel', (e)=>{
+      if(Math.abs(e.deltaX) < 40 || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      const now = Date.now();
+      if(this._lastWheel && now - this._lastWheel < 600) return;
+      this._lastWheel = now;
+      if(e.deltaX > 0) this.go(1); else this.go(-1);
+    }, {passive:true});
+
+    // Keyboard arrows when the reader is on screen.
+    document.addEventListener('keydown', (e)=>{
+      const stage = document.getElementById('readerStage');
+      if(!stage || stage.style.display==='none') return;
+      if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if(e.key==='ArrowRight'){ this.go(1); }
+      else if(e.key==='ArrowLeft'){ this.go(-1); }
+    });
+  },
+
+  /* Fullscreen the reader stage. The native Fullscreen API only works on
+     a handful of elements on iOS Safari (effectively just <video>), so on
+     touch devices we go straight to the CSS overlay fallback, which fills
+     the viewport reliably. Desktop uses the real Fullscreen API. */
   toggleFullscreen(){
     const stage = document.getElementById('readerStage');
     if(!stage) return;
-    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    const isTouch = ('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints||0) > 0;
+    const nativeSupported = !!(stage.requestFullscreen || stage.webkitRequestFullscreen);
+    const inFallback = !!this._fsFallback;
+    const inNative   = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
     try{
-      if(!fsEl){
-        const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
-        if(req) req.call(stage);
-        else { stage.classList.add('reader-fs-fallback'); this._fsFallback=true; setTimeout(()=>this.render(),60); }
-      }else{
+      // currently fullscreen → exit
+      if(inFallback){
+        stage.classList.remove('reader-fs-fallback');
+        this._fsFallback=false;
+        document.body.style.overflow='';
+        this._setFsIcon(false);
+        setTimeout(()=>this.render(),60);
+        return;
+      }
+      if(inNative){
         const exit = document.exitFullscreen || document.webkitExitFullscreen;
         if(exit) exit.call(document);
-        if(this._fsFallback){ stage.classList.remove('reader-fs-fallback'); this._fsFallback=false; setTimeout(()=>this.render(),60); }
+        this._setFsIcon(false);
+        return;
       }
-    }catch(e){ console.warn('fullscreen:', e); }
+      // not fullscreen → enter
+      if(isTouch || !nativeSupported){
+        stage.classList.add('reader-fs-fallback');
+        this._fsFallback=true;
+        document.body.style.overflow='hidden';
+        this._setFsIcon(true);
+        this._swipeHint();
+        setTimeout(()=>this.render(),60);
+      }else{
+        const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+        req.call(stage);
+        this._setFsIcon(true);
+        this._swipeHint();
+      }
+    }catch(e){
+      console.warn('fullscreen:', e);
+      stage.classList.add('reader-fs-fallback');
+      this._fsFallback=true;
+      document.body.style.overflow='hidden';
+      this._setFsIcon(true);
+      setTimeout(()=>this.render(),60);
+    }
+  },
+
+  /* Swap the toolbar icon between "expand" and "collapse/exit". */
+  _setFsIcon(isFs){
+    const btn = document.getElementById('readerFsBtn');
+    if(!btn) return;
+    btn.title = isFs ? 'Exit fullscreen' : 'Fullscreen';
+    btn.innerHTML = isFs
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+  },
+
+  /* One-time-per-session toast teaching the swipe gesture. */
+  _swipeHint(){
+    if(this._hintShown) return;
+    this._hintShown = true;
+    toast('Swipe left/right to turn pages');
   },
   close(){
     if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
     const stage = document.getElementById('readerStage');
     if(stage){ stage.classList.remove('reader-fs-fallback'); this._fsFallback=false; }
+    document.body.style.overflow='';
     document.getElementById('readerStage').style.display='none';
     document.getElementById('readerIntro').style.display='block';
     this.renderRecent();
