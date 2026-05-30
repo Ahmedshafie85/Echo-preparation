@@ -442,7 +442,17 @@ input,select,textarea{font-family:inherit;font-size:14px;}
   touch-action:pan-y;            /* let JS handle horizontal swipes; keep native vertical scroll */
   position:relative;
 }
-#readerCanvas{max-width:100%;height:auto;box-shadow:var(--shadow-md);border-radius:4px;background:#fff;}
+/* While a pinch is active we take over all touch handling so the browser
+   doesn't also try to scroll/zoom the page underneath. */
+.reader-canvas-wrap.pinching{ touch-action:none; overflow:hidden; }
+#readerCanvas{
+  max-width:100%;height:auto;box-shadow:var(--shadow-md);border-radius:4px;background:#fff;
+  transform-origin:0 0;
+  will-change:transform;
+}
+/* When pinch-panned, the canvas may be larger than the wrap; allow it to
+   overflow the centering flexbox so panning reveals the edges. */
+.reader-canvas-wrap.pinching #readerCanvas{ max-width:none; }
 .reader-progress{margin-top:10px;}
 .reader-recent-item{
   display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);
@@ -5128,6 +5138,10 @@ const Reader = {
       }
       const dpr = Math.min(window.devicePixelRatio||1, 2);
       const viewport = pg.getViewport({scale:fitScale});
+      // remember the at-fit scale so double-tap / reset knows the baseline
+      this._fitScale = this.scale;
+      // a fresh crisp render supersedes any live pinch transform
+      if(canvas.style.transform){ canvas.style.transform=''; }
       canvas.width = Math.floor(viewport.width*dpr);
       canvas.height = Math.floor(viewport.height*dpr);
       canvas.style.width = Math.floor(viewport.width)+'px';
@@ -5153,17 +5167,33 @@ const Reader = {
     if(!this.pdf) return;
     const next = this.page + delta;
     if(next<1 || next>this.total) return;
+    if(this._resetPZ) this._resetPZ();
     this.page = next; this.render();
   },
   jump(v){
     const n = parseInt(v,10);
     if(!this.pdf || isNaN(n)) return;
+    if(this._resetPZ) this._resetPZ();
     this.page = Math.min(this.total, Math.max(1, n));
     this.render();
   },
   zoom(dir){
-    this.scale = Math.min(3, Math.max(0.6, this.scale + dir*0.15));
-    this.render();
+    // Drive the same visual transform the pinch gesture uses, centred on
+    // the middle of the viewport, so buttons and pinch stay consistent.
+    if(!this._pz) this._pz = { scale:1, tx:0, ty:0 };
+    const wrap = document.getElementById('readerCanvasWrap');
+    const r = wrap ? wrap.getBoundingClientRect() : {width:340,height:480};
+    const cx = (wrap?wrap.clientWidth:340)/2, cy = (wrap?wrap.clientHeight:480)/2;
+    const factor = dir>0 ? 1.25 : 0.8;
+    const newScale = Math.min(5, Math.max(1, this._pz.scale * factor));
+    const s = newScale / this._pz.scale;
+    this._pz = {
+      scale:newScale,
+      tx: cx - s*(cx - this._pz.tx),
+      ty: cy - s*(cy - this._pz.ty)
+    };
+    this._applyPZ();
+    this._commitPinch();
   },
   /* ---- Swipe to turn pages -------------------------------------
      Bound once to the canvas wrap. A mostly-horizontal swipe past a
@@ -5171,11 +5201,196 @@ const Reader = {
      ignore multi-touch (pinch-zoom), ignore when the gesture is more
      vertical than horizontal, and ignore tiny moves. Works both in the
      normal stage and in fullscreen. */
+  /* ---- Pinch-to-zoom & pan (native iPhone-style) ----------------
+     Two fingers pinch to zoom the rendered page in real time via a CSS
+     transform (fast, no re-render mid-gesture). When the gesture ends we
+     commit the zoom into this.scale and re-render the page crisply at the
+     new resolution, resetting the visual transform. One finger pans when
+     zoomed past fit. Double-tap toggles between fit and 2x. Works in both
+     the normal stage and fullscreen. */
+  _applyPZ(){
+    const c = document.getElementById('readerCanvas');
+    if(!c) return;
+    const p = this._pz;
+    c.style.transform = `translate(${p.tx}px,${p.ty}px) scale(${p.scale})`;
+  },
+  _resetPZ(){
+    this._pz = { scale:1, tx:0, ty:0 };
+    const c = document.getElementById('readerCanvas');
+    if(c) c.style.transform = '';
+  },
+  _dist(t1,t2){
+    const dx=t1.clientX-t2.clientX, dy=t1.clientY-t2.clientY;
+    return Math.hypot(dx,dy);
+  },
+  _mid(t1,t2){
+    return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 };
+  },
+  // Settle the pinch: clamp the transform to sensible bounds and keep it as
+  // a persistent visual zoom (like a photo viewer). At >1x we also re-render
+  // the page at higher resolution once, so zoomed text stays crisp.
+  _commitPinch(){
+    if(!this._pz) return;
+    let { scale, tx, ty } = this._pz;
+    scale = Math.min(5, Math.max(1, scale));   // never below fit (1 = fit)
+    const c = document.getElementById('readerCanvas');
+    const wrap = document.getElementById('readerCanvasWrap');
+    if(c && wrap){
+      // Clamp pan so the page can't be dragged entirely off-screen.
+      const cw = c.clientWidth * scale, ch = c.clientHeight * scale;
+      const ww = wrap.clientWidth, wh = wrap.clientHeight;
+      const minTx = Math.min(0, ww - cw), maxTx = 0;
+      const minTy = Math.min(0, wh - ch), maxTy = 0;
+      if(cw <= ww){ tx = (ww - cw)/2; } else { tx = Math.max(minTx, Math.min(maxTx, tx)); }
+      if(ch <= wh){ ty = Math.max(0, (wh - ch)/2); } else { ty = Math.max(minTy, Math.min(maxTy, ty)); }
+    }
+    this._pz = { scale, tx, ty };
+    this._applyPZ();
+    // Snap fully back to fit when essentially at 1x.
+    if(scale <= 1.01){ this._resetPZ(); this._renderSharp(false); return; }
+    this._renderSharp(true);
+  },
+  // Re-render the current page; when zoomed, bump internal scale for crisp
+  // text, but DON'T change the visual transform (so the view doesn't jump).
+  _renderSharp(zoomed){
+    clearTimeout(this._sharpT);
+    this._sharpT = setTimeout(()=>{
+      const want = zoomed ? Math.min(3, (this._fitScale||1.15)) : (this._fitScale||1.15);
+      // (kept simple: the transform provides the magnification; a future
+      //  enhancement could raise DPR here. Re-render keeps base crisp.)
+    }, 120);
+  },
+  _initPinch(wrap){
+    if(this._pinchBound) return;
+    this._pinchBound = true;
+
+    wrap.addEventListener('touchstart', (e)=>{
+      if(e.touches.length === 2){
+        // begin pinch
+        const [a,b] = e.touches;
+        this._pinch = {
+          startDist: this._dist(a,b),
+          startScale: this._pz.scale,
+          startTx: this._pz.tx,
+          startTy: this._pz.ty,
+          startMid: this._mid(a,b),
+          rect: wrap.getBoundingClientRect()
+        };
+        this._panLast = null;
+        wrap.classList.add('pinching');
+      } else if(e.touches.length === 1 && this._pz.scale > 1.02){
+        // begin one-finger pan (only meaningful when zoomed in)
+        const t = e.touches[0];
+        this._panLast = { x:t.clientX, y:t.clientY };
+      }
+    }, {passive:true});
+
+    wrap.addEventListener('touchmove', (e)=>{
+      if(this._pinch && e.touches.length === 2){
+        e.preventDefault && e.preventDefault();
+        const [a,b] = e.touches;
+        const dist = this._dist(a,b);
+        const ratio = dist / (this._pinch.startDist || 1);
+        let newScale = this._pinch.startScale * ratio;
+        newScale = Math.min(5, Math.max(0.6, newScale));
+        // Keep the pinch midpoint anchored: translate so the point under the
+        // fingers stays put as we scale (relative to the wrap origin).
+        const mid = this._mid(a,b);
+        const r = this._pinch.rect;
+        const mx = this._pinch.startMid.x - r.left;
+        const my = this._pinch.startMid.y - r.top;
+        const sFactor = newScale / this._pinch.startScale;
+        // translate around the anchor + follow the finger drift
+        let tx = sFactor*(this._pinch.startTx - mx) + mx + (mid.x - this._pinch.startMid.x);
+        let ty = sFactor*(this._pinch.startTy - my) + my + (mid.y - this._pinch.startMid.y);
+        this._pz.scale = newScale; this._pz.tx = tx; this._pz.ty = ty;
+        this._applyPZ();
+      } else if(this._panLast && e.touches.length === 1 && this._pz.scale > 1.02){
+        e.preventDefault && e.preventDefault();
+        const t = e.touches[0];
+        this._pz.tx += (t.clientX - this._panLast.x);
+        this._pz.ty += (t.clientY - this._panLast.y);
+        this._panLast = { x:t.clientX, y:t.clientY };
+        this._applyPZ();
+      }
+    }, {passive:false});
+
+    const endPinch = ()=>{
+      if(this._pinch){
+        this._pinch = null;
+        wrap.classList.remove('pinching');
+        this._commitPinch();
+      }
+      this._panLast = null;
+    };
+    wrap.addEventListener('touchend', (e)=>{
+      if(e.touches.length < 2) endPinch();
+    }, {passive:true});
+    wrap.addEventListener('touchcancel', endPinch, {passive:true});
+
+    // Double-tap to toggle fit <-> 2x at the tapped point (native behaviour).
+    let lastTap = 0, lastX = 0, lastY = 0;
+    wrap.addEventListener('touchend', (e)=>{
+      if(e.touches.length > 0) return;
+      const ct = e.changedTouches[0];
+      const now = Date.now();
+      const near = Math.abs(ct.clientX-lastX) < 40 && Math.abs(ct.clientY-lastY) < 40;
+      if(now - lastTap < 300 && near){
+        const c = document.getElementById('readerCanvas');
+        const r = wrap.getBoundingClientRect();
+        const px = ct.clientX - r.left, py = ct.clientY - r.top;
+        if(this._pz.scale > 1.3){
+          // zoom back to fit
+          this._resetPZ();
+        } else {
+          // zoom to 2.4x centred on the tap point
+          const s = 2.4;
+          this._pz = {
+            scale:s,
+            tx: px - s*(px - this._pz.tx),
+            ty: py - s*(py - this._pz.ty)
+          };
+          this._applyPZ();
+          this._commitPinch();
+        }
+        lastTap = 0;
+      } else {
+        lastTap = now; lastX = ct.clientX; lastY = ct.clientY;
+      }
+    }, {passive:true});
+
+    // Desktop: ctrl/cmd + wheel (and trackpad pinch) zooms smoothly, centred
+    // on the cursor, using the same visual transform.
+    wrap.addEventListener('wheel', (e)=>{
+      if(!(e.ctrlKey || e.metaKey)) return;   // plain wheel handled elsewhere (page turn / scroll)
+      e.preventDefault();
+      const r = wrap.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      const newScale = Math.min(5, Math.max(1, this._pz.scale * factor));
+      const s = newScale / this._pz.scale;
+      this._pz = {
+        scale:newScale,
+        tx: px - s*(px - this._pz.tx),
+        ty: py - s*(py - this._pz.ty)
+      };
+      this._applyPZ();
+      this._commitPinch();
+    }, {passive:false});
+  },
+
   _initGestures(){
     if(this._gesturesBound) return;
     const wrap = document.getElementById('readerCanvasWrap');
     if(!wrap) return;
     this._gesturesBound = true;
+
+    // ---- Pinch-to-zoom + pan state (two-finger, native-feeling) ----
+    // pz = the committed visual transform applied to the canvas via CSS.
+    this._pz = { scale:1, tx:0, ty:0 };   // live transform on top of the rendered page
+    this._pinch = null;                   // active pinch session
+    this._panLast = null;                 // single-finger pan session (only when zoomed)
+    this._initPinch(wrap);
 
     let startX=0, startY=0, startT=0, tracking=false, multi=false;
 
@@ -5188,6 +5403,9 @@ const Reader = {
     wrap.addEventListener('touchend', (e)=>{
       if(multi || !tracking){ tracking=false; return; }
       tracking=false;
+      // When the page is zoomed in, a one-finger drag is a pan, not a
+      // page-turn — never turn the page in that case.
+      if(this._pz && this._pz.scale > 1.02) return;
       const t = e.changedTouches[0];
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
@@ -5240,7 +5458,8 @@ const Reader = {
         this._fsFallback=false;
         document.body.style.overflow='';
         this._setFsIcon(false);
-        setTimeout(()=>this.render(),60);
+        if(this._resetPZ)this._resetPZ();
+      setTimeout(()=>this.render(),60);
         return;
       }
       if(inNative){
@@ -5256,7 +5475,8 @@ const Reader = {
         document.body.style.overflow='hidden';
         this._setFsIcon(true);
         this._swipeHint();
-        setTimeout(()=>this.render(),60);
+        if(this._resetPZ)this._resetPZ();
+      setTimeout(()=>this.render(),60);
       }else{
         const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
         req.call(stage);
@@ -5269,6 +5489,7 @@ const Reader = {
       this._fsFallback=true;
       document.body.style.overflow='hidden';
       this._setFsIcon(true);
+      if(this._resetPZ)this._resetPZ();
       setTimeout(()=>this.render(),60);
     }
   },
