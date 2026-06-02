@@ -879,6 +879,23 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         <span id="topicBtnLabel">Show today’s topic</span>
       </button>
     </div>
+
+    <!-- ASK AN EXPERT -->
+    <div class="section-title" style="margin-top:6px;">
+      <h2 style="font-size:17px;">Ask an expert</h2>
+      <span class="grow"></span>
+      <span class="badge-ai" title="Answered by the configured AI (Gemini / Claude) under a consultant-cardiologist system prompt — verify against the primary guideline before clinical use.">⚡ Consultant-level AI</span>
+    </div>
+    <div class="card" id="askExpertCard" style="margin-bottom:14px;">
+      <div class="field">
+        <textarea id="askExpertInput" rows="3" placeholder="" style="width:100%;resize:vertical;font-family:inherit;font-size:14px;padding:12px;border-radius:12px;border:1px solid var(--line,rgba(0,0,0,.12));background:var(--bg-elev,transparent);color:inherit;line-height:1.5;"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" id="askExpertBtn" style="margin-top:10px;" onclick="Ask.send()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Ask the expert
+      </button>
+      <div id="askExpertThread" style="margin-top:16px;"></div>
+    </div>
   </section>
 
   <!-- ===================== MCQ ENGINE ===================== -->
@@ -888,24 +905,18 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     <div class="card" id="mcqSetup">
       <div class="card-head"><h3>New question set</h3></div>
       <div class="field">
-        <label>Question source</label>
-        <select id="mcqSource">
-          <option value="verified">Verified bank (clinician-checked)</option>
-        </select>
-        <p class="faint" style="font-size:11.5px;margin-top:6px;line-height:1.5;">
-          Drawn from a bank of 1,800+ board-style questions (3 imported echo question banks plus the clinician-checked set), scoped by domain. Read your textbooks in the Learn → Read tab to go broader.
-        </p>
-      </div>
-      <div class="field">
         <label>Domain</label>
         <select id="mcqDomain"></select>
       </div>
       <div class="field">
-        <label>Source</label>
+        <label>Question source</label>
         <select id="mcqSource">
           <option value="bank">Verified bank (clinician-checked + 3 imported banks)</option>
           <option value="ai">AI-generated — mimics the bank style &amp; difficulty (Gemini / Claude)</option>
         </select>
+        <p class="faint" style="font-size:11.5px;margin-top:6px;line-height:1.5;">
+          Bank questions are drawn from 1,800+ board-style items, scoped by domain. AI-generated questions need a Gemini or Anthropic key in Settings, and are cross-checked by a second AI pass before being shown.
+        </p>
       </div>
       <div class="split">
         <div class="field">
@@ -3110,6 +3121,7 @@ const App = {
       if(settingsNav) settingsNav.classList.add('active');
     }
     if(view==='review' && window.Review) Review.render();
+    if(view==='expert' && window.Ask) Ask.render();
     if(window.SRS) SRS.refreshBadges();
     window.scrollTo({top:0,behavior:'smooth'});
   },
@@ -4101,8 +4113,43 @@ const MCQ = {
      Each question's OPTIONS are also shuffled so the correct answer
      does not sit in a predictable position (the authored bank skews
      heavily to one index; this removes that tell). */
+  /* Some imported items were authored against a figure/video that this
+     app does not store or display. The import stripped the figure REFERENCE
+     out of the stem rather than dropping the question, leaving tell-tale
+     gaps ("...apply to ?", "In , which...") or stems that explicitly point
+     at an unseen image. needsFigure() detects these so they can be excluded
+     — an MCQ that can't be answered without a picture is worse than none. */
+  _needsFigure(q){
+    const t = ' ' + (q.q||'').replace(/\s+/g,' ').trim() + ' ';
+    // 1. Stripped-reference gaps: a figure label was deleted, leaving a
+    //    dangling preposition/verb immediately before punctuation or a blank.
+    //    e.g. "...apply to ?"  "In , which..."  "...M-mode in is most likely"
+    if(/\b(in|on|from|of|to|the|this|these|following|shows?|shown in|seen in|demonstrates?)\s+[.,?!:]/i.test(t)) return true;
+    if(/\b(in|on|from)\s+,/i.test(t)) return true;
+    if(/\b(M[- ]?mode|short[- ]axis|long[- ]axis|four[- ]chamber|apical|parasternal|Doppler|tracing|spectral)\s+(?:scan |view |image |recording )?\bin\b\s+(?:is|was|shows|demonstrates|most)/i.test(t)) return true;
+    // 2. Stems that explicitly point at a figure/clip the app never renders.
+    if(/\b(figure|fig\.|panel [a-d]\b)/i.test(t)) return true;
+    if(/\bthe (image|video|clip|tracing|figure|recording|loop|still|panel)\b/i.test(t)) return true;
+    if(/\bthe frame\b(?!\s*rate)/i.test(t)) return true;  // "the frame" (still image) but NOT "the frame rate"
+    if(/\b(this|the following|the above|the accompanying|the displayed|the attached)\s+(echocardiogram|study|image|recording|tracing|loop|view|clip|video|m[- ]?mode)\b/i.test(t)) return true;
+    // 3. Sentence that opens by referring to an obtained/shown study with no data.
+    if(/\bwas obtained\b/i.test(t)) return true;
+    if(/\bin\s+(?:is|are|was|were|shows|demonstrates)\b/i.test(t)) return true; // stripped "in [fig] is/was..."
+    if(/\bin\s+,/i.test(t)) return true;
+    if(/\b(patient|finding|seen|shown|abnormality|view|signal|tracing)\s+in\s+[?.:]/i.test(t)) return true; // "...patient in ?"
+    if(/\b(data|tracings?|measurements?|signals?)\s+in\s+(?:were|was|are|is)\b/i.test(t)) return true;
+    if(/^\s*[–-]\s*[A-G]\b/.test(q.q||'')) return true;   // leading stripped panel range, e.g. "–G shows..."
+    if(/^\s*\(\s*\)/.test(q.q||'')) return true;          // leading stripped figure ref "() is a bicaval view..."
+    if(/^\s*and\b/i.test(q.q||'')) return true;           // leading stripped ref "and were obtained..." / "and demonstrating..."
+    if(/\bpresented in\s+[–-]?\s*[A-G]?\b\s*[?.:]/i.test(t)) return true; // "presented in –D?"
+    // "This <clip> obtained from <site> is indicative/suggestive of:" — points at a tracing, no data in stem.
+    if(/\bthis\s+(continuous[- ]wave|cw|pulsed[- ]wave|pw|color|colour|spectral|transmitral|doppler)?\s*(signal|flow|tracing|recording|waveform|view|image)\b.{0,60}\b(obtained|recorded|shown)\b/i.test(t) && !/\d/.test(q.q||'')) return true;
+    if(/^\s*(this|the)\b.{0,40}\b(shows|demonstrates|reveals|depicts|is (indicative|suggestive|consistent|compatible) (of|with))\b/i.test(q.q||'') && !/\d/.test(q.q||'')) return true;
+    return false;
+  },
+
   fromVerifiedBank(domId, diff, count){
-    let pool = MCQ_POOL.filter(q=> domId==='all' || q.domain===domId);
+    let pool = MCQ_POOL.filter(q=> (domId==='all' || q.domain===domId) && !this._needsFigure(q));
     let scoped = pool.filter(q=> !diff || q.diff===diff);
     if(scoped.length < count) scoped = pool;          // relax difficulty
     const shuffled = scoped.slice().sort(()=>Math.random()-0.5);
@@ -5914,6 +5961,148 @@ Return ONLY valid JSON, no markdown:
    call sites safe (they delegate to Today). */
 const Expert = {
   render(){ if(window.Today) Today.render(); }
+};
+
+/* ---- tiny, SAFE markdown -> HTML for AI answers --------------
+   Input is escaped FIRST (so no raw HTML from the model can run),
+   then a small, deliberate subset of markdown is re-introduced:
+   headings, bold, inline code, and -/* bullet + numbered lists.
+   This keeps consultant-style answers readable without pulling in
+   a full markdown library or risking injection. */
+function expertMarkdown(raw){
+  let s = escapeHTML(String(raw||'').trim());
+  const lines = s.split(/\r?\n/);
+  let html = '', listType = null;
+  const closeList = ()=>{ if(listType){ html += `</${listType}>`; listType = null; } };
+  const inline = (txt)=> txt
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+  for(let ln of lines){
+    const line = ln.replace(/\s+$/,'');
+    if(!line.trim()){ closeList(); continue; }
+    let m;
+    if((m = line.match(/^\s*#{1,4}\s+(.*)$/))){ closeList(); html += `<h4>${inline(m[1])}</h4>`; continue; }
+    if((m = line.match(/^\s*[-*•]\s+(.*)$/))){
+      if(listType!=='ul'){ closeList(); html += '<ul>'; listType='ul'; }
+      html += `<li>${inline(m[1])}</li>`; continue;
+    }
+    if((m = line.match(/^\s*\d+[.)]\s+(.*)$/))){
+      if(listType!=='ol'){ closeList(); html += '<ol>'; listType='ol'; }
+      html += `<li>${inline(m[1])}</li>`; continue;
+    }
+    closeList();
+    html += `<p>${inline(line.trim())}</p>`;
+  }
+  closeList();
+  return html;
+}
+
+/* ============================================================
+   ASK — consultant-level Q&A against the configured AI backend.
+   Reuses AI.complete(), which already prepends STRICT_SYSTEM_PROMPT
+   (expert echo board examiner + consultant cardiologist, anchored
+   to the verified reference values). We layer an answer-style
+   instruction on top and keep a short in-memory thread so follow-up
+   questions have context. Answers are advisory and must be verified
+   against the primary guideline before clinical use.
+   ============================================================ */
+const Ask = {
+  thread: [],   // {role:'user'|'expert', text}
+  busy: false,
+
+  use(btn){
+    const inp = document.getElementById('askExpertInput');
+    if(inp){ inp.value = btn.textContent.trim(); inp.focus(); }
+  },
+
+  _buildPrompt(question){
+    // Keep the last few turns for follow-up context without bloating tokens.
+    const history = this.thread.slice(-6).map(t=>
+      (t.role==='user' ? 'CARDIOLOGIST: ' : 'YOU (consultant): ') + t.text
+    ).join('\n\n');
+    return `Answer the following question as a senior consultant cardiologist and echocardiography expert speaking peer-to-peer with another practising cardiologist. Treat the questioner as a knowledgeable colleague, not a layperson.
+
+STYLE:
+- Lead with the direct, clinically useful answer in the first sentence — no throat-clearing.
+- Full consultant depth: name the specific measurements, cutoffs, views, and the guideline body behind each recommendation.
+- Use the VERIFIED ECHO REFERENCE VALUES from your system instructions for any number; if a value is not on that list and you are not fully confident, give the qualitative direction and name the guideline rather than inventing a figure.
+- Be concise and structured: short paragraphs, and use "- " bullets or numbered steps for algorithms. Use **bold** for the key term in a point. You may use ## for a short section heading when it helps.
+- When a question is clinical, organise around: the answer, the key supporting echo findings/cutoffs, the relevant guideline, and the practical pitfall to avoid.
+- If the question is ambiguous or depends on missing data, state the assumption you are making, then answer — do not refuse.
+- This is educational support for a clinician, not a directive for a specific patient; end clinical answers with a one-line reminder to confirm against the current primary guideline and the individual patient context. Keep that reminder to a single sentence.
+${history ? `\nCONVERSATION SO FAR:\n${history}\n` : ''}
+QUESTION:
+${question}`;
+  },
+
+  render(){
+    const wrap = document.getElementById('askExpertThread');
+    if(!wrap) return;
+    if(!this.thread.length && !this.busy){ wrap.innerHTML=''; return; }
+    const bubbles = this.thread.map(t=>{
+      if(t.role==='user'){
+        return `<div style="margin:0 0 14px;">
+          <div class="eyebrow" style="margin-bottom:5px;">You asked</div>
+          <div class="card" style="background:var(--bg-elev,rgba(0,0,0,.03));padding:12px 14px;border-radius:12px;">${escapeHTML(t.text)}</div>
+        </div>`;
+      }
+      return `<div style="margin:0 0 18px;">
+        <div class="eyebrow" style="margin-bottom:5px;color:var(--accent);">Expert</div>
+        <div class="rich">${expertMarkdown(t.text)}</div>
+      </div>`;
+    }).join('');
+    const pending = this.busy
+      ? `<div style="margin:0 0 8px;">
+           <div class="eyebrow" style="margin-bottom:5px;color:var(--accent);">Expert</div>
+           <div class="faint" style="display:flex;align-items:center;gap:8px;"><span class="spinner"></span> Thinking through it…</div>
+         </div>`
+      : '';
+    let footer = '';
+    if(this.thread.length && !this.busy){
+      footer = `<div class="explain" style="margin-top:4px;font-size:12px;">
+          AI-generated consultant-level guidance — verify against the current primary guideline and the individual patient before acting.
+          <button class="chip" style="margin-top:9px;" onclick="Ask.clear()">Clear conversation</button>
+        </div>`;
+    }
+    wrap.innerHTML = bubbles + pending + footer;
+  },
+
+  clear(){ this.thread = []; this.render(); },
+
+  async send(){
+    if(this.busy) return;
+    const inp = document.getElementById('askExpertInput');
+    const q = (inp ? inp.value : '').trim();
+    if(!q){ toast('Type a question first'); return; }
+    if(!AI._readKey('geminiKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Gemini or Anthropic API key in Settings first'); App.go('settings'); return;
+    }
+    const btn = document.getElementById('askExpertBtn');
+    const orig = btn ? btn.innerHTML : '';
+    if(inp) inp.value = '';
+    this.thread.push({role:'user', text:q});
+    this.busy = true;
+    this.render();
+    if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Asking…'; }
+    try{
+      // Slightly higher token budget for a thorough consultant answer;
+      // low temperature because this is factual medical content.
+      const ans = await AI.complete(this._buildPrompt(q), {temperature:0.2, maxTokens:2200});
+      const clean = (ans||'').trim();
+      if(!clean) throw new Error('The expert returned an empty answer — try rephrasing or ask again');
+      this.thread.push({role:'expert', text:clean});
+    }catch(e){
+      console.error(e);
+      this.thread.push({role:'expert', text:'**Could not answer just now.** '+(e.message||'Request failed')+'\n\nCheck your API key in Settings, or try again in a moment.'});
+    }finally{
+      this.busy = false;
+      if(btn){ btn.disabled = false; btn.innerHTML = orig; }
+      this.render();
+      const t = document.getElementById('askExpertThread');
+      if(t) t.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }
 };
 
 /* ============================================================
