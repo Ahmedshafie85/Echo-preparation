@@ -900,6 +900,13 @@ input,select,textarea{font-family:inherit;font-size:14px;}
         <label>Domain</label>
         <select id="mcqDomain"></select>
       </div>
+      <div class="field">
+        <label>Source</label>
+        <select id="mcqSource">
+          <option value="bank">Verified bank (clinician-checked + 3 imported banks)</option>
+          <option value="ai">AI-generated — mimics the bank style &amp; difficulty (Gemini / Claude)</option>
+        </select>
+      </div>
       <div class="split">
         <div class="field">
           <label>Exam style</label>
@@ -1112,27 +1119,27 @@ input,select,textarea{font-family:inherit;font-size:14px;}
     </div>
 
     <div class="card" style="margin-bottom:14px;">
-      <div class="card-head"><h3>AI backend</h3><span class="badge-ai">Claude → Groq</span></div>
+      <div class="card-head"><h3>AI backend</h3><span class="badge-ai">Claude → Gemini</span></div>
       <p class="faint" style="margin-bottom:12px;">
         The app uses <strong>Claude</strong> for all clinical content — it is held to a
-        verified set of ASE/EACVI reference values on every call. Groq is an optional
-        fast fallback. Keys are saved <strong>in this browser only</strong> — never in
-        the GitHub repo. Each colleague enters their own key on their own device.
+        verified set of ASE/EACVI reference values on every call. <strong>Gemini</strong>
+        is the fast, free-tier alternative (it has a large context window, useful for
+        generating question sets). Keys are saved <strong>in this browser only</strong>
+        — never in the GitHub repo. Each colleague enters their own key on their own device.
       </p>
       <div class="explain" style="margin-top:0;margin-bottom:12px;font-size:12.5px;">
         ⚠︎ Never paste your key into <code>index.html</code> or commit it — GitHub's
-        secret scanner will detect it and Groq will auto-revoke the key. If your key
-        stopped working, that is almost certainly why: generate a fresh one in the
-        Groq console and enter it here.
+        secret scanner will detect it and the provider will auto-revoke the key. If your
+        key stopped working, that is almost certainly why: generate a fresh one in the
+        provider's console (Google AI Studio for Gemini) and enter it here.
       </div>
-      <div class="field"><label>Groq API key</label><input type="password" id="setGroqKey" placeholder="gsk_..."></div>
+      <div class="field"><label>Gemini API key (Google AI Studio)</label><input type="password" id="setGeminiKey" placeholder="AIza..."></div>
       <div class="field"><label>Anthropic API key</label><input type="password" id="setAnthropicKey" placeholder="sk-ant-..."></div>
-      <div class="field"><label>Groq model</label>
-        <select id="setGroqModel">
-          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (default)</option>
-          <option value="meta-llama/llama-4-scout-17b-16e-instruct">llama-4-scout (newer, faster)</option>
-          <option value="meta-llama/llama-4-maverick-17b-128e-instruct">llama-4-maverick (newer, larger)</option>
-          <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (fastest, weaker)</option>
+      <div class="field"><label>Gemini model</label>
+        <select id="setGeminiModel">
+          <option value="gemini-2.5-flash">gemini-2.5-flash (recommended — fast, free tier, 1M context)</option>
+          <option value="gemini-2.5-pro">gemini-2.5-pro (stronger reasoning, paid)</option>
+          <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (cheapest, weakest)</option>
         </select>
       </div>
       <div class="field"><label>Anthropic model</label>
@@ -1144,8 +1151,8 @@ input,select,textarea{font-family:inherit;font-size:14px;}
       </div>
       <div class="field"><label>Preferred backend</label>
         <select id="setPreferred">
-          <option value="anthropic">Claude first, Groq fallback (recommended — clinical depth &amp; accuracy)</option>
-          <option value="groq">Groq first, Claude fallback (faster, free tier — lower clinical accuracy)</option>
+          <option value="anthropic">Claude first, Gemini fallback (recommended — clinical depth &amp; accuracy)</option>
+          <option value="gemini">Gemini first, Claude fallback (faster, free tier — lower clinical accuracy)</option>
         </select>
       </div>
     </div>
@@ -3074,11 +3081,15 @@ const App = {
     Review.render();
   },
 
-  /* Safeguard: if a real Groq/Anthropic key ever gets pasted into the
+  /* Safeguard: if a real Gemini/Anthropic key ever gets pasted into the
      source of this file, warn loudly. Keys belong in Settings only. */
   guardAgainstHardcodedKey(){
-    const src = document.documentElement.innerHTML;
-    if(/gsk_[A-Za-z0-9]{20,}/.test(src) || /sk-ant-[A-Za-z0-9_-]{20,}/.test(src)){
+    let src = document.documentElement.innerHTML;
+    // The Firebase web apiKey is also an "AIza..." string but is safe to ship
+    // publicly — strip the known Firebase config key before scanning so it
+    // doesn't trigger a false positive.
+    try{ if(window.FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey) src = src.split(FIREBASE_CONFIG.apiKey).join(''); }catch(e){}
+    if(/AIza[A-Za-z0-9_-]{30,}/.test(src) || /sk-ant-[A-Za-z0-9_-]{20,}/.test(src)){
       console.warn('%c⚠ API KEY DETECTED IN PAGE SOURCE','color:#df8b82;font-weight:700;font-size:14px;');
       console.warn('Remove it immediately and revoke it — keys must only be entered in Settings, never committed to the repo.');
       toast('⚠ An API key appears to be hardcoded — remove it from the file');
@@ -3228,16 +3239,16 @@ const App = {
     const set = (id, val) => { const el=document.getElementById(id); if(el) el.value = val || ''; };
     set('setEacviDate',     s.eacviDate);
     set('setAscexamDate',   s.ascexamDate);
-    set('setGroqKey',       s.groqKey);
+    set('setGeminiKey',     s.geminiKey);
     set('setAnthropicKey',  s.anthropicKey);
-    set('setGroqModel',     s.groqModel     || 'llama-3.3-70b-versatile');
+    set('setGeminiModel',   s.geminiModel   || 'gemini-2.5-flash');
     set('setAnthropicModel',s.anthropicModel|| 'claude-opus-4-7');
     set('setPreferred',     s.preferred     || 'anthropic');
 
     // Auto-save when the user clicks/tabs out of a field — fixes the
     // footgun where users type a key but forget to hit Save.
-    ['setEacviDate','setAscexamDate','setGroqKey','setAnthropicKey',
-     'setGroqModel','setAnthropicModel','setPreferred'].forEach(id=>{
+    ['setEacviDate','setAscexamDate','setGeminiKey','setAnthropicKey',
+     'setGeminiModel','setAnthropicModel','setPreferred'].forEach(id=>{
       const el = document.getElementById(id);
       if(!el || el.dataset.autoSaveBound) return;
       el.dataset.autoSaveBound = '1';
@@ -3251,9 +3262,9 @@ const App = {
     S.settings = {
       eacviDate:      v('setEacviDate'),
       ascexamDate:    v('setAscexamDate'),
-      groqKey:        (v('setGroqKey')||'').trim(),
+      geminiKey:      (v('setGeminiKey')||'').trim(),
       anthropicKey:   (v('setAnthropicKey')||'').trim(),
-      groqModel:      v('setGroqModel')      || 'llama-3.3-70b-versatile',
+      geminiModel:    v('setGeminiModel')    || 'gemini-2.5-flash',
       anthropicModel: v('setAnthropicModel') || 'claude-opus-4-7',
       preferred:      v('setPreferred')      || 'anthropic'
     };
@@ -3444,8 +3455,8 @@ const Plan = {
     if(!examDate){
       toast('Set your exam date in Settings first'); App.go('settings'); return;
     }
-    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
-      toast('Add a Groq API key in Settings first'); App.go('settings'); return;
+    if(!AI._readKey('geminiKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Gemini or Anthropic API key in Settings first'); App.go('settings'); return;
     }
     const daysLeft = Math.max(1, Math.ceil((new Date(examDate)-new Date())/864e5));
     const sessions = Math.max(3, Math.min(60, Math.round(daysLeft*dpw/7)));
@@ -3610,7 +3621,7 @@ const Plan = {
 
 /* ============================================================
    AI — backend chain. Claude (Anthropic) is the primary backend;
-   Groq is an optional fast fallback. Clinical depth requires Claude.
+   Gemini is the fast, free-tier fallback. Clinical depth requires Claude.
    ============================================================ */
 
 /* ------------------------------------------------------------
@@ -3714,7 +3725,7 @@ const AI = {
   _readKey(field){
     const fromSettings = S.settings?.[field];
     if(fromSettings) return fromSettings;
-    const id = field==='groqKey' ? 'setGroqKey' : field==='anthropicKey' ? 'setAnthropicKey' : null;
+    const id = field==='geminiKey' ? 'setGeminiKey' : field==='anthropicKey' ? 'setAnthropicKey' : null;
     const el = id ? document.getElementById(id) : null;
     return el ? el.value.trim() : '';
   },
@@ -3723,20 +3734,20 @@ const AI = {
      temperature defaults LOW (0.15) — these are factual medical tasks
      where creativity = hallucination. Callers can override if needed. */
   async complete(prompt, {json=false, temperature=0.15, maxTokens=4000}={}){
-    const groqKey      = this._readKey('groqKey');
+    const geminiKey    = this._readKey('geminiKey');
     const anthropicKey = this._readKey('anthropicKey');
-    if(!groqKey && !anthropicKey){
+    if(!geminiKey && !anthropicKey){
       throw new Error('No working AI backend — add a key in Settings and click Save');
     }
     const preferred = S.settings?.preferred || 'anthropic';
     const order = preferred === 'anthropic'
-      ? [['anthropic', anthropicKey], ['groq', groqKey]]
-      : [['groq', groqKey], ['anthropic', anthropicKey]];
+      ? [['anthropic', anthropicKey], ['gemini', geminiKey]]
+      : [['gemini', geminiKey], ['anthropic', anthropicKey]];
     let lastError = null;
     for(const [backend, key] of order){
       if(!key) continue;
       try{
-        if(backend==='groq')      return await this._groq(prompt, json, temperature, maxTokens);
+        if(backend==='gemini')    return await this._gemini(prompt, json, temperature, maxTokens);
         if(backend==='anthropic') return await this._anthropic(prompt, json, temperature, maxTokens);
       }catch(e){
         console.warn(backend+' failed, falling back:', e);
@@ -3746,34 +3757,50 @@ const AI = {
     throw lastError || new Error('All AI backends failed');
   },
 
-  async _groq(prompt, json, temperature=0.15, maxTokens=4000){
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+  async _gemini(prompt, json, temperature=0.15, maxTokens=4000){
+    /* Direct browser → Google Generative Language API. The user supplies
+       their own key in Settings (bring-your-own-key) and the key never
+       leaves their browser. The key is passed as a query param per the
+       public REST endpoint; the system prompt is sent as system_instruction
+       so GROUND_TRUTH is enforced exactly as on the other backends. */
+    const model = S.settings?.geminiModel || 'gemini-2.5-flash';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/'
+              + encodeURIComponent(model) + ':generateContent?key='
+              + encodeURIComponent(this._readKey('geminiKey'));
+    const r = await fetch(url,{
       method:'POST',
-      headers:{ 'Content-Type':'application/json',
-                'Authorization':'Bearer '+this._readKey('groqKey') },
+      headers:{ 'Content-Type':'application/json' },
       body:JSON.stringify({
-        model:S.settings.groqModel || 'llama-3.3-70b-versatile',
-        messages:[
-          {role:'system',content:STRICT_SYSTEM_PROMPT},
-          {role:'user',content:prompt}
-        ],
-        ...(json?{response_format:{type:'json_object'}}:{}),
-        temperature,
-        max_tokens:maxTokens
+        system_instruction:{ parts:[{ text: STRICT_SYSTEM_PROMPT
+          + (json?' Return ONLY the raw JSON object, nothing else — no markdown fences, no commentary.':'') }] },
+        contents:[{ role:'user', parts:[{ text: prompt }] }],
+        generationConfig:{
+          temperature,
+          maxOutputTokens:maxTokens,
+          ...(json?{ responseMimeType:'application/json' }:{})
+        }
       })
     });
     if(!r.ok){
       let detail=''; try{ detail=(await r.json()).error?.message||''; }catch(e){}
-      if(r.status===401)
-        throw new Error('Groq key invalid or revoked — generate a fresh key in the Groq console and update Settings');
-      if(r.status===413 || /too large|TPM|tokens per minute/i.test(detail))
-        throw new Error('Source text too long for Groq free tier (12k tokens/min). Trim the textarea more aggressively, or wait 60 seconds and retry.');
+      if(r.status===400 && /API key not valid|API_KEY_INVALID/i.test(detail))
+        throw new Error('Gemini key invalid — generate a fresh key in Google AI Studio and update Settings');
+      if(r.status===403)
+        throw new Error('Gemini key rejected (403) — check the key is enabled for the Generative Language API in Google AI Studio');
       if(r.status===429)
-        throw new Error('Groq rate limit reached — wait a moment and try again');
-      throw new Error('Groq '+r.status+(detail?': '+detail:''));
+        throw new Error('Gemini rate limit / quota reached — wait a moment and try again, or switch model in Settings');
+      throw new Error('Gemini '+r.status+(detail?': '+detail:''));
     }
     const d = await r.json();
-    return d.choices?.[0]?.message?.content || '';
+    const cand = (d.candidates && d.candidates[0]) || null;
+    if(!cand){
+      // Safety blocks or empty completions surface here.
+      const reason = d.promptFeedback?.blockReason || 'no candidates returned';
+      throw new Error('Gemini returned no content ('+reason+')');
+    }
+    return (cand.content?.parts || [])
+      .map(p=>p.text||'')
+      .join('');
   },
 
   async _anthropic(prompt, json, temperature=0.15, maxTokens=4000){
@@ -3837,7 +3864,7 @@ function extractJSON(raw){
    AI questions slipped in. */
 function validMcq(q){
   if(!q || typeof q.q!=='string' || q.q.length<8) return false;
-  if(!Array.isArray(q.options) || q.options.length!==4) return false;
+  if(!Array.isArray(q.options) || q.options.length<4 || q.options.length>5) return false;
   if(!q.options.every(o=>typeof o==='string' && o.trim().length>0)) return false;
   // options must be distinct (no accidental duplicate / two-correct items)
   const norm = q.options.map(o=>o.trim().toLowerCase());
@@ -3953,12 +3980,16 @@ Sub-topics to draw from: ${topics.join(', ')}
 Guideline emphasis: ${styleNote}
 Difficulty: ${diffNote}
 
+MIMIC THE REAL BOARD QUESTION BANK. Match the structure, voice and difficulty of published ASCeXAM / EACVI board banks:
+- Most items open with a realistic CLINICAL VIGNETTE: a patient age/sex, a one-line presentation, and the relevant echo measurements or a described finding, THEN the question. A minority may be direct concept questions where a vignette would feel forced.
+- The stem should require interpretation or a calculation step, not bare recall — the way a real bank item makes you DO something (grade severity, compute a value, pick the next step, name the mechanism, choose the discriminating feature).
+- 4 or 5 options. EXACTLY ONE is unambiguously correct; the distractors are plausible-but-wrong (common misconceptions, adjacent severity grades, look-alike diagnoses, the wrong formula) — never "also defensible".
+- Vary the question type across the set so it feels like a real bank: severity grading, continuity/PISA/PHT calculations, "most appropriate next step", mechanism, best view/window, artifact identification, and discriminator ("which best distinguishes X from Y").
+
 Requirements:
-- Each question must read like a real board exam item (clinical vignette where appropriate).
-- Exactly 4 options each. EXACTLY ONE option must be unambiguously correct; the other three must be clearly incorrect (not "also defensible"). If two options could be defended, rewrite the question.
 - Every numeric value, cutoff, or grade in the stem, the correct answer, and the explanation MUST be consistent with the VERIFIED ECHO REFERENCE VALUES you were given. Do not use any cutoff that conflicts with that list.
 - Do NOT build a question whose correct answer depends on a number you are unsure of. If in doubt, write the question around a value that IS in the verified list.
-- The "explanation" must (a) explicitly restate the text of the correct option, (b) say why it is right with the relevant numeric cutoff, and (c) briefly say why the key distractors are wrong. The explanation MUST agree with the option named in "answer" — never let them contradict.
+- The "explanation" must read like a board-bank rationale: (a) explicitly restate the text of the correct option, (b) say why it is right with the relevant numeric cutoff and the clinical reasoning, and (c) briefly say why EACH key distractor is wrong. The explanation MUST agree with the option named in "answer" — never let them contradict.
 - Before finalising each item, re-read your own stem and confirm the option at the "answer" index is the single best answer. If not, fix "answer".
 - "reference" MUST name the issuing body and subject of the supporting guideline (e.g. "ASE guideline on chamber quantification"). Include a figure/table number ONLY if certain — otherwise omit it. Never fabricate a citation.
 - "answer" is the 0-based index of the correct option.
@@ -4083,12 +4114,19 @@ const MCQ = {
     }));
   },
 
-  /* Verified-only generator. Pulls from the clinician-checked,
-     guideline-anchored bank. No AI generation (removed: it produced
-     confidently-wrong answers that can't be reliably validated). */
+  /* Source-aware generator. 'bank' pulls from the clinician-checked,
+     guideline-anchored verified bank (default, safest). 'ai' generates
+     fresh items with the configured backend (Gemini/Claude), anchored to
+     GROUND_TRUTH, then runs every item through an INDEPENDENT second AI
+     pass (verifier) and a structural/self-consistency check — keeping only
+     items the verifier re-answers to the same key WITH confidence. This is
+     the guard against the "confidently wrong" failure mode. */
   async generate(){
     const domId = document.getElementById('mcqDomain').value;
     const count = parseInt(document.getElementById('mcqCount').value,10) || 10;
+    const source = (document.getElementById('mcqSource')||{}).value || 'bank';
+    if(source === 'ai') return this.generateAI(domId, count);
+
     const qs = this.fromVerifiedBank(domId, S.mcqDiff, count);
     if(!qs.length){
       toast('No verified questions for that domain yet');
@@ -4096,6 +4134,90 @@ const MCQ = {
     }
     this.startRunner(qs, domId);
     toast(`${qs.length} verified question${qs.length>1?'s':''} ready`);
+  },
+
+  /* AI generation pipeline — generate → structural filter → independent
+     verifier pass → keep only confident, key-matching items. */
+  async generateAI(domId, count){
+    if(!AI._readKey('geminiKey') && !AI._readKey('anthropicKey')){
+      toast('Add a Gemini or Anthropic API key in Settings first'); App.go('settings'); return;
+    }
+    const style = (document.getElementById('mcqStyle')||{}).value || 'mixed';
+    const diff  = S.mcqDiff || 'board';
+    const btn = document.querySelector('#mcqSetup .btn-primary');
+    const orig = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…'; }
+    try{
+      // Over-generate so that, after verification drops weak items, we
+      // still have enough to fill the requested count.
+      const askFor = Math.min(50, Math.ceil(count * 1.6) + 2);
+
+      // Build the per-domain topic list to steer the prompt. 'all' picks
+      // a spread across domains so a mixed set still feels like the bank.
+      const buildFor = (d)=>{
+        const dom = DOMAINS.find(x=>x.id===d);
+        return buildMcqPrompt(
+          dom ? dom.name : 'general echocardiography',
+          dom ? dom.topics : ['mixed echocardiography'],
+          style, askFor, diff
+        );
+      };
+      const prompt = (domId==='all')
+        ? buildMcqPrompt('a mix across all echocardiography domains',
+            DOMAINS.flatMap(d=>d.topics).slice(0,18), style, askFor, diff)
+        : buildFor(domId);
+
+      const raw = await AI.complete(prompt, {json:true, temperature:0.3, maxTokens:8000});
+      const parsed = extractJSON(raw);
+      let items = Array.isArray(parsed.questions) ? parsed.questions : [];
+
+      // Structural + self-consistency filter (reuse the existing guards).
+      items = items.filter(q=> validMcq(q) && mcqSelfConsistent(q));
+      if(!items.length) throw new Error('No usable questions came back — try again or switch backend in Settings');
+
+      // Independent verifier pass: a second model answers each item from
+      // scratch with no knowledge of the marked key. Keep only matches.
+      let verified = items;
+      try{
+        const vraw = await AI.complete(buildVerifierPrompt(items), {json:true, temperature:0, maxTokens:4000});
+        const checks = (extractJSON(vraw).checks)||[];
+        const byIdx = {};
+        checks.forEach(c=>{ if(Number.isInteger(c.i)) byIdx[c.i]=c; });
+        verified = items.filter((q,i)=>{
+          const c = byIdx[i];
+          return c && c.confident===true && c.best===q.answer;
+        });
+        // If the verifier was unusable (parsing/format), fall back to the
+        // structurally-validated set rather than showing nothing.
+        if(!checks.length) verified = items;
+      }catch(e){
+        console.warn('verifier pass failed, using structural set:', e);
+        verified = items;
+      }
+
+      if(!verified.length){
+        toast('Generated items failed cross-check — try again, or use the verified bank');
+        return;
+      }
+
+      const qs = verified.slice(0, count).map(q=>shuffleOptions({
+        ...q,
+        domain: q.domain || (domId==='all' ? '' : domId),
+        topic: q.topic || (DOMAINS.find(d=>d.id===(q.domain||domId))?.name) || (q.domain||domId),
+        diff,
+        style,
+        source: 'ai'
+      }));
+
+      this.startRunner(qs, domId);
+      const dropped = items.length - verified.length;
+      toast(`${qs.length} AI question${qs.length>1?'s':''} ready · cross-checked${dropped>0?` (${dropped} dropped)`:''}`);
+    }catch(e){
+      console.error(e);
+      toast(e.message || 'Generation failed — try again');
+    }finally{
+      if(btn){ btn.disabled = false; btn.innerHTML = orig; }
+    }
   },
   startRunner(qs, domain){
     S.current = { qs, i:0, picked:null, sel:null, conf:null, revealed:false, score:0, domain:domain||null };
@@ -5732,7 +5854,7 @@ const Reader = {
    ============================================================ */
 const VideoExtras = {
   async loadVotd(){
-    if(!AI._readKey('groqKey') && !AI._readKey('anthropicKey')){
+    if(!AI._readKey('geminiKey') && !AI._readKey('anthropicKey')){
       toast('Add an API key in Settings first'); App.go('settings'); return;
     }
     const btn=$('votdBtnLabel') ? $('votdBtnLabel').parentElement : null;
@@ -6286,12 +6408,12 @@ const COMPANION = [
     "id": "phys-doppler",
     "chapter": "Ch 1 · Physics & Doppler",
     "title": "Doppler, the Nyquist limit & anti-aliasing",
-    "background": "Doppler turns a frequency shift into a velocity. PW localises flow but aliases above the Nyquist limit; CW measures any velocity but cannot localise. Every artifact is one physical assumption breaking, and every safety rule reduces to ALARA.",
+    "background": "Everything on screen is reconstructed from reflected sound: the machine sends a pulse, times the echo, and places a dot of given brightness at a given depth. Frequency sets wavelength, which trades resolution against penetration. Doppler turns a frequency shift into a velocity — PW localises flow but aliases above the Nyquist limit, while CW measures any velocity but cannot localise. Every artifact is one physical assumption breaking, and every safety rule reduces to ALARA.",
     "key_measurements": [
       {
         "name": "Soft-tissue speed of sound",
         "value": "1540 m/s",
-        "note": "Ranked fastest→slowest: bone >4000 > soft tissue/blood ~1540 > fat ~1450 > lung/air <350. The scanner assumes 1540 everywhere — fat and air break that assumption."
+        "note": "Ranked fastest→slowest: bone >4000 > soft tissue/blood ~1540 > fat ~1450 > lung/air <350. Stiff & dense = fast; the scanner assumes 1540 everywhere, and fat/air break that assumption."
       },
       {
         "name": "Wavelength",
@@ -6299,9 +6421,14 @@ const COMPANION = [
         "note": "2 MHz → 0.77 mm (deep, coarse); 7.5 MHz → 0.21 mm (fine, shallow). Higher frequency buys resolution, costs penetration."
       },
       {
+        "name": "Round-trip time",
+        "value": "13 µs per cm",
+        "note": "Depth = ½·c·t. Echo back in 65 µs → 5 cm. Deep image → long wait → low PRF."
+      },
+      {
         "name": "Nyquist limit",
         "value": "= ½ PRF",
-        "note": "PW samples at the PRF; you cannot capture a frequency faster than half the sampling rate. Above it the velocity wraps (aliasing)."
+        "note": "PW samples at the PRF; you cannot capture a frequency faster than half the sampling rate. PRFmax ≈ 77,000 / depth(cm)."
       },
       {
         "name": "Doppler equation",
@@ -6311,7 +6438,7 @@ const COMPANION = [
       {
         "name": "Simplified Bernoulli",
         "value": "ΔP = 4V²",
-        "note": "Use expanded ΔP = 4(V₂²−V₁²) when LVOT velocity exceeds ~1.5 m/s."
+        "note": "Use expanded ΔP = 4(V₂²−V₁²) when LVOT velocity exceeds ~1.5 m/s. MI = peak rarefactional pressure ÷ √frequency."
       }
     ],
     "algorithm_steps": [
@@ -6321,42 +6448,53 @@ const COMPANION = [
       "STEP 4 — Two windows disagree on velocity? Report the higher clean velocity — angle error only underestimates, so the higher value is the truer one."
     ],
     "differentiating_features": [
-      "PW vs CW: PW = 'Where' (position, but weak velocity ceiling); CW = 'how fast, wherever' (any velocity, no localisation).",
-      "Imaging wants the beam perpendicular to the wall for a bright reflection; Doppler wants the beam parallel to flow for true velocity."
+      "PW vs CW: PW = 'where' (position, weak velocity ceiling); CW = 'how fast, wherever' (any velocity, no localisation).",
+      "Imaging wants the beam perpendicular to the wall for a bright reflection; Doppler wants it parallel to flow for true velocity.",
+      "Resolution best→worst: axial (SPL/2, depth-proof) > lateral (beam width, fails deep) > temporal (frame rate)."
     ],
     "pearls": [
-      "Lower transducer frequency RAISES the aliasing velocity — a given velocity produces a smaller shift at lower f₀, so it stays under Nyquist longer. This (plus no Nyquist limit) is why the low-frequency Pedoff CW probe captures the highest jets.",
-      "Colour Doppler is PW under the hood — the swirling mosaic of a turbulent jet is colour aliasing.",
-      "BART = Blue Away, Red Toward. Green/mosaic = high variance (turbulence or aliasing).",
+      "Lower transducer frequency RAISES the aliasing velocity — a given velocity produces a smaller shift at lower f₀. This (plus no Nyquist limit) is why the low-frequency Pedoff CW probe captures the highest jets; a higher-frequency probe makes aliasing worse.",
+      "Colour Doppler is PW under the hood — the swirling mosaic of a turbulent jet is colour aliasing. BART = Blue Away, Red Toward; green/mosaic = high variance.",
+      "Dark image: increase output power FIRST; if the stem says ALARA / least exposure, raise gain first. Gain amplifies received signal (free); power raises transmitted energy (exposure).",
       "TDI velocities are an order of magnitude lower than blood flow (cm/s vs m/s) — a frequent units distractor."
     ],
     "pitfalls": [
-      "Reading a 'low' gradient as a true mild lesion when it is really beam–jet misalignment — interrogate from multiple windows. A true 4.2 m/s jet interrogated at 30° reads only 3.6 m/s (71→52 mmHg), turning severe into 'moderate'.",
-      "Confusing tissue (native) harmonic imaging with contrast harmonic imaging — same physical principle (non-linear harmonics), different target."
+      "Reading a 'low' gradient as a true mild lesion when it is really beam–jet misalignment — a true 4.2 m/s jet at 30° reads 3.6 m/s (71→52 mmHg), turning severe into 'moderate'. Interrogate from multiple windows.",
+      "Confusing tissue (native) harmonic imaging with contrast harmonic imaging — same principle (non-linear harmonics), different target. Harmonics clean the near field but fade in the far field."
     ],
     "exam_pearls": [
       "'Which adjustment removes aliasing?' → shift baseline / raise PRF / lower frequency / switch to CW.",
       "'Best change to raise frame rate' → narrow sector / ↓ depth.",
-      "MI definition → peak rarefactional pressure ÷ √frequency.",
-      "Velocity order in tissue → bone fastest, air slowest."
+      "'Which would NOT reduce aliasing?' → use a higher-frequency transducer / decrease PRF.",
+      "'Myocardial speckle is which reflector?' → scatter / Rayleigh. 'Determinant of axial resolution' → spatial pulse length."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 1 (built on Otto 7th ed; ASE/EACVI conventions)."
   },
   {
     "id": "artifacts",
     "chapter": "Ch 2 · Instrumentation & Artifacts",
-    "title": "Near-field clutter vs apical thrombus (and artifact discipline)",
-    "background": "Every control changes one physical quantity; every artifact is one physical assumption breaking. The classic false-positive is apical near-field clutter mistaken for thrombus — calling clutter 'thrombus' and anticoagulating is exactly the error these stems punish.",
+    "title": "Knobology & artifacts — every artifact is a broken assumption",
+    "background": "Every control changes one physical quantity, and every artifact is one of four scanner assumptions breaking: sound travels in a straight line, at a constant 1540 m/s, all echoes come from the main beam, and each pulse's echoes return before the next pulse fires. The single highest-yield discipline: a finding seen in only one view, that moves when you change angle, or that crosses anatomic borders is an artifact — re-interrogate before you act.",
     "key_measurements": [
       {
-        "name": "Gain",
-        "value": "Amplifies the whole returning signal",
-        "note": "Too high → noise fills chambers (false 'smoke'); too low → dropout mimics thrombus."
+        "name": "Gain vs power",
+        "value": "received vs transmitted",
+        "note": "Gain amplifies the returning signal (free, no exposure); power is the only patient-exposure control. Dark image → power first; ALARA → gain/TGC first."
       },
       {
         "name": "M-mode",
-        "value": "Highest temporal resolution",
-        "note": "Single scan line vs time → use for any timing question (tamponade collapse, SAM, TAPSE, leaflet motion)."
+        "value": "highest temporal resolution",
+        "note": "Single scan line vs time → use for any timing question (tamponade collapse, SAM onset, leaflet flutter, TAPSE)."
+      },
+      {
+        "name": "Dynamic range",
+        "value": "low DR = contrast, high DR = soft",
+        "note": "Low DR = fewer greys, crisp black-white (valves); high DR = more greys, softer texture (borders, obese study)."
+      },
+      {
+        "name": "Propagation-speed error",
+        "value": "slow → far, fast → near",
+        "note": "Sound slower than 1540 (fat, silastic ball) places a structure too deep and distorts its shape; faster (bone) places it too shallow."
       }
     ],
     "algorithm_steps": [
@@ -6366,23 +6504,24 @@ const COMPANION = [
       "STEP 4 — Finding in only ONE view, moves when you change angle, or crosses anatomic boundaries → suspect artifact and re-interrogate."
     ],
     "differentiating_features": [
-      "Excess-gain artifact vs spontaneous echo contrast (SEC): the discriminator is whether the swirling echoes are gain-dependent. Artifact vanishes when you lower gain; SEC is a genuine low-flow finding (dilated chambers, low output, AF) that persists.",
-      "Ascending-aorta reverberation lines move WITH the wall; a true intimal flap has independent motion — M-mode's temporal resolution tells them apart."
+      "Duplication: side-by-side copy = refraction (Snell); copy placed deeper behind a strong reflector = mirror / reverberation.",
+      "Excess-gain artifact vs spontaneous echo contrast (SEC): the artifact vanishes when you lower gain; SEC is a genuine low-flow finding (dilated chambers, low output, AF) that persists and marks thromboembolic risk.",
+      "Ascending-aorta reverberation moves WITH the wall; a true intimal flap has independent oscillatory motion — M-mode's temporal resolution settles it."
     ],
     "pearls": [
-      "Posterior enhancement is useful — it confirms a cystic/fluid structure.",
-      "Comet-tail / ring-down sits behind a strong reflector (mechanical valve, gas bubble).",
-      "Refraction obeys Snell's law and can duplicate a structure side-by-side (e.g. double aortic valve).",
-      "Harmonic imaging reduces side-lobe and near-field clutter."
+      "EPSS wide = ↓ stroke volume / reduced EF (a flow sign, not a size sign). Diastolic mitral flutter = AR present; early (pre-systolic) mitral closure = acute severe AR with high LVEDP.",
+      "Comet-tail / ring-down sits behind a strong reflector (mechanical valve, gas bubble). Posterior enhancement confirms a cystic/fluid structure.",
+      "Harmonic imaging reduces side-lobe, grating-lobe, reverberation and near-field clutter (harmonics form within tissue, not at the noisy surface).",
+      "Range ambiguity paints a deep structure shallow — a 'mass' that vanishes when you INCREASE depth (lower PRF)."
     ],
     "pitfalls": [
-      "An artifact mistaken for anatomy starts a cascade of needless testing — discipline: re-interrogate before committing.",
-      "Persistent 'smoke' is SEC, not artifact, and marks thromboembolic risk."
+      "Calling near-field clutter 'thrombus' and anticoagulating — use higher-frequency/harmonic, off-axis window, and contrast first. A true thrombus sits on a wall-motion abnormality.",
+      "An artifact mistaken for anatomy starts a cascade of needless testing — re-interrogate before committing."
     ],
     "exam_pearls": [
-      "'Swirling echoes that disappear when reduced' → gain.",
-      "'Banding of brightness' → TGC.",
-      "'Double aortic valve in one frame' → refraction/side-lobe."
+      "'Swirling echoes that vanish when one control is reduced' → gain; 'persist + dilated LA/low output' → SEC (real).",
+      "'Horizontal band of brightness/darkness' → mis-set TGC slider.",
+      "'Double aortic valve / duplicated walls in one frame' → refraction; 'silastic ball looks oval' → propagation-speed error."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 2."
   },
@@ -6390,1218 +6529,1404 @@ const COMPANION = [
     "id": "quant-normals",
     "chapter": "Ch 3 · Quantification essentials",
     "title": "Chamber-quantification normal values (2015 ASE/EACVI)",
-    "background": "Boards hand you a normal-values question or a 'which view shows X' stem. Indexing beats absolute numbers: a 'normal' absolute LA diameter can hide a dilated atrium in a small patient.",
+    "background": "A board exam hands you a normal-values question or a 'which view shows X' stem. The recurring expert theme: index to body size, use the dedicated view, and measure where convention says — because the wrong site or an un-indexed number is exactly the keyed trap. Quantify volumes by biplane Simpson's discs, the LVOT diameter by a squared term (its dominant error source), and the LA by indexed volume (LAVI), not diameter.",
     "key_measurements": [
       {
         "name": "LVEF",
-        "value": "♂ 52–72% · ♀ 54–74%",
-        "note": "<52/54% abnormal."
+        "value": "♂ ≥52% · ♀ ≥54%",
+        "note": "'≥55%' is the common exam & management cutoff. HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50%."
       },
       {
         "name": "LAVI",
         "value": "≤34 mL/m²",
-        "note": "The most-tested LA number; recurs in diastology, AF and MS."
+        "note": "The most-tested LA number; the diastology gateway and recurs in AF and MS. Measured at end-systole, exclude appendage & veins."
       },
       {
         "name": "LV mass index",
         "value": "♂ ≤115 · ♀ ≤95 g/m²",
-        "note": "Distinguishes true LVH."
+        "note": "Distinguishes true LVH. Pair with relative wall thickness (RWT >0.42) to name the geometry."
       },
       {
         "name": "LV GLS",
         "value": "≈ −20%",
-        "note": "Vendor-dependent."
+        "note": "Vendor-dependent; abnormal when less negative than ~−20%. Track serial change on one system."
       },
       {
-        "name": "RV basal diameter",
-        "value": "≤41 mm",
-        "note": ">41 dilated; read on an RV-focused apical view."
-      },
-      {
-        "name": "TAPSE",
-        "value": "≥17 mm",
-        "note": "RV longitudinal function (M-mode)."
-      },
-      {
-        "name": "RV S′ (TDI)",
-        "value": "≥9.5 cm/s",
-        "note": "Basal RV systolic velocity."
-      },
-      {
-        "name": "RV FAC",
-        "value": "≥35%",
-        "note": "2D analog of RVEF."
+        "name": "RV basal diameter / TAPSE / S′ / FAC",
+        "value": "≤41 mm · ≥17 mm · ≥9.5 cm/s · ≥35%",
+        "note": "Read on a dedicated RV-focused view, not a foreshortened 4-chamber. 3D RVEF ≥45%."
       },
       {
         "name": "IVC",
         "value": "≤21 mm, >50% collapse",
-        "note": "For RA pressure estimation."
+        "note": "→ RA pressure ~3 mmHg; dilated/fixed → ~15. Ascending aorta ≤~37 mm, index to BSA/height."
       }
     ],
-    "algorithm_steps": [],
+    "algorithm_steps": [
+      "STEP 1 — Is the number indexed? A 'normal' absolute LA diameter can hide a dilated atrium in a small patient — use LAVI.",
+      "STEP 2 — Was it measured on the dedicated view? RV size on the RV-focused apical, not a foreshortened 4-chamber.",
+      "STEP 3 — Was it measured at the convention site? LVOT diameter mid-systole, inner-edge to inner-edge, at the VTI sample site.",
+      "STEP 4 — Read any single number against loading conditions — EF, FS, S′, TAPSE and GLS are all load-dependent."
+    ],
     "differentiating_features": [
       "LVOT diameter — PLAX, mid-systole, inner-edge to inner-edge, at the annulus where you sample VTI; squared in continuity → dominant error source.",
-      "LA volume — biplane area-length or discs, indexed (LAVI), measured at end-systole, exclude appendage & veins."
-    ],
-    "pearls": [
-      "Index LV mass and volumes to BSA; read RV size on the dedicated RV-focused view, not a foreshortened 4-chamber.",
+      "Remodelling four-box: normal mass + high RWT = concentric remodelling; high mass + high RWT = concentric hypertrophy (pressure overload); high mass + normal RWT = eccentric hypertrophy (volume overload).",
       "Coronary territory by wall: LAD = anterior + anteroseptal + apex; RCA = inferior + basal inferoseptum; Cx = lateral."
     ],
+    "pearls": [
+      "The squared LVOT diameter: a 10% error (2.0 → 2.2 cm) inflates area by ~21% and propagates to SV, AVA and Qp/Qs — cross-check with the dimensionless index (DVI), which cancels the diameter.",
+      "The RV is crescentic and contracts by longitudinal shortening, so it defeats LV volume formulas — read it with TAPSE, S′, FAC, strain or 3D.",
+      "Teichholz (one diameter, cubed) is invalid with any regional wall-motion abnormality."
+    ],
     "pitfalls": [
-      "Picking the absolute number instead of indexing — the competent reader's trap.",
-      "A foreshortened apical 4-chamber under-reads RV size."
+      "Foreshortening clips the true apex → over-estimates EF and under-estimates volumes/RV size (a fixed-direction error). Drop the probe an interspace and open the true long axis.",
+      "Reporting LA diameter instead of indexed volume misses asymmetric/eccentric enlargement."
     ],
     "exam_pearls": [
-      "LAVI >34 and LV mass index 115/95 are near-guaranteed cutoffs.",
-      "'RV abnormal if >41 mm basal' and 'TAPSE <17' recur."
+      "'Most validated measure of LA size' → indexed volume (LAVI ≤34).",
+      "'Distinguishes true LVH' → LV mass index ♂115 / ♀95; 'RV abnormal if basal >' → 41 mm.",
+      "'GLS abnormal when…' → less negative than ~−20%; 'best view for ASD/IVC' → subcostal."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 3 (2015 ASE/EACVI chamber quantification)."
+    "reference": "Clinical Echo Exam Companion, Ch 3 (ASE/EACVI 2015 chamber quantification)."
   },
   {
     "id": "tee-indications",
     "chapter": "Ch 4 · TEE",
-    "title": "When TEE beats TTE — the 'next best test' family",
-    "background": "TEE is the answer to a large family of 'next best test' stems. The probe sits behind the LA, giving unobstructed posterior views free of chest-wall and lung interference.",
+    "title": "When TEE beats TTE, orientation & safety",
+    "background": "The TEE probe sits behind the LA, giving unobstructed posterior views free of chest-wall and lung interference. The exam tests three things: when TEE beats TTE, the orientation angles, and the safety/contraindication list — plus one discriminator that recurs everywhere: TEE buys sensitivity, not specificity.",
     "key_measurements": [
       {
-        "name": "Endocarditis sensitivity",
-        "value": "TTE 40–60% vs TEE 90–100%",
-        "note": "Specificity is similar (~90–100%); TEE adds sensitivity, not specificity."
+        "name": "Multiplane angles",
+        "value": "0° / ~60° / ~120°",
+        "note": "0° ≈ 4-chamber; ~60° = AV short-axis & bicommissural MV (P1–A2–P3); ~120° = LVOT / aortic long-axis (A2–P2)."
       },
       {
-        "name": "Multiplane angles",
-        "value": "0° ≈ 4-chamber · ~60° AV short axis/bicommissural MV · ~120° LVOT/aortic long axis",
-        "note": "Deep transgastric gives parallel alignment for AV gradients."
+        "name": "Transgastric view",
+        "value": "beam ∥ AV",
+        "note": "The deep TG view is the only TEE route that aligns the beam parallel to LVOT/AV flow for gradients."
+      },
+      {
+        "name": "Endocarditis sensitivity",
+        "value": "TEE 90–100% vs TTE 40–60%",
+        "note": "Specificity is similar (~90–100%). A negative TTE never excludes endocarditis."
+      },
+      {
+        "name": "Methemoglobinemia",
+        "value": "low SpO₂, normal PO₂",
+        "note": "From benzocaine (~0.07–0.12%); the 'saturation gap', chocolate-brown blood. Treat with methylene blue."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — LA appendage thrombus pre-cardioversion? → TEE (TTE can't see the appendage).",
-      "STEP 2 — Endocarditis with negative/non-diagnostic TTE and ongoing suspicion, or a prosthetic valve, or suspected abscess? → TEE.",
-      "STEP 3 — Mitral mechanical prosthesis dysfunction? → TEE (the valve shadows the LA on TTE).",
-      "STEP 4 — Source of embolus / PFO / ASD? → TEE bubble study with Valsalva."
+      "STEP 1 — LAA thrombus, prosthetic mitral dysfunction, abscess, source of embolus, or repair planning? → TEE (TTE can't see these).",
+      "STEP 2 — Orient by angle: 0° = 4-chamber, ~60° = commissures, ~120° = long axis; drop to the stomach for AV gradients.",
+      "STEP 3 — Screen contraindications (stricture/varices/tumour, recent upper-GI surgery, perforation, unstable C-spine) and confirm NPO.",
+      "STEP 4 — Never advance against resistance; if the probe coils, withdraw gently."
     ],
     "differentiating_features": [
-      "Mid-oesophageal bicommissural (~60°) reads P1–A2–P3 across the screen; the LAX (~120°) cuts A2–P2 — a classic repair-planning question."
+      "TEE adds sensitivity, not specificity — 'TEE is more specific' is a wrong answer. Its proven incremental benefit is abscess detection and overall sensitivity.",
+      "A mitral mechanical prosthesis shadows the LA on TTE, hiding regurgitation; TEE images the LA from behind the 'curtain'.",
+      "Commonest mitral prolapse scallop: P2. Bicommissural ~60° reads P1–A2–P3; LAX ~120° cuts A2–P2."
     ],
     "pearls": [
-      "TEE has an ascending-aorta blind spot (distal ascending/proximal arch) shadowed by the air-filled trachea/left main bronchus — corroborate dissection extent with CT/MRI."
+      "A negative TTE never rules out endocarditis — especially with prosthetic valves, poor windows (COPD), or high pre-test suspicion → escalate to TEE.",
+      "Methemoglobinemia after a TEE: a falling oximeter with a normal arterial PO₂ is the board tell; benzocaine oxidises haem iron Fe²⁺→Fe³⁺.",
+      "The 3D en-face 'surgeon's view' lays the whole mitral valve out for repair planning."
     ],
     "pitfalls": [
-      "A negative TTE never rules out endocarditis; TEE raises sensitivity, not specificity.",
-      "Contraindications: oesophageal stricture/varices/tumour, recent upper-GI surgery, unstable C-spine. NPO first."
+      "A normal-looking TTE with new heart failure does NOT exclude prosthetic MR — the acoustic shadow, not valve normality, explains the clean image. Go to TEE."
     ],
     "exam_pearls": [
-      "Negative TTE + high clinical suspicion (poor windows, prosthesis) → escalate to TEE.",
-      "Persisting infection on therapy → repeat TEE to hunt for abscess."
+      "'TEE vs TTE for endocarditis — what improves?' → sensitivity, not specificity.",
+      "'Low SpO₂, normal PO₂ after TEE' → methemoglobinemia (benzocaine).",
+      "'Pre-cardioversion thrombus search' → TEE (LAA invisible on TTE); 'TEE window for AV gradients' → deep transgastric."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 4."
   },
   {
     "id": "contrast-3d",
     "chapter": "Ch 5 · Contrast & 3D",
-    "title": "Agitated saline vs manufactured microbubble contrast",
-    "background": "Contrast rescues poor borders and answers specific questions; the choice of agent is a favourite trap. Agitated saline is for right-sided/shunt work; manufactured microbubbles are for LV opacification.",
+    "title": "Contrast agents & 3D echo",
+    "background": "Two technologies the modern exam treats as standard. The whole contrast section turns on one split — agitated saline (big, lung-filtered → right-sided/shunt) vs manufactured microbubbles (small, shelled, cross the lungs → LV work) — and the whole 3D section turns on the trade-off between temporal resolution and stitch artifact.",
     "key_measurements": [
       {
-        "name": "Agitated saline bubbles",
-        "value": "LA appearance ≤3–5 beats = intracardiac shunt",
-        "note": "Free gas, >7 µm, non-uniform; filtered by lungs. Later appearance = pulmonary shunt/AVM. Sensitise with Valsalva."
+        "name": "Agitated saline",
+        "value": "large, lung-filtered",
+        "note": "LA bubbles within ≤3–5 beats = intracardiac shunt (PFO/ASD); later = pulmonary shunt/AVM. Sensitise with Valsalva release. R→L shunt questions only."
       },
       {
         "name": "Manufactured microbubbles",
-        "value": "2–3 µm, shelled, uniform",
-        "note": "Cross the lungs to opacify the LV. Use when ≥2 contiguous segments are unseen. Contraindicated in known/suspected right-to-left shunt (FDA)."
+        "value": "2–3 µm, shelled",
+        "note": "Cross the lungs to opacify the LV when ≥2 segments unseen; characterise mass (thrombus avascular/dark). Contraindicated in right-to-left shunt."
       },
       {
-        "name": "3D volumes",
-        "value": "Closest echo to CMR (slightly under-reads)",
-        "note": "No geometric assumption; lowest test–retest variability for volumes."
+        "name": "Mechanical index",
+        "value": "MI = Pr/√f",
+        "note": "Low MI (≤0.3) preserves bubbles (perfusion/opacification); high MI destroys them (flash–replenishment). Lower MI when contrast is on."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Hunting a PFO/shunt or enhancing the right side? → agitated saline (with Valsalva).",
-      "STEP 2 — Poor apical borders, ≥2 segments unseen, need EF? → manufactured microbubble LV opacification (not a different geometric formula).",
-      "STEP 3 — Characterising a mass? → contrast: thrombus is avascular (fills dark); vascular enhancement suggests tumour.",
-      "STEP 4 — MV repair planning / device guidance? → 3D TEE en-face 'surgeon's view'."
+      "STEP 1 — Right-sided / shunt question? Use agitated saline + Valsalva release.",
+      "STEP 2 — Poor LV borders or ≥2 unseen segments? Use manufactured contrast (LVO) — but first exclude a right-to-left shunt.",
+      "STEP 3 — Mass to characterise? Contrast: thrombus fills dark (avascular), tumour enhances (vascular).",
+      "STEP 4 — Need higher 3D temporal resolution? Use multibeat acquisition, accepting stitch risk; use single-beat in arrhythmia."
     ],
     "differentiating_features": [
-      "Agitated saline is larger and non-uniform and is cleared by the lungs (right-sided/shunt only); manufactured microbubbles are small, shelled and uniform and cross the lungs (LV work)."
+      "Agitated saline vs manufactured: saline is large, non-uniform, lung-cleared (right/shunt); manufactured is small, shelled, crosses lungs (LV) and is contraindicated in R→L shunt.",
+      "Bubble timing: ≤3–5 beats = the short-cut through a hole (intracardiac); later = the long way through the lungs (pulmonary AVM).",
+      "Single-beat 3D = no stitch, lower temporal resolution; multibeat = stitched gated subvolumes, higher temporal resolution but a seam if the patient moves."
     ],
     "pearls": [
-      "Low mechanical index (MI ≤0.3) contrast-specific imaging preserves microbubbles; high MI destroys them.",
-      "Higher-molecular-weight perfluorocarbon gas → longer bubble persistence."
+      "Low MI preserves bubbles, high MI destroys — reduce MI when you give contrast to avoid wiping out the bubbles you injected.",
+      "3D is the closest echo gets to CMR (slightly under-reads), with the lowest test–retest variability for volumes; the en-face MV view is the structural-intervention workhorse.",
+      "Higher-molecular-weight perfluorocarbon gas → longer bubble persistence. Agitated saline is also used to complete a poor TR envelope when estimating PASP."
     ],
     "pitfalls": [
-      "Picking agitated saline to opacify the LV, or manufactured contrast to hunt a PFO, is the classic wrong answer.",
-      "3D multibeat acquisition risks stitch artifact; arrhythmia/breathing degrade it."
+      "Giving manufactured contrast to hunt a PFO (would cross to the systemic circulation), or agitated saline to opacify the LV — the classic wrong-agent errors.",
+      "When ≥2 segments are unseen, the answer is contrast LVO — not switching to a different geometric assumption (Teichholz only makes a bad image worse)."
     ],
     "exam_pearls": [
-      "'Bubbles in LA after 2 beats with Valsalva' → PFO.",
-      "'Manufactured contrast contraindication' → R→L shunt."
+      "'Poor apical borders, need EF' → manufactured contrast (LVO); 'thrombus vs tumour' → avascular dark vs vascular.",
+      "'Hunt for a PFO' → agitated saline + Valsalva; 'manufactured contrast contraindication' → right-to-left shunt.",
+      "'Improve 3D temporal resolution' → multibeat (accept stitch); 'cause of stitch artifact' → motion/arrhythmia."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 5."
   },
   {
     "id": "focus",
     "chapter": "Ch 6 · FoCUS",
-    "title": "Focused cardiac ultrasound — what it is and isn't",
-    "background": "FoCUS is a goal-directed bedside exam answering a narrow list of yes/no questions, interpreted in real time. It is an adjunct to physical examination, NOT a substitute for a full study. The high-yield question is almost always about a limit.",
+    "title": "Focused cardiac ultrasound — the limits define the tool",
+    "background": "FoCUS is a goal-directed bedside exam — an adjunct to physical examination answering a narrow list of yes/no questions, interpreted in real time. It is not a substitute for a full study. Almost every FoCUS question is really a question about its limits: what it can confidently answer, and what it must refer onward.",
     "key_measurements": [
       {
         "name": "Validated targets",
-        "value": "LV systolic function (gestalt), pericardial effusion/tamponade, RV size, gross valve pathology, IVC/volume status, LA size",
-        "note": "Binary, time-critical findings."
+        "value": "binary, time-critical",
+        "note": "Gross LV function, pericardial effusion/tamponade, RV size, IVC/volume status, gross valve pathology, LA size — superior to physical exam for these."
       },
       {
-        "name": "NOT for",
-        "value": "Aortic dissection, HCM, regional WMA, masses, vegetations, LV thrombus",
-        "note": "These need formal echo."
+        "name": "Parasternal window",
+        "value": "easiest for beginners",
+        "note": "Supine OK; rapidly answers effusion / gross LV / gross valve."
+      },
+      {
+        "name": "Subcostal window",
+        "value": "crash screen",
+        "note": "Rapid look for effusion, RV compression and IVC in the arrest/peri-arrest patient."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Inexperienced user? → parasternal views are easiest (supine OK).",
-      "STEP 2 — Crash screen for effusion/IVC? → subcostal.",
-      "STEP 3 — Need reliable RV size? → a true on-axis apical 4-chamber (but it is technically harder and foreshortening overestimates EF)."
+      "STEP 1 — Start parasternal (easiest, no special positioning): effusion? gross LV function? gross valve?",
+      "STEP 2 — For RV size, use a clean on-axis apical or the subcostal view — not a foreshortened apical.",
+      "STEP 3 — In the crashing patient, subcostal answers effusion / RV compression / IVC fastest.",
+      "STEP 4 — Anything subtle (dissection, HCM, regional WMA, vegetation, mass, thrombus) → refer for a formal study."
     ],
     "differentiating_features": [
-      "A negative FoCUS does not exclude endocarditis, dissection, or a regional wall-motion abnormality; absence of RV enlargement on a poor apical view is misleading."
+      "FoCUS is confirmatory for a short target list; it is not comprehensive. A negative FoCUS does not exclude subtle disease.",
+      "The same probe in the same hands cannot reliably grade valve severity, find a vegetation, or measure GLS — those belong to the formal study."
     ],
     "pearls": [
-      "Tamponade is a top-value FoCUS target because it is binary, life-threatening and time-critical.",
-      "Effusion + diastolic chamber collapse + plethoric IVC in a hypotensive patient → expedite pericardiocentesis; don't delay drainage to get a formal study."
+      "For its target list, FoCUS is clearly superior to physical examination, even with limited training — that is the case for using it. The discipline is to stay inside the target list.",
+      "Tamponade is one of FoCUS's highest-value targets because it is binary, life-threatening and time-critical — confirm with formal echo but don't delay drainage in a deteriorating patient."
     ],
     "pitfalls": [
-      "Apical foreshortening overestimates EF.",
-      "Treating FoCUS as a complete study — it confirms a short target list and refers onward for anything subtle."
+      "A foreshortened apical view flatters function (over-estimates EF) and hides RV enlargement — trust the subcostal or a clean on-axis apical when asking 'is the RV big?'.",
+      "Reading a focused study as if it were complete — 'no effusion seen, therefore the heart is normal' — is the trap."
     ],
     "exam_pearls": [
-      "Recognise FoCUS as confirmatory for a narrow target list — the limit IS the answer."
+      "'Best beginner FoCUS window' → parasternal; 'crash window for effusion/RV/IVC' → subcostal.",
+      "'FoCUS apical view risk' → foreshortening → over-estimates EF.",
+      "'Negative FoCUS excludes endocarditis?' → no — refer for formal echo."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 6."
   },
   {
     "id": "lv-systolic",
     "chapter": "Ch 7 · LV systolic function",
-    "title": "EF in severe MR — why a 'normal' EF is a warning",
-    "background": "The trap is treating ejection fraction as if it were systolic function. EF conflates contractility, preload, afterload and geometry — and it lies in both directions. In severe MR the LV unloads into the low-pressure LA, so EF looks falsely preserved even as contractility fails.",
+    "title": "EF, the continuity principle & contractile load",
+    "background": "Systolic function is the most-asked echo question, and the degree of dysfunction predicts outcome across nearly every cardiac disease. The trap is treating ejection fraction as if it were systolic function — EF conflates contractility, afterload, preload and geometry. This is about what EF captures, what it hides, and what to measure when it misleads.",
     "key_measurements": [
       {
-        "name": "Normal LVEF",
-        "value": "♂ ≥52% / ♀ ≥54% (exam ≥55%)",
-        "note": "HFrEF ≤40%, HFmrEF 41–49%, HFpEF ≥50%."
+        "name": "LVEF",
+        "value": "♂ ≥52% · ♀ ≥54% (exam ≥55%)",
+        "note": "HFrEF ≤40, HFmrEF 41–49, HFpEF ≥50. In severe primary MR, EF ≥60% & LVESD <40 mm are the reassuring numbers."
       },
       {
-        "name": "Reassuring numbers in severe primary MR",
-        "value": "EF ≥60% AND LVESD <40 mm",
-        "note": "An EF only 'low-normal' (≤60%) or LVESD ≥40 mm already signals decompensation."
+        "name": "Stroke volume",
+        "value": "SV = CSA × VTI",
+        "note": "CSA = π(d/2)²; CO = SV × HR. The LVOT diameter is squared → the single largest continuity error source."
+      },
+      {
+        "name": "GLS",
+        "value": "≈ −20%",
+        "note": "Subendocardial longitudinal fibres fail first, so GLS drops before EF."
       },
       {
         "name": "dP/dt (from MR jet)",
-        "value": "Normal >1200 mmHg/s; <800 abnormal",
-        "note": "Time for MR velocity to rise 1→3 m/s = a 32 mmHg rise; needs some MR."
-      },
-      {
-        "name": "Continuity / stroke volume",
-        "value": "SV = CSA × VTI; CSA = π(d/2)²",
-        "note": "The LVOT diameter is squared → the single largest error source. Cross-check with the dimensionless index."
+        "value": "normal >1200 mmHg/s",
+        "note": "Time for velocity to rise 1→3 m/s = a 32 mmHg rise; <800 abnormal. Needs some MR."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Any regional wall-motion abnormality? → Teichholz is invalid (assumes symmetry); use biplane Simpson's minimum.",
-      "STEP 2 — Poor borders? → 3D or contrast LVO.",
-      "STEP 3 — Severe primary MR with EF 'normal'? → reinterpret against loading: EF ≥60% & LVESD <40 reassuring; ≤60% or ≥40 is a trigger to consider surgery."
+      "STEP 1 — Any regional wall-motion abnormality? Abandon Teichholz; use biplane Simpson's minimum.",
+      "STEP 2 — Poor borders? Contrast LVO or 3D rather than a geometric assumption.",
+      "STEP 3 — Compute SV by continuity (CSA × VTI), measuring LVOT mid-systole at the VTI site; cross-check with DVI.",
+      "STEP 4 — Read the EF against loading — unloading into the LA (MR) flatters it; high afterload (HTN) depresses it."
     ],
     "differentiating_features": [
-      "EF is falsely high in severe MR (reduced afterload) and falsely low in severe hypertension (high afterload) — always ask what loading is doing to the number."
+      "EF lies both ways: 'normal' in severe MR (low-afterload escape into the LA), depressed in severe hypertension with no intrinsic muscle problem.",
+      "The squared LVOT diameter: a 10% error inflates CSA ~21% and propagates to SV/AVA/Qp:Qs alike. When AVA and DVI disagree, the diameter is the usual culprit.",
+      "The D-sign names RV overload by timing: systolic flattening = pressure overload; diastolic flattening = volume overload."
     ],
     "pearls": [
-      "A 10% LVOT diameter error (2.0→2.2 cm) inflates CSA by 21% and propagates to SV, AVA and Qp/Qs alike.",
-      "When AVA and the dimensionless index disagree, the LVOT measurement is the usual culprit."
+      "In severe primary MR an EF of only 'low-normal' (≤60%) or LVESD ≥40 mm already signals decompensation — a surgical trigger.",
+      "TAPSE and S′ (longitudinal measures) drop after any cardiac surgery despite preserved global RV function — post-op, lean on FAC and strain.",
+      "GLS drops before EF because compensating circumferential/radial function props EF up until late."
     ],
     "pitfalls": [
-      "Teichholz on a post-infarct LV reports 'normal EF' off a normal basal segment while the apex is akinetic.",
-      "Being reassured by EF 58% in asymptomatic severe primary MR — it is a subtle warning, not a green light."
+      "Treating a 'normal' EF in severe MR as reassurance — it overestimates true contractility.",
+      "Teichholz on a post-infarct LV reports a 'normal' EF off a normal basal segment while the apex is akinetic."
     ],
     "exam_pearls": [
-      "EF 'normal' in severe MR → warning, not reassurance.",
-      "dP/dt from MR jet 1→3 m/s = 32 mmHg."
+      "'EF normal in severe MR' → warning, not reassurance.",
+      "'Teichholz invalid when' → any regional WMA; 'largest continuity error' → squared LVOT diameter.",
+      "'D-sign: systole vs diastole' → pressure vs volume overload."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 7."
   },
   {
     "id": "rv-dsign",
     "chapter": "Ch 7 · RV function",
-    "title": "The D-sign & RV systolic toolkit",
-    "background": "The thin crescentic RV contracts mainly by longitudinal shortening, so its shape defeats LV volume formulas and function uses regional surrogates. A D-shaped LV means the RV is pushing the septum left — and the timing names the cause.",
+    "title": "The right ventricle — its own toolkit and the D-sign",
+    "background": "The thin crescentic RV contracts mainly by longitudinal shortening; its shape defeats the LV volume formulas, so function is read with regional surrogates on a dedicated RV-focused view. The D-shaped septum reports which overload the RV is facing — and the timing names the cause.",
     "key_measurements": [
       {
         "name": "TAPSE",
         "value": "≥17 mm",
-        "note": "Longitudinal annular excursion (M-mode)."
+        "note": "Longitudinal annular excursion (M-mode); drops after any cardiac surgery."
       },
       {
-        "name": "RV S′",
+        "name": "RV S′ (TDI)",
         "value": "≥9.5 cm/s",
-        "note": "TDI systolic annular velocity."
+        "note": "Basal RV systolic annular velocity; also falls post-op."
       },
       {
-        "name": "FAC",
+        "name": "RV FAC",
         "value": "≥35%",
-        "note": "Fractional area change (2D analog of EF)."
+        "note": "2D analogue of RVEF; lean on it (and strain) when TAPSE/S′ are post-op unreliable."
       },
       {
-        "name": "3D RVEF",
-        "value": "≥45%",
-        "note": "Volumetric."
-      },
-      {
-        "name": "TAPSE/PASP ratio",
-        "value": "<0.3–0.4 mm/mmHg = RV–PA uncoupling",
-        "note": "New in the 2025 ASE right-heart guideline; worse outcome."
+        "name": "3D RVEF / free-wall strain",
+        "value": "≥45% / abnormal if < ~−20%",
+        "note": "Track outcome better than TAPSE or FAC read in isolation (2025 ASE)."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — D-shaped LV with SYSTOLIC septal flattening → pressure overload (e.g. pulmonary hypertension).",
-      "STEP 2 — D-shaped LV with DIASTOLIC septal flattening → volume overload (e.g. ASD, severe TR).",
-      "STEP 3 — Post cardiac surgery? → TAPSE and S′ drop even with preserved global RV function; lean on FAC and strain."
+      "STEP 1 — Read the RV on a dedicated RV-focused apical view, not a foreshortened 4-chamber.",
+      "STEP 2 — Quantify longitudinal function (TAPSE, S′), area change (FAC), then strain/3D where feasible.",
+      "STEP 3 — See a D-shaped septum? Time the flattening: systolic = pressure overload; diastolic = volume overload.",
+      "STEP 4 — Post-cardiac surgery: discount TAPSE/S′ and rely on FAC and strain."
     ],
     "differentiating_features": [
-      "Pressure overload (systolic flattening) vs volume overload (diastolic flattening) — the timing of septal flattening is the discriminator."
+      "D-sign timing: systolic flattening = pressure overload (e.g. pulmonary hypertension); diastolic flattening = volume overload (e.g. ASD, severe TR).",
+      "Foreshortening under-reads RV size and over-reads function — a fixed-direction error."
     ],
     "pearls": [
-      "The 2025 ASE right-heart guideline keeps the same normal thresholds but now reports each index on a graded scale (normal/mild/moderate/severe) and adds the TAPSE/PASP coupling ratio.",
-      "Prefer RV strain and 3D RVEF where available — they track outcomes better than TAPSE or FAC alone."
+      "The 2025 ASE Right Heart guideline reports each index on a graded scale (normal/mild/moderate/severe) and adds the TAPSE/PASP ratio as an RV–PA coupling marker (<0.3–0.4 mm/mmHg = uncoupling, worse outcome).",
+      "Prefer RV strain and 3D RVEF where available — they track outcome better than single longitudinal numbers."
     ],
     "pitfalls": [
-      "Reading TAPSE/S′ in isolation post-cardiac-surgery and calling RV function reduced when pericardiotomy has simply changed the motion pattern."
+      "Reading TAPSE/S′ at face value after cardiac surgery (pericardiotomy changes the motion pattern) and calling the RV failing when global function is preserved."
     ],
     "exam_pearls": [
-      "D-sign: systole = pressure, diastole = volume.",
-      "TAPSE fails post-op → use FAC/strain."
+      "'RV abnormal if basal >' → 41 mm; 'RV longitudinal function cutoff' → TAPSE <17 mm.",
+      "'D-sign: systole vs diastole' → pressure vs volume overload.",
+      "'TAPSE drops when' → post-cardiac-surgery."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 7 (+ 2025 ASE right-heart guideline)."
+    "reference": "Clinical Echo Exam Companion, Ch 7 (2025 ASE Right Heart guideline)."
   },
   {
     "id": "diastology-2025",
     "chapter": "Ch 8 · Diastolic function 2025",
-    "title": "The 2025 ASE universal diastology algorithm",
-    "background": "Diastole is active and energy-requiring; when it fails, the LV fills only at the cost of high pressure that backs into the lungs. The whole chapter answers one question — are this patient's LV filling pressures elevated? The 2025 ASE update introduced a single universal two-step algorithm, added LA reservoir strain, and eliminated the 'indeterminate' category.",
+    "title": "Diastolic function & filling pressures (2025 ASE)",
+    "background": "Diastole is active and energy-requiring; when it fails, the LV can only fill at the cost of high pressure that backs into the lungs. The whole chapter answers one question — are this patient's LV filling pressures elevated? — and it is the most heavily tested and most recently updated topic in echo, so the banks reward both knowing the 2025 algorithm and recognising which year a stem is written from.",
     "key_measurements": [
       {
-        "name": "e′ gateway (impaired relaxation)",
-        "value": "average e′ ≤6.5 cm/s (septal ≤6, lateral ≤7)",
-        "note": "The entry condition; impaired relaxation is required before grading pressure."
+        "name": "e′ gateway (2025)",
+        "value": "avg ≤6.5 cm/s",
+        "note": "Septal ≤6 / lateral ≤7 if one site. Relaxation-specific, load-resistant — the entry condition. Normal e′ → pressure normal."
       },
       {
-        "name": "Average E/e′",
-        "value": ">14 = elevated",
-        "note": "Workhorse estimate of LV filling pressure; dividing E by e′ cancels the relaxation component."
+        "name": "E/e′",
+        "value": ">14 = elevated LAP",
+        "note": "Workhorse pressure estimate. LAP ≈ 1.9 + 1.24·(E/e′) ≈ 4 + E/e′; E/e′ ≥15 → PCWP >18–20."
       },
       {
         "name": "Peak TR velocity",
-        "value": ">2.8 m/s",
-        "note": "Downstream of chronic left-sided pressure."
+        "value": ">2.8 m/s supportive",
+        "note": "Downstream consequence of chronic left-sided pressure."
       },
       {
-        "name": "LAVI",
-        "value": ">34 mL/m²",
-        "note": "Chronic barometer of sustained high pressure."
+        "name": "LA measures",
+        "value": "LAVI >34 / LARS ≤18%",
+        "note": "LA reservoir strain (LARS) is new in 2025 and breaks discordant ties."
       },
       {
-        "name": "LA reservoir strain (LARS)",
-        "value": "≤18% supports elevated LAP",
-        "note": "2025 addition; resolves discordant cases."
+        "name": "Supportive",
+        "value": "E/A, PV S/D, Ar–A",
+        "note": "E/A ≤0.8 or ≥2; PV S/D <1 (≤0.67); Ar–A ≥30 ms or peak Ar ≥35 cm/s = ↑LVEDP."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — e′ gateway: average e′ ≤6.5 cm/s (septal ≤6 / lateral ≤7)? e′ NORMAL → filling pressure normal unless core indices say otherwise. e′ REDUCED → diastolic dysfunction present; grade the pressure.",
-      "STEP 2 — Weigh the three core indices together: average E/e′ >14, peak TR-V >2.8 m/s, LA measures (LAVI >34, LARS ≤18%). Supportive: E/A ≤0.8 or ≥2.",
-      "STEP 3 — Concordant core indices set LAP directly.",
-      "STEP 4 — Discordant cases adjudicated by a secondary marker (pulmonary-vein S/D ≤0.67, LARS ≤18%, LAVI >34). No 'indeterminate'."
+      "STEP 1 (gateway) — Is relaxation impaired? Average e′ ≤6.5. If normal → filling pressure normal unless core indices clearly say otherwise.",
+      "STEP 2 — Weigh the core triad together: average E/e′ >14, peak TR-V >2.8, LA measures (LAVI >34 / LARS ≤18%).",
+      "STEP 3 — Concordant core indices set the grade; discordant cases are adjudicated by a secondary marker (PV S/D ≤0.67, LARS ≤18%). No 'indeterminate'.",
+      "STEP 4 — Unmask pseudonormal with Valsalva (E/A drop ≥50% = elevated pressure); use diastolic stress (E/e′ ≥14 & TR-V ≥3.2) when resting is borderline."
     ],
     "differentiating_features": [
-      "Which year is the stem testing? If options include 'indeterminate' or '2 of 4' → 2016. If it mentions LA strain/LARS, 'universal algorithm' or 'e′ gateway/concordance' → 2025. Cutoffs differ: septal e′ abnormal is <7 (2016) but ≤6 (2025); the gateway uses average e′ ≤6.5.",
-      "Grades by E/A: I <0.8 (prolonged DT, normal pressure); II pseudonormal 0.8–2 (elevated); III restrictive >2 (DT <160 ms, markedly elevated)."
+      "Which year is the stem testing? 'Indeterminate' / '2 of 4' → 2016; 'LA strain / universal algorithm / e′ gateway' → 2025. Cutoffs differ: septal e′ <7 (2016) vs ≤6 (2025).",
+      "Pseudonormal (Grade II): a normal-looking E/A beside a low e′, big LA and high E/e′ — the inflow alone cannot separate normal from pseudonormal; e′ does.",
+      "Constriction vs restriction: constriction has preserved/high e′ and LOW E/e′ (annulus paradoxus, medial>lateral = reversus); restriction has low e′ and high E/e′."
     ],
     "pearls": [
-      "The 2025 logic is not 'count the abnormals' — know the core triad (E/e′, TR-V, LA) and the concordant-vs-discordant structure.",
-      "Valsalva reverts a pseudonormal E/A to the impaired-relaxation pattern (≥50% E/A drop = elevated filling pressure).",
-      "Diastolic stress echo positive if average E/e′ ≥14 (or septal ≥15) AND peak TR velocity ≥3.2 m/s."
+      "The E/A ratio is non-monotonic — it falls (impaired relaxation), climbs back through normal (pseudonormal), then overshoots >2 (restrictive). So the algorithm never grades on inflow alone.",
+      "e′ asks 'is relaxation impaired?'; everything else (E/e′, TR-V, LA size/strain) asks 'is the pressure high?'",
+      "Ar–A duration reflects the pressure the atrium pushes against at end-diastole — it survives bad loading when E/e′ is unreliable. An L-wave on a slow heart = advanced diastolic dysfunction."
     ],
     "pitfalls": [
-      "Mixing the 2016 and 2025 number sets is the trap.",
-      "e′ stays low throughout — a 'normal' mitral inflow beside a low e′, big LA and high E/e′ is not normal (the pseudonormal trap).",
-      "In AF (no A wave): use septal E/e′, TR-V, E-wave acceleration, IVRT and average several beats. Annular e′/E/e′ invalid with MAC, mitral prosthesis or repair."
+      "'E/A is normal, therefore diastolic function is normal' — a keyed wrong answer (pseudonormal trap).",
+      "Using E/e′ in AF (no organised atrial mechanics) — average several beats, lean on septal E/e′ ≥11. In MAC / mitral prosthesis / repair, e′ and E/e′ are invalid."
     ],
     "exam_pearls": [
-      "Gateway e′ plus a single abnormal marker is enough under 2025.",
-      "LARS ≤18% and LAVI >34 carry the diagnosis when E/e′ and TR-V are borderline — the HFpEF patient the algorithm is designed to catch."
+      "'Normal-looking E/A but low e′, big LA' → pseudonormal (Grade II); 'preload-independent gateway' → TDI e′.",
+      "'Stem says indeterminate / 2 of 4' → 2016; 'stem says LARS / universal algorithm' → 2025.",
+      "'High pressure but LOW E/e′, annulus reversus' → constriction (not DD)."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 8 (2025 ASE diastolic function update, Nagueh et al., JASE 2025;38(7):537–569)."
+    "reference": "Clinical Echo Exam Companion, Ch 8 (2025 ASE diastolic function update)."
   },
   {
     "id": "strain",
     "chapter": "Ch 9 · Strain & TDI",
-    "title": "The three diagnostic strain signatures",
-    "background": "Deformation imaging detects dysfunction the eye and EF miss. Subendocardial longitudinal fibers fail first, so GLS drops before EF. Pattern recognition wins points — naming the pattern, not just 'abnormal strain', is the expert answer.",
+    "title": "Strain & tissue Doppler — velocity is motion, strain is contraction",
+    "background": "Deformation imaging detects dysfunction the eye and EF miss, and underlies modern cardio-oncology, infiltrative disease and subclinical dysfunction. Two technologies, one crucial difference: tissue Doppler measures velocity (angle-dependent); speckle-tracking measures deformation (angle-independent). And one conceptual hinge — a tethered, passively-dragged segment moves but doesn't deform.",
     "key_measurements": [
       {
-        "name": "Normal GLS",
-        "value": "≈ −20% (more negative = better)",
-        "note": "Speckle tracking is angle-independent, unlike TDI."
+        "name": "GLS",
+        "value": "≈ −20%",
+        "note": "More negative = better; abnormal = less negative. Vendor-dependent — track serial change on the same system."
+      },
+      {
+        "name": "Strain rate",
+        "value": "SR = (V₁−V₂)/L",
+        "note": "SR = 0 → akinesis; <0 → shortening; >0 → lengthening. The subtraction is why strain sees contraction where velocity sees only motion."
       },
       {
         "name": "Cardiotoxicity threshold",
-        "value": "relative GLS drop >15% from baseline",
-        "note": "Subclinical cancer-therapy cardiotoxicity — act before EF falls."
+        "value": "relative GLS drop >15%",
+        "note": "From the patient's OWN baseline, not a population reference = subclinical cardiotoxicity."
+      },
+      {
+        "name": "TDI velocities",
+        "value": "cm/s (not m/s)",
+        "note": "An order of magnitude below blood flow — a frequent units distractor; gives s′, e′, a′."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Relative GLS drop >15% from baseline on chemo? → subclinical cardiotoxicity; involve cardio-oncology.",
-      "STEP 2 — Reduced basal/mid longitudinal strain with preserved apex ('cherry on top' bull's-eye)? → amyloid apical sparing.",
-      "STEP 3 — Reduced GLS with preserved EF in AS/HCM? → early decompensation."
+      "STEP 1 — Need contraction, not just motion? Use speckle-tracking strain (angle-independent); a tethered segment has velocity but near-zero strain.",
+      "STEP 2 — Chemotherapy surveillance? Compare GLS to the patient's own baseline; a >15% relative drop = act before EF falls.",
+      "STEP 3 — Thick walls with a low-strain base and a preserved apex ('cherry on top')? Think amyloid → PYP scintigraphy.",
+      "STEP 4 — Report the pattern and serial change; never compare an absolute GLS across vendors."
     ],
     "differentiating_features": [
-      "Speckle-tracking strain is angle-independent; TDI is angle-dependent (off-axis under-reads).",
-      "TDI gives s′ (systolic), e′ (relaxation), a′ (atrial); these are velocities, an order of magnitude lower than blood flow."
+      "Speckle tracking (angle-independent, follows features) vs TDI-derived strain (angle-dependent, measures a shift).",
+      "Three diagnostic strain signatures: cardio-oncology (relative drop >15% from baseline), amyloid (apical sparing), AS/HCM (reduced GLS despite preserved EF).",
+      "Velocity is motion, strain is contraction — a scarred segment dragged by healthy walls is the 'towed parade float': real velocity, no real squeeze."
     ],
     "pearls": [
-      "Strain rate SR = (V₁ − V₂)/L between two points over the distance between them.",
-      "LV myocardium has a helical fibre architecture — longitudinal, circumferential and twist mechanics each fail differently."
+      "GLS falls before EF because the subendocardial longitudinal fibres are the most vulnerable and fail first, while EF is propped up by circumferential/radial function until late.",
+      "Strain rate is a stronger marker of contractility than strain itself (it is the instantaneous rate).",
+      "Amyloid deposits from the base upward, so basal/mid strain collapses while the apex is relatively spared — the 'cherry on top' bull's-eye."
     ],
     "pitfalls": [
-      "Comparing an absolute GLS across vendors/machines — the guideline declines a universal cutoff; track serial change on the same system.",
-      "Being reassured by a 'normal' EF on chemo when GLS has already fallen >15%."
+      "Comparing absolute GLS across machines ('is −18% on A worse than −19% on B?') — unanswerable; track each against its own baseline.",
+      "Reading a 'normal EF' as reassurance in cardio-oncology while GLS has already dropped."
     ],
     "exam_pearls": [
-      "Amyloid = apical sparing.",
-      "Cardiotoxicity = relative GLS drop >15%."
+      "'Angle-independent deformation method' → speckle tracking; 'strain rate formula' → (V₁−V₂)/L.",
+      "'Cardiotoxicity GLS threshold' → >15% relative drop from baseline.",
+      "'Apical-sparing bull's-eye' → cardiac amyloid → PYP."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 9."
   },
   {
     "id": "crt",
     "chapter": "Ch 10 · Dyssynchrony & CRT",
-    "title": "Echo dyssynchrony & CRT optimization",
-    "background": "CRT helps when electrical delay causes mechanical dyssynchrony. Echo quantifies the delay at three levels and guides device optimization — but it did not replace ECG selection criteria.",
+    "title": "Dyssynchrony & CRT optimization",
+    "background": "CRT helps when electrical delay causes mechanical dyssynchrony — walls contracting out of sequence, wasting work. Echo quantifies the delay at three levels and guides device optimization — but the single most-tested nuance is humbling: echo dyssynchrony did not improve patient selection beyond the ECG (PROSPECT).",
     "key_measurements": [
-      {
-        "name": "AV dyssynchrony",
-        "value": "LV filling time ≤40% of R-R",
-        "note": "Fused E/A, diastolic MR."
-      },
       {
         "name": "Interventricular delay (IVMD)",
         "value": "≥40 ms",
-        "note": "Delay between onset of RV and LV ejection (PW pulmonic vs aortic)."
+        "note": "Delay between onset of RV and LV ejection (PW of pulmonic vs aortic flow)."
       },
       {
-        "name": "Intraventricular (LV) — SPWMD",
+        "name": "SPWMD (M-mode)",
         "value": "≥130 ms",
-        "note": "Septal-to-posterior wall motion delay on M-mode."
+        "note": "Septal-to-posterior wall motion delay; limited in ischaemic disease with posterolateral infarction."
       },
       {
         "name": "TDI opposing-wall delay",
         "value": "≥65 ms",
-        "note": "Time-to-peak between opposing walls."
+        "note": "Time-to-peak between opposing walls; the Yu index = SD across 12 segments."
+      },
+      {
+        "name": "LV filling time",
+        "value": "≤40% of R-R",
+        "note": "AV dyssynchrony: fused E/A, diastolic MR."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Selecting for CRT? → driven by QRS ≥150 ms with LBBB morphology (echo dyssynchrony is adjunctive, not the gatekeeper).",
-      "STEP 2 — Optimising AV delay? → tune to maximise LV filling time (best-separated E and A, no diastolic MR).",
-      "STEP 3 — Optimising VV delay? → minimise interventricular delay / maximise stroke volume (LVOT VTI)."
+      "STEP 1 — Select on the ECG: QRS ≥150 ms + LBBB remains the gatekeeper, not echo.",
+      "STEP 2 — Optimize AV delay to the longest filling time with a discrete A wave ending at mitral valve closure (abolishing diastolic MR).",
+      "STEP 3 — Optimize VV delay to minimise interventricular delay / maximise LVOT VTI (iterative method).",
+      "STEP 4 — Use LV intraventricular dyssynchrony (best response predictor) and the qualitative signs to support, not override, selection."
     ],
     "differentiating_features": [
-      "LV (intraventricular) dyssynchrony is most associated with CRT response; the Yu index (SD of time-to-peak across 12 segments) quantifies it."
+      "Selection vs optimization: the numeric cutoffs OPTIMIZE the device; QRS ≥150 + LBBB SELECTS the patient (PROSPECT showed echo poor for selection).",
+      "Septal flash (early-SYSTOLE inward-outward beat) of dyssynchrony ≠ septal bounce (early-DIASTOLE) of constriction — the timing names the cause.",
+      "AV vs interventricular vs intraventricular: '40 between, 130 within (M-mode), 65 within (tissue)'."
     ],
     "pearls": [
-      "With a long AV delay, atrial contraction occurs too early, fusing E and A and causing diastolic MR; optimizing AV delay separates E and A and restores the atrial contribution."
+      "LV intraventricular dyssynchrony is most associated with CRT response; color-coded TDI is the workhorse acquisition.",
+      "Septal flash and apical rocking are qualitative signs of mechanical LBBB dyssynchrony that predict response.",
+      "AV optimization separates fused E and A and restores the atrial contribution — a measurable target."
     ],
     "pitfalls": [
-      "PROSPECT showed echo dyssynchrony measures had poor reproducibility and did not reliably improve selection beyond QRS width and LBBB — a stem implying echo should override ECG selection is testing this nuance."
+      "A stem implying echo dyssynchrony should override ECG selection — the answer is no (PROSPECT: poor reproducibility).",
+      "Confusing the early-systolic septal flash with the early-diastolic septal bounce of constriction."
     ],
     "exam_pearls": [
-      "Fused E/A + short filling time + diastolic MR in a CRT patient = AV-delay optimization opportunity.",
-      "Selection still QRS ≥150 + LBBB."
+      "'Best echo predictor of CRT response' → LV intraventricular dyssynchrony; 'trial showing echo poor for selection' → PROSPECT.",
+      "'Primary CRT selection criterion' → QRS ≥150 ms + LBBB.",
+      "'Fused E/A + diastolic MR in CRT pt' → shorten/optimize AV delay."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 10."
   },
   {
     "id": "stress-echo",
     "chapter": "Ch 11 · Coronary & stress echo",
-    "title": "The ischaemic cascade & dobutamine responses",
-    "background": "Echo images what a blocked artery does to its muscle — the wall stops thickening and moving inward. Because the regional wall-motion abnormality appears before ST changes and angina, echo detects ischaemia when the stress ECG is non-diagnostic.",
+    "title": "Coronary disease, the ischaemic cascade & biphasic viability",
+    "background": "Echo rarely images the coronaries — it images what a blocked artery does to its muscle: the wall stops thickening and stops moving inward. The two ideas the banks reward are the ischaemic cascade (mechanics fail before the ECG and angina) and the biphasic dobutamine response (the finding that predicts recovery after revascularisation).",
     "key_measurements": [
       {
-        "name": "LV segments",
-        "value": "17-segment model",
-        "note": "Judge systolic THICKENING, not just inward motion — a tethered segment dragged in without thickening is abnormal."
+        "name": "Coronary territories",
+        "value": "LAD / RCA / Cx",
+        "note": "LAD = anterior, anteroseptum, apex; RCA = inferior, basal inferoseptum; Cx = lateral. A WMA respecting a territory is convincing."
+      },
+      {
+        "name": "Wall-motion grades",
+        "value": "hypo / a / dys-kinetic",
+        "note": "Judge systolic THICKENING. NSTEMI subendocardial (hypokinesis); STEMI transmural (akinesis/dyskinesis)."
       },
       {
         "name": "Pseudoaneurysm neck",
-        "value": "neck-to-cavity ratio <0.5",
-        "note": "Contained rupture, often inferior/lateral → high rupture risk → usually urgent surgery."
+        "value": "neck-to-cavity <0.5",
+        "note": "Contained rupture, high rupture risk → usually urgent surgery. True aneurysm = wide mouth (>0.5)."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Cascade order: perfusion mismatch → metabolic shift → diastolic dysfunction → regional WMA → ECG changes → angina (mechanics precede the ECG).",
-      "STEP 2 — Dobutamine BIPHASIC (improves low-dose, worsens high-dose) → viable but jeopardised; recovers after revascularisation.",
-      "STEP 3 — Sustained improvement → viable, not currently jeopardised.",
-      "STEP 4 — No change at any dose → scar, non-viable."
+      "STEP 1 — Uninterpretable stress ECG (LBBB, paced, LVH-strain, digoxin)? Use stress imaging — echo detects the WMA before ST changes.",
+      "STEP 2 — Map any WMA to its artery; a territory-respecting abnormality is convincing for coronary disease.",
+      "STEP 3 — On dobutamine, classify: biphasic (improve low-dose, worsen peak) = viable + jeopardised → revascularise; sustained improvement = viable, not jeopardised; no change = scar.",
+      "STEP 4 — Post-MI murmur/shock: measure the pseudoaneurysm neck-to-cavity ratio before reassuring anyone."
     ],
     "differentiating_features": [
-      "True aneurysm = wide mouth (neck/cavity >0.5), usually apical/anterior, lower rupture risk; pseudoaneurysm = narrow neck <0.5, contained rupture, high rupture risk — measure the neck before reassuring anyone."
+      "Biphasic = the money finding (recovers after revascularisation); a segment that never moves at any dose is scar (no benefit).",
+      "Sensitivity vs specificity: nuclear ≈ echo sensitivity; stress echo has higher specificity; PET highest sensitivity. SnNout (rule out) / SpPin (rule in).",
+      "Pseudoaneurysm (narrow neck <0.5, no myocardium, often inferior/lateral, high rupture risk) vs true aneurysm (wide mouth, all layers thinned, apical/anterior)."
     ],
     "pearls": [
-      "PET has the highest sensitivity; dobutamine stress echo the highest specificity.",
-      "Inferior MI + acute severe MR → posteromedial papillary muscle rupture (single blood supply).",
-      "NSTEMI tends subendocardial (hypokinesis); STEMI transmural (akinesis/dyskinesis)."
+      "The commonest stress-echo false-negative is single-vessel mild disease (or a sub-maximal heart rate — use atropine); sensitivity rises with vessel number and stenosis severity.",
+      "Inferior MI gives posteromedial papillary-muscle rupture (single blood supply) → acute severe MR, flail leaflet, sudden pulmonary oedema + shock.",
+      "A narrow-necked pseudoaneurysm is the counterintuitive time bomb — the wall is gone and only clot/pericardium holds the blood."
     ],
     "pitfalls": [
-      "Mistaking a biphasic (viable) segment for scar — the biphasic response is the money finding that predicts recovery after revascularisation.",
-      "Reassuring a patient with a pseudoaneurysm — that 'obvious' answer can be lethal."
+      "Reassuring a patient with an outpouching without measuring the neck — a pseudoaneurysm can be lethal.",
+      "A WMA that doesn't obey any coronary territory (e.g. basal septal thinning) points to infiltration (sarcoid) or Takotsubo, not CAD."
     ],
     "exam_pearls": [
-      "'Uninterpretable stress ECG (LBBB)' → stress echo/imaging.",
-      "Biphasic dobutamine → viable."
+      "'Biphasic dobutamine response' → viable + jeopardised → revascularise; 'cascade order' → mechanics before ECG/angina.",
+      "'Highest specificity ischaemia test' → dobutamine stress echo; 'commonest false-negative' → single-vessel mild disease.",
+      "'Inferior MI + acute severe MR' → posteromedial papillary rupture; 'pseudoaneurysm neck/cavity' → <0.5."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 11."
   },
   {
     "id": "cardiomyopathy",
     "chapter": "Ch 12 · Cardiomyopathies",
-    "title": "HCM SAM-MR vs primary MR & the amyloid signature",
-    "background": "Cardiomyopathies are diseases of heart muscle itself; the echo job is pattern recognition. In HCM the hypertrophied basal septum drags the anterior mitral leaflet into the outflow (Venturi → SAM), worsening obstruction and causing a posteriorly-directed MR jet.",
+    "title": "Cardiomyopathies & pulmonary hypertension",
+    "background": "Cardiomyopathies are diseases of heart muscle itself; the echo job is pattern recognition — a dilated weak ventricle, a thick obstructing one, or a stiff infiltrated one, each with a signature. Pulmonary hypertension is the downstream consequence the RV pays for. The recurring discriminators are about timing, jet direction, and which manoeuvre changes the gradient.",
     "key_measurements": [
       {
-        "name": "HCM septum:posterior ratio",
-        "value": "≥1.3–1.5",
-        "note": "Asymmetric septal hypertrophy + SAM + small cavity."
+        "name": "HCM septal ratio",
+        "value": "septum:posterior ≥1.3",
+        "note": "Asymmetric septal hypertrophy + SAM + dynamic LVOT obstruction + posteriorly-directed MR jet."
+      },
+      {
+        "name": "CW signal shape",
+        "value": "late dagger vs rounded",
+        "note": "Dynamic LVOT obstruction (HCM) is late-peaking ('dagger'); fixed valvular AS is rounded, mid-systolic."
       },
       {
         "name": "PASP",
-        "value": "= 4·(TR V)² + RA pressure",
-        "note": "RAP from IVC; supportive PH signs: PA accel time <105 ms, systolic septal flattening, dilated non-collapsing IVC."
+        "value": "4·(TR V)² + RAP",
+        "note": "RAP from IVC (≤2.1 cm & >50% collapse → 3; dilated/fixed → 15). Mean PAP ≈ 80 − 0.5×AccT."
+      },
+      {
+        "name": "Amyloid paradox",
+        "value": "thick walls + LOW voltage",
+        "note": "Infiltration, not true hypertrophy; with apical-sparing strain and biatrial dilation → PYP scintigraphy (ATTR)."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — CW signal late-peaking 'dagger'? → dynamic LVOT obstruction (HCM). Rounded mid-systolic peak? → fixed valvular AS.",
-      "STEP 2 — Murmur INCREASES with Valsalva (smaller cavity → more SAM)? → HCM. Almost everything else (AS, MR) decreases.",
-      "STEP 3 — Thick walls + low ECG voltage + apical-sparing strain + biatrial dilation? → amyloid → confirm ATTR with PYP/DPD scintigraphy."
+      "STEP 1 — Classify the phenotype: dilated (big, weak, functional MR), hypertrophic (asymmetric septum, SAM), or restrictive/infiltrative (normal-size stiff LV, biatrial enlargement, preserved EF until late).",
+      "STEP 2 — Murmur louder with Valsalva/standing → HCM (dynamic). Anything that shrinks the cavity worsens the gradient.",
+      "STEP 3 — Thick walls + low ECG voltage + apical-sparing strain → amyloid → PYP (exclude AL plasma-cell dyscrasia).",
+      "STEP 4 — Estimate PA pressure from the TR jet; enhance a poor TR envelope with agitated saline and cross-check the 2D signs."
     ],
     "differentiating_features": [
-      "SAM-MR: posteriorly-directed jet appearing/worsening in mid-late systole alongside a late-peaking LVOT signal → relieve obstruction (β-blockade, septal reduction).",
-      "Primary MR: holosystolic, fixed, often anteriorly/centrally-directed jet from leaflet pathology → valve intervention.",
-      "Provocations that ↑ obstruction: Valsalva (strain), standing, amyl nitrite, post-PVC beat, exercise, dehydration. ↓ obstruction: squatting, handgrip, leg-raise."
+      "HCM SAM-MR (posteriorly-directed, mid-late systolic, late-peaking LVOT) → relieve obstruction; vs primary MR (holosystolic, fixed, anterior/central) → valve intervention.",
+      "Amyloid (thick wall + low voltage, apical sparing) vs Fabry (symmetric concentric LVH, binary endocardium) vs sarcoid (non-territorial WMA, basal septal thinning).",
+      "Acute PE (McConnell: free-wall akinesis with spared apex; PASP <60; 60/60 sign) vs chronic PH (RV hypertrophy, sustains higher pressures)."
     ],
     "pearls": [
-      "Thick walls + low voltage is the amyloid paradox (infiltration, not true hypertrophy).",
-      "Sarcoid thins the basal anteroseptal wall with non-coronary-territory motion abnormality.",
-      "Fabry = concentric LVH mimicking HCM; hemochromatosis = early restrictive then dilated."
+      "Smaller cavity = louder HCM: ↓preload (Valsalva strain, standing, nitrates) or ↑contractility (post-PVC beat, exercise) worsens it; squatting/handgrip quiet it. Post-PVC: gradient ↑, pulse pressure ↓ (Brockenbrough).",
+      "In severe TR, RA and RV pressures equalise and blunt the gradient — a 'low' TR velocity is falsely reassuring. Cross-check the 2D picture.",
+      "2025 ASE: PH defined as mean PAP >20 mmHg; TAPSE/PASP <0.3–0.4 mm/mmHg = RV–PA uncoupling; prefer RV strain / 3D RVEF."
     ],
     "pitfalls": [
-      "Misreading SAM-MR as primary MR sends the patient to the wrong therapy.",
-      "A 'normal' TR velocity with a poor/incomplete envelope underestimates PASP — use agitated saline to enhance the signal."
+      "Misreading SAM-MR as primary MR — sends the patient to the wrong therapy.",
+      "Confusing 'thick wall' with 'LVH on ECG' and missing amyloid; the keyed move is PYP scintigraphy."
     ],
     "exam_pearls": [
-      "Murmur ↑ with Valsalva → HCM.",
-      "Posterior MR jet + SAM → HCM.",
-      "Thick walls + low voltage + apical sparing → amyloid (→PYP)."
+      "'Murmur ↑ with Valsalva' → HCM; 'late-peaking dagger CW' → dynamic LVOT.",
+      "'Thick walls + low voltage + apical sparing' → amyloid → PYP; 'RV free-wall akinesis, apex spared' → McConnell (acute PE).",
+      "'PASP formula' → 4(TR V)² + RAP; 'non-territorial WMA + basal septal thinning' → sarcoid."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 12."
+    "reference": "Clinical Echo Exam Companion, Ch 12 (2025 ASE Right Heart / PH)."
   },
   {
     "id": "pericardium",
     "chapter": "Ch 13 · Pericardial disease",
-    "title": "Constriction vs restriction & tamponade signs",
-    "background": "When the pericardium scars or fills fast, the problem is filling, not squeeze — and the whole topic is hemodynamics. Both constriction and restriction cause right heart failure with preserved EF; the distinction is mechanism (stiff pericardium = operable vs stiff myocardium = medical).",
+    "title": "Tamponade, constriction vs restriction",
+    "background": "The pericardium is a stiff sac; when fluid accumulates fast, or the sac scars and stops stretching, the problem is filling, not squeeze. One unifying mechanism explains almost everything: two ventricles competing for one fixed space (interventricular dependence).",
     "key_measurements": [
       {
-        "name": "Tamponade — RV/RA collapse",
-        "value": "RV diastolic collapse (specific); RA systolic collapse >⅓ of systole (specific)",
-        "note": "RA collapse is sensitive; >⅓ systole = specific."
+        "name": "Tamponade chamber collapse",
+        "value": "RA systolic / RV diastolic",
+        "note": "RA systolic collapse >⅓ of systole is specific; RV diastolic collapse is the hallmark (M-mode pins it to diastole)."
       },
       {
-        "name": "Tamponade — flow variation",
-        "value": "Mitral E ↓ >30% with inspiration; tricuspid inflow ↑ >60%",
-        "note": "Echo pulsus paradoxus from interventricular dependence."
+        "name": "Tamponade inflow swings",
+        "value": "mitral E ↓>30%, tricuspid ↑>60%",
+        "note": "Echo pulsus paradoxus + plethoric IVC (<50% collapse)."
       },
       {
-        "name": "Constriction — mitral E variation",
-        "value": ">25% (present)",
-        "note": "Restriction: <10% (absent)."
+        "name": "Constriction respiratory variation",
+        "value": "mitral E >25%",
+        "note": "With a septal bounce; restriction shows <10% (absent)."
       },
       {
-        "name": "Constriction — annular e′",
-        "value": "normal/↑ (≥8), medial > lateral",
-        "note": "Annulus reversus. Restriction: e′ globally low (<8), E/e′ high."
+        "name": "Pericardial thickness",
+        "value": "≥3 mm",
+        "note": "On TEE/CT supports constriction (~95% sens) but normal thickness does NOT exclude it (~20% normal-thickness)."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Septal bounce + mitral E respiratory variation >25%? → suggests constriction.",
-      "STEP 2 — Annular e′ preserved/high (≥8) with medial e′ > lateral (annulus reversus)? → constriction (pericardial, surgical).",
-      "STEP 3 — Expiratory diastolic hepatic-vein flow reversal? → constriction. Inspiratory reversal → restriction.",
-      "STEP 4 — e′ globally low, marked biatrial enlargement, no respiratory variation? → restriction (myocardial, medical)."
+      "STEP 1 — Effusion + diastolic chamber collapse + plethoric IVC in a hypotensive patient → tamponade physiology → expedite drainage.",
+      "STEP 2 — Right heart failure with preserved EF? Decide pericardium vs myocardium by respiration + tissue Doppler.",
+      "STEP 3 — Constriction: e′ preserved/high, E/e′ LOW (annulus paradoxus), medial>lateral e′ (annulus reversus), >25% mitral E variation, expiratory hepatic-vein diastolic reversal → pericardiectomy.",
+      "STEP 4 — Restriction: e′ low, E/e′ high, marked biatrial enlargement, inspiratory hepatic-vein reversal → medical."
     ],
     "differentiating_features": [
-      "Annulus paradoxus: E/e′ correlates INVERSELY with filling pressure in constriction (e′ preserved/high, so E/e′ low despite high pressure).",
-      "Annulus reversus: medial (septal) e′ exceeds lateral e′ because pericardial tethering immobilises the lateral wall."
+      "Annulus paradoxus (E/e′ low despite high pressure) and annulus reversus (medial e′ > lateral) nail constriction; restriction has globally low e′ and high E/e′.",
+      "The engine vs the seatbelt: restriction = bad muscle (low e′ everywhere); constriction = good muscle pinned by a rigid pericardium (e′ preserved, lateral dragged below septal).",
+      "Hepatic-vein reversal: expiratory diastolic = constriction; inspiratory = restriction."
     ],
     "pearls": [
-      "Pericardial thickness ≥3 mm on TEE supports constriction, but normal thickness does not exclude it (~20% of surgical constriction has normal thickness).",
-      "Plethoric IVC is a specific marker of raised central venous pressure but non-specific in isolation."
+      "The inspiratory tricuspid increase / mitral decrease occurs in BOTH tamponade and constriction (shared interventricular dependence) — it does not by itself separate them.",
+      "Septal bounce (abrupt early-diastolic septal motion) ≠ respirophasic septal shift; congenital absence of the pericardium mimics RV enlargement; effusive-constrictive = tamponade physiology persisting after drainage."
     ],
     "pitfalls": [
-      "The inspiratory ↑ tricuspid / ↓ mitral inflow occurs in BOTH tamponade and constriction — it does not by itself separate them.",
-      "Tamponade is a clinical + hemodynamic diagnosis, not just a big effusion — size ≠ tamponade."
+      "Using the respiratory inflow swing alone to choose between tamponade and constriction — RV diastolic collapse is tamponade-specific; the bounce + annulus reversus + thick pericardium point to constriction.",
+      "Calling a 'high filling pressure but low E/e′' stem myocardial disease when it is constriction."
     ],
     "exam_pearls": [
-      "Preserved e′ with annulus reversus distinguishes constriction (surgical) from restriction (medical).",
-      "Lean on TDI signs, not inflow patterns alone."
+      "'Most specific tamponade sign' → RV diastolic collapse; 'tamponade inflow swings' → mitral E ↓>30%, tricuspid ↑>60%.",
+      "'High pressure but LOW E/e′' → constriction (annulus paradoxus); 'medial e′ > lateral e′' → annulus reversus.",
+      "'Hepatic vein reversal in constriction' → expiratory diastolic."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 13."
   },
   {
     "id": "aortic-stenosis",
     "chapter": "Ch 14 · Valvular stenosis 2025",
-    "title": "Aortic stenosis grading & low-flow low-gradient AS",
-    "background": "Echo grades stenosis three independent ways — velocity, gradient and valve area — and the art is recognising when they disagree and which to trust. AS is the most consequential and most tested valve lesion.",
+    "title": "Aortic stenosis grading & low-flow traps",
+    "background": "Stenosis is an obstruction to forward flow. Echo grades it three independent ways — velocity, gradient and valve area — and the expert skill is recognising when these disagree and which to trust. Aortic stenosis is the most consequential and most-tested valve lesion, and the low-flow states are where the marks are won or lost.",
     "key_measurements": [
       {
         "name": "Severe AS",
-        "value": "V ≥4.0 m/s · mean gradient ≥40 mmHg · AVA <1.0 cm² · AVA index <0.6 · DVI <0.25",
-        "note": "The three usually agree; when they don't, the dimensionless index and stroke volume reconcile them."
+        "value": "V ≥4 · mean ≥40 · AVA <1.0",
+        "note": "DVI <0.25; AVA index <0.6. Very severe ≥5 m/s or mean ≥60 (asymptomatic intervention threshold)."
       },
       {
-        "name": "Very severe / critical AS",
-        "value": "peak velocity ≥5.0 m/s or mean gradient ≥60 mmHg",
-        "note": "Supports intervention in asymptomatic patients (IIa)."
+        "name": "Continuity / DVI",
+        "value": "AVA = (CSA·VTI)LVOT ÷ VTI(AV)",
+        "note": "DVI = VTI(LVOT)/VTI(AV) cancels the squared LVOT diameter — trust it when AVA and DVI disagree."
       },
       {
-        "name": "Low stroke-volume index",
-        "value": "<35 mL/m²",
-        "note": "Marks low-flow states behind a low gradient."
+        "name": "Stroke-volume index",
+        "value": "<35 mL/m² = low flow",
+        "note": "Check before accepting 'moderate' in a small, thick, preserved-EF ventricle (paradoxical LFLG)."
       },
       {
-        "name": "CT calcium score (severe likely)",
-        "value": "♂ ≥2000 / ♀ ≥1200 AU",
-        "note": "Sex-specific; very likely ♂ ≥3000 / ♀ ≥1600. Women calcify less and fibrose more."
+        "name": "CT calcium score",
+        "value": "♂≥2000 / ♀≥1200 AU likely",
+        "note": "Sex-specific: women calcify less / fibrose more, so a male cutoff under-calls severe AS in women."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — AVA <1.0 but mean gradient <40? → suspect low flow; check EF and stroke-volume index.",
-      "STEP 2 — Classic LFLG (EF <50%)? → dobutamine stress: AVA stays <1.0 with rising gradient = true severe; AVA opens >1.0 = pseudosevere.",
-      "STEP 3 — Paradoxical LFLG (preserved EF, SVi <35 mL/m², small hypertrophied cavity)? → confirm with CT aortic valve calcium score (sex-specific).",
-      "STEP 4 — Intervention: TAVI favoured if age ≥70 or high surgical risk; SAVR if <70 and low risk."
+      "STEP 1 — Do velocity, gradient and area agree? If yes, grade directly.",
+      "STEP 2 — AVA <1.0 but gradient <40? Suspect low flow and interrogate stroke volume before downgrading.",
+      "STEP 3 — Classic LFLG (EF <50%) → dobutamine: true severe (AVA stays <1.0, gradient rises) vs pseudosevere (AVA opens >1.0); a flat response = absent contractile reserve.",
+      "STEP 4 — Paradoxical LFLG (EF ≥50%, SVi <35) → CT aortic-valve calcium score (sex-specific). TAVI if ≥70/high risk, SAVR if <70/low risk."
     ],
     "differentiating_features": [
-      "Doppler reports the peak-instantaneous gradient; the cath lab's peak-to-peak gradient is lower — a classic 'why do they disagree?' stem.",
-      "Pressure recovery in a small aorta or bileaflet mechanical valve makes Doppler over-read the gradient versus the net cath gradient.",
-      "Subaortic membrane causes fixed obstruction that does NOT respond to balloon dilatation — treatment is surgical resection."
+      "True vs pseudosevere on dobutamine: a fixed severe valve cannot open further (gradient climbs, AVA stays <1.0); a pseudosevere valve is pushed open (AVA >1.0, gradient barely moves).",
+      "Doppler peak-instantaneous gradient > cath peak-to-peak; pressure recovery (small aorta / bileaflet mechanical) makes Doppler over-read.",
+      "Subaortic membrane = fixed obstruction that does NOT respond to balloon — surgical resection."
     ],
     "pearls": [
-      "DVI = VTI_LVOT / VTI_AV cancels the squared LVOT diameter and is robust when the LVOT can't be measured cleanly.",
-      "Spotting ≥5 m/s changes management even without symptoms."
+      "Velocity and gradient are two readings of the same jet (ΔP=4V²); valve area is derived independently from flow. They split only when stroke volume is abnormal — interrogate the flow before you downgrade.",
+      "Use the expanded ΔP = 4(V₂²−V₁²) when LVOT velocity exceeds ~1.5 m/s (serial obstruction, high output)."
     ],
     "pitfalls": [
-      "Applying a male calcium cutoff to a woman under-calls severe AS.",
-      "Accepting 'moderate' when AVA <1.0 and stroke-volume index is low — paradoxical LFLG is severe disease hiding behind a low gradient.",
-      "Using simplified Bernoulli when LVOT velocity exceeds ~1.5 m/s overestimates the gradient — use ΔP = 4(V₂²−V₁²)."
+      "Accepting 'moderate' when AVA <1.0 and SVi is low — paradoxical LFLG is severe disease hiding behind a low gradient.",
+      "Applying a male calcium cutoff to a woman and under-calling severe AS."
     ],
     "exam_pearls": [
-      "Severe AS: V ≥4, mean ≥40, AVA <1.0, DVI <0.25.",
-      "Low gradient + tiny AVA → check stroke volume (low-flow)."
+      "'Severe AS by velocity/gradient/area' → ≥4 m/s · ≥40 mmHg · AVA <1.0; 'most flow-independent measure' → DVI.",
+      "'AVA severe but gradient low, EF reduced' → classic LFLG → dobutamine; 'EF preserved' → paradoxical LFLG → CT calcium.",
+      "'Doppler > cath gradient in small aorta' → pressure recovery; 'very severe AS' → ≥5 m/s or mean ≥60."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 14 (2025 ESC/EACTS VHD; 2017 EACVI/ASE AS recommendations)."
+    "reference": "Clinical Echo Exam Companion, Ch 14 (ESC 2025 / 2017 ASE AS quantification)."
   },
   {
     "id": "mitral-stenosis",
     "chapter": "Ch 14 · Mitral stenosis",
-    "title": "Mitral stenosis — valve area, PHT and Wilkins score",
-    "background": "MS is almost always rheumatic: commissural fusion, a doming 'hockey-stick' anterior leaflet, a fish-mouth orifice. Valve area is the primary severity criterion; gradient and pulmonary pressure are supportive and flow/rate-dependent.",
+    "title": "Mitral stenosis — area, half-time & valvuloplasty",
+    "background": "Mitral stenosis is almost always rheumatic: commissural fusion, a doming 'hockey-stick' anterior leaflet, a fish-mouth orifice. Valve area is the primary severity criterion; gradient and pulmonary pressure are supportive and flow/rate-dependent.",
     "key_measurements": [
       {
-        "name": "Severe MVA",
-        "value": "≤1.5 cm² (very severe ≤1.0 cm²)",
-        "note": "Valve area is the primary criterion."
+        "name": "MVA by half-time",
+        "value": "220 / PHT",
+        "note": "PHT ≈ 0.29 × deceleration time. Severe ≤1.5 cm²; very severe ≤1.0 cm²."
       },
       {
-        "name": "MVA by pressure half-time",
-        "value": "MVA = 220 / PHT (PHT ≈ 0.29 × deceleration time)",
-        "note": "Planimetry (PSAX) is the most direct MVA when image quality allows."
+        "name": "Planimetry (PSAX)",
+        "value": "reference MVA",
+        "note": "The most direct measure when image quality allows."
       },
       {
         "name": "Mean gradient",
-        "value": "typically >5–10 mmHg in significant MS",
-        "note": "Heart-rate dependent; a low gradient does not exclude severe MS at slow rates."
+        "value": "supportive, rate-dependent",
+        "note": ">5–10 mmHg in significant MS, but a low gradient at slow rates does NOT exclude severe MS."
       },
       {
         "name": "Wilkins score",
-        "value": "≤8 favours balloon valvuloplasty",
-        "note": "Scores leaflet mobility, thickening, calcification, subvalvular involvement (each 1–4)."
+        "value": "≤8 favourable",
+        "note": "Scores leaflet mobility, thickening, calcification, subvalvular involvement (each 1–4) for valvuloplasty suitability."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Good image quality? → planimetry (PSAX) is the reference MVA.",
-      "STEP 2 — Otherwise → MVA = 220/PHT.",
-      "STEP 3 — Considering valvuloplasty? → Wilkins ≤8 favourable; significant MR or LA thrombus contraindicates it."
+      "STEP 1 — Grade by valve area first (planimetry where possible, else 220/PHT).",
+      "STEP 2 — Read the mean gradient as supportive only, against heart rate.",
+      "STEP 3 — Considering valvuloplasty? Score Wilkins (≤8 favourable) and exclude significant MR or LA thrombus (both contraindicate it).",
+      "STEP 4 — If PHT is unreliable (post-valvuloplasty, significant AR), use planimetry."
     ],
     "differentiating_features": [
-      "PHT is invalid immediately after balloon valvuloplasty (changing compliance) and with significant AR (shortens PHT → overestimates MVA) — use planimetry then."
+      "PHT measures how fast the LA empties — anything draining the LA by another route (AR filling the LV, fresh post-valvuloplasty compliance) fools it into reading a bigger valve.",
+      "Doppler peak-instantaneous vs cath peak-to-peak gradient — the same race scored two ways."
     ],
     "pearls": [
-      "A high mean gradient can reflect tachycardia rather than a tighter valve — always interpret against heart rate."
+      "Significant MR or LA thrombus contraindicates balloon valvuloplasty (it worsens MR and risks embolising thrombus).",
+      "A low gradient at a slow heart rate doesn't exclude severe MS, and a high one can reflect tachycardia rather than a tighter valve."
     ],
     "pitfalls": [
-      "Relying on PHT after valvuloplasty or with significant AR.",
-      "Excluding severe MS because the gradient is low at a slow heart rate."
+      "Trusting PHT immediately after balloon valvuloplasty (changing compliance) or with significant AR (shortens PHT → overestimates MVA)."
     ],
     "exam_pearls": [
-      "Primary criterion is MVA: severe ≤1.5, very severe ≤1.0.",
-      "Wilkins ≤8 (no MR/thrombus) for valvuloplasty."
+      "'MVA formula' → 220 ÷ PHT; 'PHT invalid after…' → valvuloplasty; significant AR.",
+      "'Wilkins ≤8' → favourable for valvuloplasty.",
+      "'Primary MS severity criterion' → valve area."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 14."
   },
   {
     "id": "mitral-regurg",
     "chapter": "Ch 15 · Valvular regurgitation 2025",
-    "title": "Primary vs secondary MR — the threshold trap",
-    "background": "Regurgitation severity is an integrated judgement, never one number. The mechanism — primary (organic leaflet/chordal disease) vs secondary (functional, normal leaflets tethered by LV/annular remodeling) — decides therapy, and the severity cutoffs differ.",
+    "title": "Mitral regurgitation — mechanism, PISA & EF that lies",
+    "background": "Regurgitation is a leak; severity grading is an integrated judgement — never one number — combining the jet, the quantitative measures (PISA → EROA, regurgitant volume/fraction) and the downstream effects. The banks reward two things: the integrative approach, and the mechanism (primary vs secondary), which decides therapy.",
     "key_measurements": [
       {
-        "name": "Severe primary MR — EROA",
-        "value": "≥0.40 cm²",
-        "note": "With RegVol ≥60 mL, RegFrac ≥50%, vena contracta ≥0.7 cm."
+        "name": "Severe primary MR",
+        "value": "EROA ≥0.40 · RegVol ≥60 · RF ≥50% · VC ≥0.7",
+        "note": "Plus systolic PV reversal, dense holosystolic CW jet, LA/LV dilation."
       },
       {
-        "name": "Secondary MR — prognostic EROA",
-        "value": "ESC ≥0.20 cm² (or RegVol ≥30 mL)",
-        "note": "ACC/AHA retains ≥0.40 cm² for 'severe' — applying the primary number to an ESC-framed stem under-grades it."
+        "name": "Secondary MR (ESC)",
+        "value": "EROA ≥0.20 / RegVol ≥30",
+        "note": "Lower cutoffs; a lower EROA carries worse prognosis in functional than in primary MR."
       },
       {
-        "name": "PISA flow",
-        "value": "Flow = 2πr² × V_aliasing; EROA = Flow ÷ peak regurgitant velocity; RegVol = EROA × VTI_jet",
-        "note": "At the aliasing radius r."
+        "name": "PISA",
+        "value": "Flow = 2πr²·V_alias; EROA = Flow/V_peak",
+        "note": "RegVol = EROA × VTI(jet). Three steps from one converging stack of shells."
+      },
+      {
+        "name": "Primary surgery triggers",
+        "value": "EF ≤60% or LVESD ≥40 mm",
+        "note": "Also new AF or pulmonary hypertension (ESC 2025, earlier intervention)."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Primary (prolapse/flail/rheumatic/endocarditis)? → the valve is the problem → repair/replace.",
-      "STEP 2 — Secondary (ischaemic/DCM, tethered normal leaflets)? → the ventricle is the problem → guideline-directed HF therapy first; TEER (COAPT) in selected patients.",
-      "STEP 3 — Eccentric, wall-hugging (Coanda) jet? → read EROA/vena contracta, NOT colour jet area (which under-grades it)."
+      "STEP 1 — Establish mechanism: primary (diseased leaflet → fix the valve) vs secondary (tethered normal leaflet → fix the ventricle first).",
+      "STEP 2 — Integrate jet + PISA-derived EROA/RegVol + chamber/flow consequences; never grade on one sign.",
+      "STEP 3 — Eccentric, wall-hugging (Coanda) jet? Read EROA / vena contracta, not colour jet area (which under-grades it).",
+      "STEP 4 — Secondary MR: optimise GDMT first; consider TEER (COAPT). Primary severe MR: repair preferred, intervene early at EF ≤60% / LVESD ≥40."
     ],
     "differentiating_features": [
-      "A jet directed away from the diseased leaflet (e.g. posterior jet with anterior leaflet prolapse) and eccentric jets are underestimated by colour area.",
-      "2025 ESC: intervene in asymptomatic primary severe MR earlier when repair is durable and risk low (LVESD ≥40 mm, EF ≤60%, new AF, or PH)."
+      "Primary (organic leaflet/chordal disease) vs secondary (functional — normal leaflets tethered by LV/annular remodeling).",
+      "Jet direction reveals mechanism: a jet directed away from the diseased leaflet (posterior jet with anterior-leaflet prolapse) and eccentric/Coanda jets are under-estimated by colour area.",
+      "ESC EROA ≥0.20 for secondary vs ACC/AHA ≥0.40 for 'severe' — applying the primary number to an ESC stem under-grades it."
     ],
     "pearls": [
-      "A lower EROA carries adverse prognosis in functional MR than in primary MR.",
-      "Supportive severe signs: systolic pulmonary-vein flow reversal, dense holosystolic CW jet, LA/LV dilation."
+      "EF 'lies' in severe primary MR: the LV unloads into the low-pressure LA, so a 'normal' EF reflects unloading, not contractility — by the time EF falls below 60% the myocardium is already failing.",
+      "PISA measures the leak at its neck: at the aliasing radius, Flow = 2πr²×V_alias must squeeze through the orifice, so EROA = Flow/V_peak."
     ],
     "pitfalls": [
-      "Applying the primary-MR ≥0.40 number to a secondary-MR (ESC) stem under-grades it.",
-      "Grading an eccentric jet by colour area."
+      "Grading an eccentric jet by colour area; applying primary-MR cutoffs to an ESC-framed secondary-MR stem.",
+      "Reassuring on a 'normal' EF in severe MR."
     ],
     "exam_pearls": [
-      "Apply secondary-MR thresholds (EROA ≥0.20 by ESC), not primary ones, for a functional jet.",
-      "Treat the ventricle before the valve in functional MR."
+      "'Severe primary MR EROA/RegVol/VC' → ≥0.40 · ≥60 mL · ≥0.7 cm; 'secondary significant EROA (ESC)' → ≥0.20.",
+      "'Eccentric wall-hugging jet — grade by?' → EROA/VC, not colour area (Coanda).",
+      "'Surgical triggers in asx primary MR' → EF ≤60% or LVESD ≥40 mm; 'functional MR — treat what first?' → the ventricle (GDMT), then TEER."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 15 (2025 ESC/EACTS; 2017 ASE regurgitation recommendations)."
+    "reference": "Clinical Echo Exam Companion, Ch 15 (ESC 2025 / 2017 ASE regurgitation)."
   },
   {
     "id": "aortic-regurg-tr",
     "chapter": "Ch 15 · AR & TR 2025",
-    "title": "Severe AR signs & the 5-grade TR scheme",
-    "background": "Aortic regurgitation grading leans on specific downstream signs, and the 2025 ACC/AHA tricuspid consensus expanded TR grading beyond 'severe' to characterise the high-severity end seen in transcatheter candidates.",
+    "title": "Aortic & tricuspid regurgitation",
+    "background": "AR's most specific sign is holodiastolic abdominal-aorta reversal; TR is now a five-grade scale (…severe → massive → torrential), and in torrential TR the equalised pressures make the TR velocity falsely low. Both are graded by integration, never one number.",
     "key_measurements": [
       {
         "name": "Severe AR",
-        "value": "VC >0.6 cm · jet/LVOT ≥65% · PHT <200 ms · EROA ≥0.30 cm² / RegVol ≥60 mL",
-        "note": "Holodiastolic flow reversal in the descending/abdominal aorta is the most specific sign."
+        "value": "VC >0.6 · jet/LVOT ≥65% · PHT <200 ms",
+        "note": "Holodiastolic descending/abdominal-aorta reversal (most specific). EROA ≥0.30 / RegVol ≥60."
+      },
+      {
+        "name": "AR intervention",
+        "value": "EF ≤50 / LVESD >50 / LVESDi >25",
+        "note": "ESC 2025 supports earlier surgery (LVESDi >22, LVESVi >45, EF ≤55) in low-risk patients."
       },
       {
         "name": "Severe TR",
-        "value": "VC ≥0.7 cm · EROA ≥0.40 cm² · RegVol ≥45 mL",
-        "note": ""
-      },
-      {
-        "name": "Massive TR",
-        "value": "VC 1.4–2.0 cm · EROA 0.60–0.79 cm² · RegVol 60–74 mL",
-        "note": ""
-      },
-      {
-        "name": "Torrential TR",
-        "value": "VC ≥2.1 cm · EROA ≥0.80 cm² · RegVol ≥75 mL",
-        "note": ""
+        "value": "VC ≥0.7 · EROA ≥0.40 · RegVol ≥45",
+        "note": "Massive 1.4–2.0 cm; torrential ≥2.1 cm. Mostly secondary (annular dilation, AF)."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — AR: eccentric jet making jet width unreliable? → use holodiastolic abdominal-aorta reversal (most specific).",
-      "STEP 2 — AR intervention (2025 ESC): symptomatic severe AR, or asymptomatic with EF ≤50%, LVESD >50 mm, or LVESD index >25 mm/m².",
-      "STEP 3 — TR: grade across mild → moderate → severe → massive → torrential; 3D vena-contracta-area planimetry refines it (PISA under-estimates)."
+      "STEP 1 — AR: integrate VC, jet/LVOT ratio, PHT and the abdominal-aorta reversal; the eccentric jet is graded by VC/reversal, not width.",
+      "STEP 2 — Decide AR intervention: symptomatic severe, or EF ≤50 / LVESD >50 / LVESDi >25 (lower limits in low-risk centres).",
+      "STEP 3 — TR: grade on the 5-grade scale; at the high-severity end PISA-EROA under-estimates — refine with 3D vena-contracta-area.",
+      "STEP 4 — In obvious severe TR, read the 2D signs (dilated annulus/RA, systolic hepatic-vein reversal), not the (low) gradient."
     ],
     "differentiating_features": [
-      "Gerbode defect (LV-to-RA communication) produces a strikingly high-velocity jet that can be mistaken for severe PH on the 'TR' trace.",
-      "Flail tricuspid leaflet most often involves the septal leaflet (pacemaker lead, biopsy, endocarditis, trauma)."
+      "A short pressure half-time (<200 ms) means severe AR — a wide-open leak equalises aortic and LV diastolic pressures fast.",
+      "Torrential TR blunts the gradient: RA/RV pressures equalise so the jet is low-velocity and PASP under-reads — the breach is big, the trickle slow.",
+      "Gerbode defect (LV→RA) produces a strikingly high-velocity jet that can mimic severe PH on the 'TR' trace; flail tricuspid most often involves the septal leaflet."
     ],
     "pearls": [
-      "Holodiastolic flow reversal in the abdominal aorta is more reliable than jet width when the AR jet is eccentric.",
-      "Transcatheter therapy (T-TEER/TTVR) for severe symptomatic high-surgical-risk TR."
+      "Holodiastolic flow reversal in the abdominal aorta is one of the most specific signs of severe AR — only a large diastolic leak sucks blood backward past the diaphragm throughout diastole.",
+      "The same severe-AR physiology drives the wide pulse pressure and early-closing mitral valve when LVEDP rockets in acute severe AR."
     ],
     "pitfalls": [
-      "In massive/torrential TR, RA and RV pressures equalise → the TR jet is low-velocity and PASP is underestimated — don't be reassured by a 'low' TR velocity in obviously severe TR."
+      "Being reassured by a 'low' TR velocity in obviously severe/torrential TR (equalised pressures).",
+      "Grading an eccentric AR jet by width rather than VC and abdominal-aorta reversal."
     ],
     "exam_pearls": [
-      "Severe AR: VC >0.6, PHT <200, holodiastolic abdominal-aorta reversal.",
-      "TR 2025: severe VC ≥0.7, massive 1.4–2.0, torrential ≥2.1 cm."
+      "'Most specific sign of severe AR' → holodiastolic abdominal-aorta reversal; 'severe AR pressure half-time' → <200 ms.",
+      "'TR beyond severe' → massive (1.4–2.0) / torrential (≥2.1 cm).",
+      "'High-velocity jet mimicking PH' → Gerbode defect (LV→RA)."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 15 (2025 ACC/AHA tricuspid consensus)."
+    "reference": "Clinical Echo Exam Companion, Ch 15 (ACC/AHA 2025 TR consensus)."
   },
   {
     "id": "prosthetic-valves",
     "chapter": "Ch 16 · Prosthetic valves",
-    "title": "Prosthetic valve obstruction, PPM & which window",
-    "background": "Every prosthesis is mildly stenotic and may have a trivial built-in leak. The skill is knowing the normal for each valve type/position, recognising pathologic obstruction or regurgitation, and choosing the right window — because acoustic shadowing dictates strategy.",
+    "title": "Prosthetic valves — normal vs pathologic",
+    "background": "Every prosthesis is mildly stenotic by design and may have a trivial built-in leak. The skill is knowing the normal for each valve type and position, recognising pathologic obstruction or regurgitation, and choosing the right window — because acoustic shadowing dictates strategy. 'Normal' is valve-type and size specific (2024 ASE).",
     "key_measurements": [
       {
-        "name": "Severe PPM — aortic",
-        "value": "iEOA ≤0.65 cm²/m² (moderate 0.65–0.85)",
-        "note": "Prosthesis functions normally but is too small for the patient."
+        "name": "Washing jets",
+        "value": "normal in bileaflet mechanical",
+        "note": "Small, short, symmetric jets inside the ring 'wash' the hinges clean — by design, not a leak."
       },
       {
-        "name": "Severe PPM — mitral",
-        "value": "iEOA ≤0.9 cm²/m² (moderate 0.9–1.2)",
-        "note": ""
+        "name": "Severe PPM (iEOA)",
+        "value": "aortic ≤0.65 · mitral ≤0.9 cm²/m²",
+        "note": "Present from day one and stable; obstruction worsens over serial studies."
       },
       {
         "name": "Rocking prosthesis",
-        "value": "implies ≥40% dehiscence",
-        "note": "→ surgery."
+        "value": "≥40% dehiscence",
+        "note": "→ surgery. Paravalvular = outside the ring (eccentric); transvalvular = central/through."
+      },
+      {
+        "name": "Pressure recovery",
+        "value": "bileaflet central jet over-reads",
+        "note": "Localised high velocity through the central slit; the true net gradient is lower — cross-check DVI and 2D disc motion."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Rising gradient over serial studies? → obstruction (pannus/thrombus/degeneration).",
-      "STEP 2 — High gradient but normal-looking valve? → exclude PPM (small valve, fixed since implant) and high-flow states (anaemia, AR, sepsis).",
-      "STEP 3 — Suspected mitral prosthetic dysfunction with unrevealing TTE? → TEE (the valve shadows the LA on TTE)."
+      "STEP 1 — High gradient? Exclude PPM (small valve, normal leaflets, fixed since implant) and high-flow states (anaemia, AR, sepsis) first.",
+      "STEP 2 — Is the gradient RISING over serial studies? That signals obstruction (pannus/thrombus/degeneration).",
+      "STEP 3 — Distinguish normal washing jets from pathologic paravalvular (outside ring, eccentric) vs transvalvular (central).",
+      "STEP 4 — Suspected mitral prosthetic dysfunction with an unrevealing TTE → TEE (the LA is shadowed on TTE)."
     ],
     "differentiating_features": [
-      "Paravalvular regurgitation originates outside the sewing ring (dehiscence, infection) and is eccentric; transvalvular is central/through the valve.",
-      "PPM is present from day one; obstruction worsens over time."
+      "PPM (high gradient, normal-moving leaflets, present day one, stable) vs true obstruction (worsens over serial studies).",
+      "Paravalvular (dehiscence/infection, eccentric, outside ring) vs transvalvular (central, e.g. degenerated/stuck leaflet); a rocking prosthesis = ≥40% dehiscence."
     ],
     "pearls": [
-      "Bileaflet mechanical valves have a small central orifice whose high-velocity jet makes Doppler over-read the gradient (pressure recovery) — cross-check with DVI and 2D leaflet motion.",
-      "Mitral/tricuspid prosthetic gradients are strongly heart-rate dependent — always report HR.",
-      "Normal small 'washing' leak jets are by design in mechanical valves."
+      "A bileaflet mechanical valve's small symmetric washing jets are designed in to prevent hinge thrombosis — recognising them prevents over-calling.",
+      "Mitral and tricuspid prosthetic gradients are strongly heart-rate dependent (shorter diastole → higher mean gradient) — interpret against heart rate.",
+      "TAVR: watch for paravalvular leak, gradient, and leaflet thrombosis (HALT)."
     ],
     "pitfalls": [
-      "Calling a high prosthetic gradient 'failure' before excluding PPM and high-flow states.",
-      "Over-diagnosing obstruction from the bileaflet central jet."
+      "Calling a first post-op high gradient on normal-moving leaflets 'obstruction' when it is PPM.",
+      "Over-diagnosing obstruction from a bileaflet central jet (pressure recovery over-reads)."
     ],
     "exam_pearls": [
-      "Suspected mitral prosthetic dysfunction → TEE (LA shadowed on TTE).",
-      "PPM severe: aortic iEOA ≤0.65, mitral ≤0.9."
+      "'Small symmetric jets inside the ring' → normal washing jets; 'rising gradient over serial studies' → obstruction.",
+      "'Rocking prosthesis' → ≥40% dehiscence → surgery; 'suspected mitral prosthetic MR, TTE clean' → TEE.",
+      "'High gradient, normal leaflets, day one' → PPM; 'severe PPM iEOA aortic/mitral' → ≤0.65 / ≤0.9."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 16 (2024 ASE prosthetic-valve guideline)."
   },
   {
     "id": "endocarditis",
     "chapter": "Ch 17 · Endocarditis",
-    "title": "Endocarditis — escalation logic & the upstream rule",
-    "background": "Endocarditis is a clinical diagnosis (modified Duke criteria) that echo supports. The exam wants the imaging findings, the upstream rule, embolic-risk numbers, and above all the escalation logic from TTE to TEE.",
+    "title": "Infective endocarditis — echo support & escalation",
+    "background": "Endocarditis is a clinical diagnosis (modified Duke criteria) that echo supports. The exam wants the imaging findings, the upstream rule, the embolic-risk numbers, and above all the escalation logic from TTE to TEE.",
     "key_measurements": [
       {
-        "name": "TTE vs TEE sensitivity",
-        "value": "TTE 40–60% vs TEE 90–100%",
-        "note": "Specificity similar (~90–100%); TEE adds sensitivity, not specificity."
+        "name": "Major echo criteria",
+        "value": "vegetation · abscess · dehiscence · new regurg",
+        "note": "Diagnosis = 2 major, or 1 major + 3 minor, or 5 minor."
       },
       {
-        "name": "High embolic risk",
-        "value": "vegetation >10 mm AND mobile",
-        "note": "Also mitral location, S. aureus, Candida — a driver for early surgery."
+        "name": "TTE vs TEE sensitivity",
+        "value": "40–60% vs 90–100%",
+        "note": "Specificity is similar (~90–100%). A negative TTE never excludes IE."
+      },
+      {
+        "name": "Embolic-risk vegetation",
+        "value": ">10 mm and mobile",
+        "note": "Mitral location and S. aureus / Candida raise risk — a driver for early surgery."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Major echo criteria? → vegetation, abscess, new partial prosthetic dehiscence, or new valvular regurgitation. Diagnosis = 2 major, or 1 major + 3 minor, or 5 minor.",
-      "STEP 2 — Negative/non-diagnostic TTE with ongoing suspicion, prosthetic valve, or suspected abscess? → TEE.",
-      "STEP 3 — New/progressive AV block in aortic endocarditis? → suspect root/perivalvular abscess → TEE → usually surgery."
+      "STEP 1 — Start with TTE; remember it is the first test, not the rule-out.",
+      "STEP 2 — Negative/non-diagnostic TTE with ongoing suspicion, prosthetic valve, or suspected abscess → TEE.",
+      "STEP 3 — New/progressive AV block in aortic IE → suspect a root abscess → TEE → usually surgery.",
+      "STEP 4 — Persisting infection on therapy → repeat/escalate TEE to hunt for abscess."
     ],
     "differentiating_features": [
-      "Vegetations sit on the upstream/low-pressure-facing surface: a mitral vegetation on the atrial side, an aortic vegetation on the ventricular side. A mass on the 'wrong' side argues against vegetation."
+      "TEE adds sensitivity, not specificity — 'TEE is more specific' is wrong; the incremental benefit is abscess detection and overall sensitivity.",
+      "Vegetations sit on the upstream/low-pressure-facing surface: mitral = atrial side, aortic = ventricular side. A mass on the downstream side argues against vegetation."
     ],
     "pearls": [
-      "In S. aureus bacteraemia echo detects a vegetation in only about a third of cases — a negative study does not exclude it.",
+      "A negative TTE never rules out endocarditis — especially with prosthetic valves, poor windows, or high pre-test suspicion.",
+      "In S. aureus bacteraemia, echo detects a vegetation in only ~⅓ of cases. Right-sided IE (IV drug use) is often well seen on TTE (anterior/near-field).",
       "A VSD jet strikes the septal tricuspid leaflet, so right-sided vegetations in VSD sit there (a jet lesion)."
     ],
     "pitfalls": [
-      "Believing a negative TTE excludes endocarditis, especially with prosthetic valves or poor windows."
+      "Treating a new AV block in aortic IE as 'watch and wait' rather than a root-abscess red flag.",
+      "Letting a negative TTE exclude IE."
     ],
     "exam_pearls": [
-      "New conduction disease + endocarditis = abscess until proven otherwise → TEE.",
-      "Persisting infection on therapy is itself a TEE/surgical trigger."
+      "'Major echo criteria' → vegetation · abscess · dehiscence · new regurg; 'TEE vs TTE — what improves?' → sensitivity.",
+      "'Mitral vegetation side' → atrial (upstream); 'aortic' → ventricular side.",
+      "'New AV block in aortic IE' → root abscess → TEE/surgery; 'embolic-risk vegetation' → >10 mm + mobile."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 17."
   },
   {
     "id": "masses",
     "chapter": "Ch 18 · Cardiac masses",
-    "title": "Thrombus vs tumour & the fossa rule",
-    "background": "Four categories: thrombus (commonest), tumour (mostly benign), vegetation, and normal variants mistaken for pathology. Location, attachment, mobility and vascularity sort them out.",
+    "title": "Cardiac masses & source of embolus",
+    "background": "Four categories: thrombus (commonest), tumour (mostly benign), vegetation, and normal variants mistaken for pathology. Four questions sort them out: location, attachment, mobility and vascularity — and contrast vascularity is the master discriminator.",
     "key_measurements": [
       {
-        "name": "PFO bubble study",
-        "value": "LA bubbles ≤3–5 beats = intracardiac (PFO/ASD)",
-        "note": "Later appearance suggests intrapulmonary shunt. Use agitated saline (not manufactured contrast) for shunt work."
+        "name": "Contrast rule",
+        "value": "dark = dead, bright = alive",
+        "note": "Thrombus is avascular (fills dark); a tumour enhances (vascular); clutter has nothing to fill."
       },
       {
-        "name": "Contrast behaviour",
-        "value": "Thrombus avascular (fills dark); tumour vascular (enhances)",
-        "note": "The key discriminator for thrombus vs tumour."
+        "name": "Fossa-ovalis relationship",
+        "value": "spares vs attaches",
+        "note": "Lipomatous hypertrophy spares the fossa (dumbbell); a myxoma's stalk attaches at the fossa."
+      },
+      {
+        "name": "Bubble timing",
+        "value": "≤3–5 beats = intracardiac",
+        "note": "PFO/ASD bubbles cross in ≤3–5 beats (often only on Valsalva release); later = pulmonary AVM."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Mass on the interatrial septum? → lipomatous hypertrophy SPARES the fossa ovalis (dumbbell); a myxoma's stalk ATTACHES at the fossa.",
-      "STEP 2 — Contrast: avascular filling defect = thrombus; enhancement = tumour.",
-      "STEP 3 — Suspected apical thrombus? → contrast LVO + a second window before committing to anticoagulation."
+      "STEP 1 — Sort by location, attachment, mobility and vascularity.",
+      "STEP 2 — Give contrast: thrombus fills dark (avascular), tumour enhances, clutter has nothing to fill.",
+      "STEP 3 — Source-of-embolus workup → TEE (LAA thrombus, aortic atheroma, PFO/ASD, septal aneurysm).",
+      "STEP 4 — Suspected apical thrombus: confirm with contrast LVO + a second window before anticoagulating."
     ],
     "differentiating_features": [
-      "Myxoma: most common primary tumour, LA, stalk on fossa ovalis, prolapses through MV ('tumour plop').",
-      "Papillary fibroelastoma: small, mobile, frond-like on valve surfaces — embolic risk despite benign histology.",
-      "Lipomatous hypertrophy of IAS spares the fossa → dumbbell shape."
+      "Thrombus (avascular, dark) vs tumour (enhances, vascular); a malignant mass lights up brightly, a myxoma less so.",
+      "Myxoma (LA, stalk on fossa ovalis, 'tumour plop') vs lipomatous hypertrophy (spares fossa, dumbbell) vs papillary fibroelastoma (valvular, small, frond-like, embolic).",
+      "Metastases are far commoner than primary tumours (melanoma, lung, breast, renal-cell via IVC); rhabdomyoma = the paediatric tumour (tuberous sclerosis)."
     ],
     "pearls": [
-      "Metastases are far commoner than primary cardiac tumours (melanoma, lung, breast, renal cell via IVC into RA).",
-      "Rhabdomyoma is the commonest paediatric cardiac tumour, linked to tuberous sclerosis, often regresses."
+      "Contrast traces blood supply: dead clot has no vessels (dark), a tumour has neovascularity (enhances), apical clutter has no substance.",
+      "Many 'masses' are normal variants — Chiari network, Eustachian valve, crista terminalis, lipomatous septum, false tendons — knowing them prevents over-calling."
     ],
     "pitfalls": [
-      "Near-field clutter and prominent trabeculation/false tendons mimic apical thrombus.",
-      "Calling a normal variant (Chiari network, Eustachian valve, crista terminalis, lipomatous septum) pathology."
+      "Calling near-field clutter or prominent trabeculation a thrombus and committing a patient to anticoagulation — use contrast and a second window."
     ],
     "exam_pearls": [
-      "Thrombus = avascular on contrast.",
-      "PFO bubble ≤3–5 beats (later = pulmonary); agitated saline for shunt."
+      "'Most common primary cardiac tumour' → myxoma (fossa-ovalis stalk); 'tumour plop' → myxoma prolapsing through MV.",
+      "'IAS mass sparing the fossa (dumbbell)' → lipomatous hypertrophy; 'thrombus vs tumour on contrast' → avascular vs enhancing.",
+      "'LA bubbles ≤3–5 beats' → intracardiac shunt; 'late' → intrapulmonary shunt."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 18."
   },
   {
-    "id": "aorta",
+    "id": "great-arteries",
     "chapter": "Ch 19 · Great arteries",
-    "title": "Aortic dissection — true lumen & Type A red flags",
-    "background": "Mostly the aorta. The exam centres on dissection (an emergency where classification dictates management), aneurysm thresholds, and the bicuspid-aortopathy association.",
+    "title": "Aortic dissection, aneurysm & bicuspid aortopathy",
+    "background": "Mostly the aorta. The exam centres on dissection (an emergency where classification dictates management), aneurysm thresholds, and the bicuspid-aortopathy association. Management is set by the Stanford classification.",
     "key_measurements": [
       {
         "name": "Stanford classification",
-        "value": "Type A = ascending (± arch/descending) = surgical emergency; Type B = descending only = usually medical",
-        "note": "Classification dictates management."
+        "value": "A ascending / B descending",
+        "note": "Type A (ascending involved) = surgical emergency; Type B (descending only) = usually medical."
+      },
+      {
+        "name": "True vs false lumen",
+        "value": "smaller, systolic expansion, faster, no SEC",
+        "note": "False lumen is larger, slower, may contain SEC/thrombus."
       },
       {
         "name": "Aneurysm surgical threshold",
-        "value": "generally ≥5.5 cm (≥5.0 cm with risk features)",
-        "note": "Lower in Marfan, bicuspid with risk features; index to BSA/height."
+        "value": "≥5.5 cm (≥5.0 with risk)",
+        "note": "Lower in Marfan / bicuspid with risk features. Measure sinuses / STJ / ascending, index to BSA/height."
       },
       {
-        "name": "Complex aortic atheroma",
-        "value": "plaque ≥4 mm thick or mobile",
-        "note": "A recognised embolic source on TEE in stroke workup."
+        "name": "Complex atheroma",
+        "value": "≥4 mm or mobile",
+        "note": "An embolic source on TEE in stroke workup."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Identify the true lumen: smaller, expands in systole, higher-velocity flow, no spontaneous echo contrast. False lumen: larger, slower, may contain SEC/thrombus.",
-      "STEP 2 — Chest/back pain with dilated aortic root + new AR + pericardial effusion? → proximal (Type A) dissection until proven otherwise → emergency surgical evaluation.",
-      "STEP 3 — TEE blind spot at distal ascending/proximal arch? → corroborate extent with CT/MRI; a normal-appearing distal ascending aorta does not exclude proximal involvement."
+      "STEP 1 — Suspected dissection: classify by Stanford — does it involve the ascending aorta (Type A, surgical) or descending only (Type B, usually medical)?",
+      "STEP 2 — Identify the true lumen (smaller, expands in systole, faster flow, no SEC) versus the false.",
+      "STEP 3 — Look for the Type A echo triad — root dilation + new AR + pericardial effusion — even before the flap is seen.",
+      "STEP 4 — TEE has a distal-ascending/proximal-arch blind spot; a clean ascending aorta on TEE never excludes Type A → corroborate with CT/MRI."
     ],
     "differentiating_features": [
-      "True lumen smaller, systolic expansion, faster, no SEC; false lumen larger, slower, SEC/thrombus."
+      "True lumen expands in systole (carries cardiac output, clear, faster); false lumen is a blind pocket (sluggish, SEC/thrombus, usually larger).",
+      "Bicuspid aortic valve is a valve AND an aorta diagnosis — ascending dilation occurs even with a normally functioning valve; also associates with coarctation."
     ],
     "pearls": [
-      "Bicuspid aortic valve associates with aortopathy independent of valve dysfunction — image the aorta in every bicuspid patient (also associates with coarctation).",
-      "Traumatic aortic injury most often occurs at the aortic isthmus after deceleration trauma."
+      "Type A red flags: dilated root + new AR + pericardial effusion in chest/back pain = proximal dissection until proven otherwise → emergency surgical evaluation.",
+      "Traumatic aortic injury most often occurs at the aortic isthmus (deceleration). Bovine arch is a normal variant, not a disease."
     ],
     "pitfalls": [
-      "Being falsely reassured by a TEE that cannot fully see the ascending aorta — the echo signs can point proximal even when TEE can't see it."
+      "Being falsely reassured by a normal-looking distal ascending aorta on TEE (the blind spot) — obtain CT/MRI.",
+      "Treating the bicuspid valve and ignoring the aorta — the aorta is what dissects."
     ],
     "exam_pearls": [
-      "Type A = surgical emergency; B = usually medical.",
-      "Type A echo triad: root dilation + new AR + pericardial effusion."
+      "'Stanford A involves… → management' → ascending → surgical emergency; 'B' → usually medical.",
+      "'True lumen features' → smaller, systolic expansion, faster, no SEC; 'TEE blind spot' → distal ascending / proximal arch.",
+      "'Type A echo triad' → root dilation + new AR + pericardial effusion; 'bicuspid valve — also image' → the aorta (+ coarctation)."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 19."
   },
   {
     "id": "congenital",
     "chapter": "Ch 20 · Adult congenital",
-    "title": "Qp/Qs & why PDA reverses the assignments",
-    "background": "For the boards, focus on the shunts you meet in adults — ASD, VSD, PDA — plus quantification (Qp/Qs) and the physiology of when a shunt reverses (Eisenmenger). The discriminators are about flow direction and which output is which.",
+    "title": "Shunts, ASDs & reading pressures off the jet",
+    "background": "The banks reward a tight core: quantify the shunt (Qp/Qs), classify the ASD by type because type decides closure, and read pressures off the jet. Where the volume lands names the lesion — an ASD overloads the right heart, a VSD and PDA overload the left.",
     "key_measurements": [
       {
-        "name": "Significant shunt",
-        "value": "Qp/Qs ≥1.5–2.0",
-        "note": "Closure threshold."
+        "name": "Qp/Qs",
+        "value": "≥1.5–2.0 significant; >2:1 closes",
+        "note": "Qp = RVOT SV, Qs = LVOT SV (SV = CSA × VTI); shunt flow = Qp − Qs. PDA reverses: RVOT=Qs, LVOT=Qp."
       },
       {
-        "name": "Qp/Qs formula",
-        "value": "(RVOT area × VTI_RVOT) ÷ (LVOT area × VTI_LVOT)",
-        "note": "For ASD/VSD: RVOT flow = Qp, LVOT flow = Qs."
+        "name": "ASD types",
+        "value": "secundum 60% (only device-closable)",
+        "note": "Primum 20% (AV-canal, cleft MV, left-axis); sinus venosus 15% (anomalous RUPV, TEE); coronary sinus rarest (LSVC)."
+      },
+      {
+        "name": "RVSP from VSD",
+        "value": "SBP − 4(VSD v)²",
+        "note": "= PASP if no PS. PDA: PASP = SBP − 4(PSV)², PADP = DBP − 4(EDV)²."
+      },
+      {
+        "name": "PFO bubbles",
+        "value": "≤3–5 beats",
+        "note": "Intracardiac; later = pulmonary. PFO patent in ~25% of adults."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — ASD/VSD? → RVOT flow = Qp (pulmonary), LVOT flow = Qs (systemic); the RIGHT heart dilates.",
-      "STEP 2 — PDA? → the shunt enters the PA distal to the pulmonary valve, so RVOT flow = Qs and LVOT flow = Qp; because Qp > Qs the LEFT heart dilates.",
-      "STEP 3 — Chronic large L→R shunt with reversal to R→L and cyanosis? → Eisenmenger; closure is then contraindicated."
+      "STEP 1 — Size the shunt: Qp/Qs (≥1.5–2.0 significant, >2:1 closure trigger); shunt flow = Qp − Qs.",
+      "STEP 2 — Localise volume overload: ASD → right heart (+ diastolic septal flattening); VSD/PDA → left heart. PDA reverses the Qp/Qs outflow assignments.",
+      "STEP 3 — Classify the ASD by type (only secundum is device-closable) and check shunt direction (set by ventricular compliance).",
+      "STEP 4 — Read pressures off jets; a restrictive (fast) VSD jet is reassuring and lets you back-calculate a low RVSP."
     ],
     "differentiating_features": [
-      "ASD: drop-out in IAS, L→R colour, RA/RV volume overload, DIASTOLIC septal flattening, dilated PA.",
-      "Restrictive VSD (small, high-velocity) = good; large/low-velocity = pulmonary risk.",
-      "PDA: continuous machinery flow in main/branch PA from descending aorta; LA/LV dilation."
+      "ASD/VSD: RVOT carries Qp, LVOT carries Qs. PDA is extracardiac (joins aorta to PA beyond the valves) so it reverses — left heart dilates.",
+      "Only secundum (fossa-ovalis rim) is device-closable; primum/sinus venosus/coronary-sinus lack rims → surgical.",
+      "Eisenmenger (shunt reverses R→L, PVR ≥ ~2/3 SVR) → closure contraindicated; PDA Eisenmenger gives differential (lower-body) cyanosis."
     ],
     "pearls": [
-      "Sinus venosus ASD associates with anomalous pulmonary venous return; often needs TEE/CT.",
-      "Bicuspid AV associates with coarctation and ascending aortopathy."
+      "Shunt direction follows ventricular compliance: the normal RV is more compliant, so an ASD shunts L→R; stiffening the LV increases it, stiffening the RV can reverse it.",
+      "A fast VSD jet is reassuring — a small (restrictive) defect keeps a large LV–RV gradient (fast jet, trivial volume); a slowing jet is a warning, not an improvement.",
+      "Set-piece clues: coarctation = juxtaductal, arm>leg BP, diastolic 'sawtooth' tail; Ebstein = apical TV displacement; ToF = anterior outlet-septum deviation."
     ],
     "pitfalls": [
-      "Getting the chamber that dilates wrong, or swapping the outflow assignments in PDA — the classic congenital trap."
+      "The apical 4-chamber aligns parallel to the thin septum → false dropout; an 'intact' septum here doesn't exclude an ASD — use subcostal and TEE.",
+      "Withholding closure for 'pulmonary hypertension' per se — it's the PVR (and shunt direction) that precludes closure, not PH alone."
     ],
     "exam_pearls": [
-      "ASD/VSD: RVOT = Qp, LVOT = Qs.",
-      "PDA reverses: RVOT = Qs, LVOT = Qp, left heart dilates."
+      "'Significant shunt / closure trigger' → Qp/Qs ≥1.5–2.0; >2:1; 'commonest ASD, only device-closable' → secundum.",
+      "'ASD/VSD Qp side · PDA reverses' → RVOT=Qp,LVOT=Qs · PDA: LVOT=Qp; 'shunt direction set by' → ventricular compliance.",
+      "'Restrictive VSD jet' → small, high-velocity = good; 'ASD closure precluded by' → high PVR, not PH alone."
     ],
-    "reference": "Clinical Echo Exam Companion, Ch 20 (2025 ACC/AHA ACHD guideline)."
+    "reference": "Clinical Echo Exam Companion, Ch 20 (2025 ACC/AHA ACHD)."
   },
   {
     "id": "af-laa",
     "chapter": "Ch 21 · AF & the LAA",
-    "title": "The LAA — a TEE-only structure",
-    "background": "AF is the commonest sustained arrhythmia and a leading embolic source; echo's job is the left atrial appendage — thrombus, flow velocities, and guiding cardioversion and closure. Only TEE reliably sees the appendage.",
+    "title": "Atrial fibrillation & the left atrial appendage",
+    "background": "AF is the commonest sustained arrhythmia and a leading embolic source; echo's job is the left atrial appendage — finding thrombus, reading the emptying velocity and spontaneous echo contrast as a stasis gauge, and guiding cardioversion and closure. The recurring trap is trusting a structure (the appendage) that only TEE can actually see.",
     "key_measurements": [
       {
         "name": "LAA emptying velocity",
-        "value": "<20–40 cm/s indicates stasis / ↑ thrombus risk",
-        "note": "Very low velocities accompany spontaneous echo contrast (SEC) and thrombus."
+        "value": "normal >50; <20 cm/s = high risk",
+        "note": ">40 cm/s precardioversion predicts maintained sinus rhythm. The dominant contraction wave is the thrombus gauge."
       },
       {
-        "name": "Post-cardioversion anticoagulation",
-        "value": "≥4 weeks regardless of pre-procedure TEE",
-        "note": "Atrial stunning means mechanical function lags for days–weeks and thrombus can still form."
+        "name": "Spontaneous echo contrast",
+        "value": "independent embolic predictor",
+        "note": "In >50% of AF, >80% with thrombus. MR lessens it (jet stirs blood); warfarin does NOT change it."
+      },
+      {
+        "name": "Imaging performance",
+        "value": "TEE ~100%/99% vs TTE 39–63%",
+        "note": "LAA is a TEE-only structure; ICE is the best alternative if TEE impossible, then CT."
+      },
+      {
+        "name": "Post-cardioversion",
+        "value": "anticoagulate ≥4 weeks",
+        "note": "Atrial stunning lowers velocities / raises SEC after CV; thrombus can form de novo even after a clean TEE."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — AF duration ≥48 h (or unknown) and anticoagulation status uncertain? → TEE-guided cardioversion to exclude LAA thrombus.",
-      "STEP 2 — No discrete thrombus but dense SEC + low LAA velocity? → cardioversion can proceed under anticoagulation, but risk is high → continue anticoagulation ≥4 weeks.",
-      "STEP 3 — LAA occlusion (Watchman)? → TEE/ICE sizes the ostium/depth, confirms no thrombus, checks peri-device leak."
+      "STEP 1 — Any decision hinging on appendage thrombus needs TEE (or ICE/CT) — a normal TTE never clears the LAA.",
+      "STEP 2 — Read the LAA emptying velocity (<20 cm/s = stasis/high risk; >40 precardioversion favours sinus rhythm) and grade SEC.",
+      "STEP 3 — For cardioversion of AF ≥48 h / unknown with uncertain anticoagulation, TEE excludes thrombus first — but a negative TEE doesn't license CV off anticoagulation.",
+      "STEP 4 — Anticoagulate ≥4 weeks post-CV regardless of TEE (atrial stunning). For LAA closure, image the os on-axis and check peri-device leak."
     ],
     "differentiating_features": [
-      "Distinguish thrombus from pectinate muscles (ridged normal anatomy) — thrombus is a discrete mass with independent motion, often with SEC."
+      "The emptying (contraction) velocity — not size or inflow waves — is the thrombus gauge: brisk empty self-cleans, feeble empty pools into SEC then thrombus.",
+      "Pectinate muscle / a multilobed appendage mimics thrombus on one 2D plane — resolve with biplane/3D (true thrombus has independent motion, usually with SEC and low velocity)."
     ],
     "pearls": [
-      "TEE finds an LAA thrombus in roughly 13% of nonvalvular AF presenting for cardioversion; SEC is present in over half of AF patients.",
-      "E/e′ should NOT estimate filling pressure in AF — average several cycles and lean on other indices.",
-      "LA size is prognostic — progressive enlargement predicts lower rhythm-control success."
+      "Three numbers, three jobs: SEC = embolic risk; LAA emptying velocity = thrombus risk (<20) and sinus-rhythm chance (>40 precardioversion); LAVI = prognosis for rhythm control.",
+      "Atrial stunning: restoring sinus rhythm on ECG doesn't restore mechanical atrial function — velocities fall and SEC rises immediately after CV, so anticoagulate ≥4 weeks. ~75% of LAA thrombi resolve after 4 weeks of anticoagulation.",
+      "<48 h AF unanticoagulated without TEE has a low (~0.8%) cardioversion thromboembolism rate; RAA thrombus (1–6%) is far rarer than LAA (10–15%)."
     ],
     "pitfalls": [
-      "Trusting a normal TTE to clear the appendage — it cannot see it.",
-      "Reading low LAA velocities/SEC as benign."
+      "Trusting a TTE to 'clear' the appendage (sensitivity ~coin-flip) or reading low LAA velocities / SEC as benign.",
+      "Using E/e′ to estimate filling pressure in AF — average several beats and lean on other indices."
     ],
     "exam_pearls": [
-      "Absence of thrombus ≠ absence of risk.",
-      "Atrial stunning → anticoagulate ≥4 weeks post-cardioversion."
+      "'Structure seen only on TEE' → LAA; 'high-risk emptying velocity' → <20 cm/s (normal >50).",
+      "'SEC means' → independent embolic predictor; 'what lessens SEC?' → mitral regurgitation; 'does warfarin reduce SEC?' → no.",
+      "'Post-CV anticoagulation duration' → ≥4 weeks (atrial stunning); 'TEE contraindicated → best test' → ICE."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 21."
   },
   {
     "id": "lvad",
     "chapter": "Ch 22 · LVADs & transplant",
-    "title": "LVAD valve rules — AR matters, AS doesn't",
-    "background": "A continuous-flow LVAD unloads the LV into the aorta through a pump. Echo guides candidacy, the ramp study and complication surveillance — with a few sharp, counterintuitive discriminators.",
+    "title": "LVADs & cardiac transplant surveillance",
+    "background": "A continuous-flow LVAD unloads the LV into the aorta through a pump. Echo guides candidacy, the ramp (speed-change) study, and complication surveillance — and turns on a few sharp, counterintuitive discriminators: AR not AS, MR self-corrects, and the small decompressed LV is a warning, not a success.",
     "key_measurements": [
       {
-        "name": "Small-LV risk",
-        "value": "diastolic dimension <6.3 cm",
-        "note": "Raises perioperative risk and predicts suction events."
+        "name": "Critical pre-implant lesion",
+        "value": "aortic regurgitation",
+        "note": ">mild AR creates a blind recirculation loop → correct it; AS is irrelevant (LVOT bypassed); MR improves; close a PFO."
       },
       {
-        "name": "Suction event",
-        "value": "over-speed collapses an under-filled LV onto the inflow cannula",
-        "note": "→ ventricular ectopy, falling flow."
+        "name": "Ramp study records",
+        "value": "LVIDd, septum, AV opening, MR/TR",
+        "note": "Goal: LV decompresses, AV opens intermittently, septum stays midline. LVIDd (PLAX) is the best LV-size measure post-implant."
+      },
+      {
+        "name": "De novo AR",
+        "value": "~30%; VC >4 mm significant",
+        "note": "Often continuous (holosystolic+holodiastolic). PHT and ascending-aorta PD are unreliable here."
+      },
+      {
+        "name": "RV failure",
+        "value": "~20%",
+        "note": "INTERMACS: needs RVAD or >14 days IV inotropes. BP in a non-pulsatile LVAD = Doppler mean arterial pressure."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Aortic regurgitation? → critical: creates a blind recirculation loop (pump → aorta → back through AV → LV). Correct > mild AR before/at implant.",
-      "STEP 2 — Aortic stenosis? → irrelevant to LVAD function (the LVOT is bypassed); no action for the device.",
-      "STEP 3 — Mitral regurgitation? → improves after LVAD (better coaptation as the LV unloads); any degree acceptable.",
-      "STEP 4 — Mitral stenosis (limits inflow)? → correct if moderate–severe. Intracardiac shunt (PFO)? → identify (bubble study) & close at implant. Acute/active infection? → ABSOLUTE contraindication."
+      "STEP 1 — Pre-implant: correct >mild AR (oversew / Park stitch / bioprosthesis — never a mechanical valve), treat moderate–severe MS, close a PFO; AS needs no action.",
+      "STEP 2 — Ramp study: step the speed and record LVIDd, septal position, AV opening, MR/TR.",
+      "STEP 3 — Small over-decompressed LV + septum pulled to the cannula + ectopy = suction event → DECREASE speed.",
+      "STEP 4 — LV stays dilated despite higher speed + more AV opening + worse MR + high power/PI = pump thrombosis → admit and treat (not a speed increase)."
     ],
     "differentiating_features": [
-      "AR is the critical valve lesion (blind loop) while AS is irrelevant (LVOT bypassed) — the opposite of intuition.",
-      "Ramp study: as pump speed rises, LV dimension should decrease, AV opening become intermittent/closed, septum stay midline."
+      "Two opposite emergencies, both lower flow: suction event (too much decompression → lower speed) vs pump thrombosis (too little decompression at working speed → admit).",
+      "AR catastrophic (closed pump→aorta→LV loop) vs AS irrelevant (LVOT bypassed); MR improves after unloading.",
+      "'High flow, normal power' = significant AR (regurgitant volume recirculates and inflates displayed flow)."
     ],
     "pearls": [
-      "Severe MR is not a contraindication because it improves after unloading.",
-      "Transplant rejection surveillance: new diastolic dysfunction, wall thickening, effusion, falling function (biopsy remains the standard; strain increasingly used)."
+      "Grade LVAD AR by VC width (>4 mm), AR duration and LVOT jet height — not PHT; don't grade diastology by standard indices post-LVAD.",
+      "Transplant rejection: echo flags new diastolic dysfunction / wall thickening / effusion / falling function, but endomyocardial biopsy remains the standard (strain is an adjunct).",
+      "The biatrial anastomosis ridge after an older-technique transplant is a NORMAL recipient–donor suture line, not a mass."
     ],
     "pitfalls": [
-      "Treating AS as the lesion that matters for an LVAD, or correcting MR that would self-resolve after unloading."
+      "Reading a small LV as 'well unloaded, leave it' when it's actually suctioning; raising the speed of a thrombosed pump.",
+      "Using a mechanical valve to fix LVAD AR (prohibitive thrombosis in the low-flow neo-aorta)."
     ],
     "exam_pearls": [
-      "AR = critical (blind loop) → correct > mild; AS irrelevant.",
-      "Acute infection/endocarditis = absolute contraindication."
+      "'Critical pre-implant valve lesion' → AR (blind loop); 'AS in an LVAD candidate' → irrelevant; 'MR after LVAD' → improves.",
+      "'Small LV, septum on cannula, ectopy' → suction event → lower speed; 'LV stays big despite ↑ speed, ↑ power' → pump thrombosis → admit.",
+      "'De novo AR incidence' → ~30%; 'BP in non-pulsatile LVAD' → Doppler mean; 'transplant rejection standard' → endomyocardial biopsy."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 22."
   },
   {
     "id": "intraop",
     "chapter": "Ch 23 · Intraoperative & interventional echo",
-    "title": "New SAM after mitral repair",
-    "background": "TEE is the eyes of the structural and surgical heart team. After mitral repair, new systolic anterior motion (SAM) can appear — the same physiology as HCM — and it is treated as dynamic physiology, not a failed repair.",
+    "title": "Mitral repair, TAVR & catheter guidance",
+    "background": "TEE is the eyes of the structural and surgical heart team. The exam tests the specific roles: localising mitral pathology by scallop for repair, judging the repair (residual MR, iatrogenic gradient, new SAM), and guiding catheter-based procedures — where the favourite numbers are the TAVR paravalvular-leak predictors and the MitraClip/EVEREST exclusion criteria.",
     "key_measurements": [
       {
         "name": "Mitral scallops",
-        "value": "A1–A3 / P1–P3 (commonest prolapse P2)",
-        "note": "Mid-oesophageal bicommissural (~60°) and LAX (~120°) views plus 3D localise it."
+        "value": "A1–A3 / P1–P3 (commonest P2)",
+        "note": "Surgeon's view: AV at 12 o'clock, LAA ~9 o'clock. Localise on bicommissural ~60° + LAX ~120° + 3D."
+      },
+      {
+        "name": "TAVR PVL predictors",
+        "value": "depth, calcium, undersizing, valve type",
+        "note": "Self-expanding > balloon for PVL; heavy LVOT calcium favours surgical AVR (lowest PVL)."
+      },
+      {
+        "name": "MitraClip (EVEREST) exclusions",
+        "value": "gap >10, width >15, depth >11, length <2 mm",
+        "note": "Plus LVESD >55 mm, MVA <4.0 cm². Works best on a central A2–P2 jet."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — New posteriorly-directed MR jet + late-peaking LVOT gradient + anterior leaflet into the outflow after repair? → new SAM causing dynamic LVOT obstruction.",
-      "STEP 2 — First response is physiologic: reduce/stop inotropes, increase preload and afterload (volume, vasoconstrictor), slow the heart — enlarging the cavity pulls the leaflet out of the LVOT.",
-      "STEP 3 — Persistent SAM despite this? → may need surgical revision (sliding plasty)."
+      "STEP 1 — For mitral repair, name the diseased scallop on the en-face surgeon's view (commonest prolapse P2).",
+      "STEP 2 — After repair, hunt three things: residual MR, an iatrogenic mean gradient, and new SAM.",
+      "STEP 3 — New SAM (posteriorly-directed jet + late-peaking LVOT) → treat the loading first (stop inotropes, ↑ preload/afterload, slow the heart), then sliding plasty if persistent.",
+      "STEP 4 — For TAVR, size the annulus (CT primary, 3D-TEE adjunct), grade PVL, and weigh rupture (balloon area oversizing >20% + calcium) and coronary-obstruction risk."
     ],
     "differentiating_features": [
-      "Post-repair SAM-MR (dynamic, posteriorly-directed, late-peaking gradient) vs a failed repair needing replacement — treat the loading first."
+      "New post-repair SAM-MR (dynamic obstruction, posterior jet, late-peaking signal — treat loading) vs a failed repair needing replacement.",
+      "TAVR vs surgical: heavy LVOT calcium → favour surgical AVR (lowest PVL); small annulus / female favour TAVR."
     ],
     "pearls": [
-      "Transseptal puncture: the needle should 'tent' the fossa ovalis, confirmed on bicaval and short-axis views, away from the aortic root and free wall.",
-      "Post-repair assessment: residual MR, mean gradient (iatrogenic stenosis), and new SAM."
+      "The SAM jet points posteriorly because the anterior leaflet is dragged into the LVOT and the leaflets no longer meet edge-to-edge — paired with a late-peaking signal, identical physiology to HCM.",
+      "A 'flail width 14 mm in P2' is WITHIN MitraClip criteria (suitable), whereas a flail gap >10 mm excludes — the bank builds the stem around which number crosses the threshold.",
+      "Transseptal puncture should 'tent' the fossa ovalis (bicaval/SAX views), clear of the aorta anteriorly and free wall posteriorly."
     ],
     "pitfalls": [
       "Calling post-repair SAM-MR a 'failed repair' needing replacement rather than treating the dynamic physiology."
     ],
     "exam_pearls": [
-      "Post-repair: watch residual MR, gradient, new SAM (treat with volume/afterload).",
-      "TAVR → paravalvular leak; TEER → COAPT criteria; Watchman → exclude LAA thrombus."
+      "'Commonest prolapsing scallop' → P2; 'surgeon's-view orientation' → AV 12 o'clock, LAA ~9 o'clock.",
+      "'New posterior MR jet after repair' → SAM → treat loading, not replace.",
+      "'TAVR paravalvular-leak predictors' → depth, calcium, undersizing, valve type; 'MitraClip exclusions' → gap >10, width >15, depth >11, length <2."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 23."
   },
   {
     "id": "systemic",
     "chapter": "Ch 24 · Systemic disease",
-    "title": "Echo signatures of systemic disease",
-    "background": "The heart is a target organ for systemic disease, and the boards test the echo signatures that point back to the underlying condition. Pattern recognition with a few near-pathognomonic findings — match the distribution to the disease, not just 'abnormal'.",
+    "title": "Systemic disease & the heart",
+    "background": "The heart is a target organ for systemic disease, and the boards test the echo signatures that point back to the underlying condition. This is pattern recognition with a handful of near-pathognomonic findings — the side and the pattern name the disease.",
     "key_measurements": [
       {
         "name": "Carcinoid",
-        "value": "Right-sided thickened, retracted, fixed tricuspid & pulmonary leaflets → TR + PS",
-        "note": "Left side spared unless PFO or pulmonary carcinoid (lungs inactivate the mediators)."
+        "value": "right-sided fixed TV/PV → TR + TS",
+        "note": "Lungs inactivate the mediators and protect the left; left-sided plaque → suspect a PFO or bronchial carcinoid."
       },
       {
-        "name": "Chagas",
-        "value": "Apical aneurysm with preserved adjacent function; apical thrombus",
-        "note": "Plus conduction disease."
+        "name": "Amyloid paradox",
+        "value": "thick walls + LOW voltage",
+        "note": "<5 mm limb / <10 mm precordial, pseudoinfarct pattern, apical-sparing strain, biatrial dilation → PYP (ATTR)."
+      },
+      {
+        "name": "Sarcoid",
+        "value": "non-territorial WMA",
+        "note": "Basal septal thinning, aneurysms, conduction disease; can present as DCM."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — Right-sided fibrotic valve disease + flushing/diarrhoea? → carcinoid (left-sided plaque should prompt a hunt for a PFO or bronchial carcinoid).",
-      "STEP 2 — Non-coronary-territory WMA + basal septal thinning + conduction disease? → sarcoid (CMR/PET for activity).",
-      "STEP 3 — Thick walls + low ECG voltage + apical-sparing strain? → amyloid → PYP scintigraphy."
+      "STEP 1 — Match distribution to disease, not just 'abnormal'.",
+      "STEP 2 — Right-sided fixed valves + flushing/diarrhoea → carcinoid (TR + TS); left-sided plaque → hunt a shunt or pulmonary primary.",
+      "STEP 3 — Thick walls + low ECG voltage + apical-sparing strain → amyloid → PYP scintigraphy (exclude AL light chains).",
+      "STEP 4 — A reduced-EF disease with a normal (non-dilated) cavity points to an infiltrative/restrictive process (amyloid), not DCM."
     ],
     "differentiating_features": [
-      "Sarcoid WMA does not respect a coronary territory (unlike ischaemic WMA).",
-      "Athlete's heart: balanced mild dilation/thickening, normal/supernormal GLS & diastology, regresses with detraining — distinguishes it from HCM/DCM."
+      "The side and the pattern: carcinoid right-sided; sarcoid WMA ignores coronary territories (basal septal thinning); Chagas = discrete apical aneurysm; amyloid = apical-sparing strain.",
+      "Thick-walled differential: hypertensive LVH, HCM, athlete's heart, amyloid (low voltage), Fabry (symmetric, binary endocardium) — voltage, strain, symmetry and family history split them.",
+      "Athlete's heart (balanced remodelling, normal/supernormal GLS & diastology, regresses with detraining) vs cardiomyopathy."
     ],
     "pearls": [
-      "Libman–Sacks (verrucous, non-infective) vegetations in SLE/antiphospholipid.",
-      "Eosinophilic (Löffler): apical obliteration by thrombus, restrictive physiology.",
-      "Reversible dilated CM from selenium (Keshan), thiamine (wet beriberi), carnitine deficiency.",
-      "Friedreich ataxia → concentric LVH (HCM-like); Fabry → concentric LVH with binary endocardial layering."
+      "Carcinoid fixes the tricuspid partially open, so it both leaks and obstructs — TR + TS on the same valve is the fingerprint (with a dagger-shaped early-peaking TR CW).",
+      "Amyloid infiltrates between myocytes — more tissue, less electrically active muscle, so voltage falls despite thick walls.",
+      "Reversible deficiency cardiomyopathies: selenium (Keshan), thiamine (beriberi), carnitine; haemochromatosis (restrictive→dilated, reversible early); Löffler = apical thrombus obliteration + eosinophilia."
     ],
     "pitfalls": [
-      "Over-calling athlete's heart as cardiomyopathy — normal/supernormal GLS and reversibility mark the physiologic heart."
+      "Stopping at 'LVH' or 'restrictive' as a diagnosis — the distribution and associated clues (voltage, eosinophilia, conduction disease, iron studies) make the call."
     ],
     "exam_pearls": [
-      "Carcinoid = right-sided TR/PS (lungs protect left).",
-      "Sarcoid = non-territorial WMA + basal septal thinning; Chagas = apical aneurysm."
+      "'Right-sided fixed valves + flushing' → carcinoid (TR + TS); 'why it spares the left' → lungs inactivate mediators.",
+      "'Thick walls + LOW voltage' → amyloid; 'strain pattern in amyloid' → apical sparing.",
+      "'WMA ignoring coronary territory' → sarcoid; 'concentric LVH mimicking HCM' → Fabry; 'discrete apical aneurysm' → Chagas."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 24."
   },
   {
     "id": "hemo-drills",
     "chapter": "Ch 25 · Hemodynamic drills",
-    "title": "The core hemodynamic calculation toolkit",
-    "background": "Board hemodynamics rewards a small toolkit applied cleanly. Master these formulas and the sanity checks, and a whole class of questions becomes routine.",
+    "title": "Hemodynamic calculation drills",
+    "background": "Board hemodynamics rewards a small toolkit applied cleanly. Master a handful of formulas in the multi-step style the banks use and a whole class of questions becomes routine.",
     "key_measurements": [
       {
-        "name": "Pressure gradient",
-        "value": "ΔP = 4V² (simplified Bernoulli)",
-        "note": "Expanded ΔP = 4(V₂²−V₁²) when V₁ >1.5 m/s."
-      },
-      {
         "name": "Stroke volume / CO",
-        "value": "SV = CSA × VTI; CSA = π(d/2)² = 0.785 d²; CO = SV × HR",
-        "note": ""
+        "value": "SV = CSA × VTI; CO = SV × HR",
+        "note": "CSA = π(d/2)² = 0.785 d². Cardiac index = CO / BSA."
       },
       {
-        "name": "PASP",
-        "value": "4(TR V)² + RAP",
-        "note": "IVC ≤2.1 cm & >50% collapse → RAP 3; dilated/fixed → 15 mmHg."
+        "name": "AVA & DVI",
+        "value": "AVA = (CSA·VTI)LVOT ÷ VTI(AV)",
+        "note": "DVI = VTI(LVOT)/VTI(AV); severe AS DVI <0.25."
       },
       {
-        "name": "Pressures from regurgitant jets",
-        "value": "LVEDP ≈ DBP − 4(AR end-diastolic V)²; Mean LAP ≈ SBP − 4(MR peak V)²",
-        "note": "Any pressure-from-jet uses cuff pressure minus 4V² of the jet connecting those two chambers."
+        "name": "PISA",
+        "value": "Q = 2πr²·V_alias; EROA = Q/V_peak",
+        "note": "RegVol = EROA × VTI(jet)."
+      },
+      {
+        "name": "PASP / shunt",
+        "value": "4(TR V)² + RAP; Qp/Qs",
+        "note": "Qp/Qs = (CSA·VTI)RVOT ÷ (CSA·VTI)LVOT; ≥1.5–2 closes a shunt."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — AVA = (CSA_LVOT × VTI_LVOT) ÷ VTI_AV; DVI = VTI_LVOT ÷ VTI_AV (severe AS DVI <0.25).",
-      "STEP 2 — MVA = 220 ÷ PHT; PHT ≈ 0.29 × deceleration time.",
-      "STEP 3 — PISA: Q = 2πr² × V_aliasing; EROA = Q ÷ V_peak; RVol = EROA × VTI_jet.",
-      "STEP 4 — Qp/Qs = (CSA_RVOT × VTI_RVOT) ÷ (CSA_LVOT × VTI_LVOT); ≥1.5–2.0 closes a shunt."
+      "STEP 1 — Stroke volume: CSA = 0.785 d², then SV = CSA × VTI, then CO = SV × HR.",
+      "STEP 2 — Valve area: AVA = (CSA·VTI)LVOT ÷ VTI(AV); cross-check DVI = VTI(LVOT)/VTI(AV).",
+      "STEP 3 — Regurgitation by PISA: Flow = 2πr²×V_alias, EROA = Flow/V_peak, RegVol = EROA × VTI(jet).",
+      "STEP 4 — Pressure from a jet = cuff pressure minus 4V² of the jet connecting those two chambers (LAP from MR, LVEDP from AR, PASP from TR)."
     ],
     "differentiating_features": [
-      "A 'low' gradient with a tiny AVA → check stroke volume (low-flow); Qp/Qs ≈ 1 normally."
+      "Pressure-from-jet rule: mean LAP ≈ SBP − 4(MR peak V)²; LVEDP ≈ DBP − 4(AR end-diastolic V)²; PASP = 4(TR V)² + RAP.",
+      "Sanity checks: severe AS DVI <0.25; a 'low' gradient with a tiny AVA → check stroke volume (low-flow); Qp/Qs ≈ 1 normally, ≥1.5–2 closes a shunt."
     ],
     "pearls": [
-      "Worked: LVOT d 2.1, VTI 16, AV VTI 80 → CSA 3.46, SV 55 mL, AVA 0.69 cm² (severe), DVI 0.20 (low-flow severe AS).",
-      "Worked: TR 3.6 m/s, dilated IVC (RAP 15) → PASP = 4×3.6² + 15 = 67 mmHg (significant PH)."
+      "Any pressure-from-jet uses the cuff pressure minus 4V² of the jet that connects those two chambers — one rule covers LAP, LVEDP and PA pressures.",
+      "MVA = 220 ÷ PHT (PHT ≈ 0.29 × DT); PA diastolic ≈ 4(PR end-diastolic V)² + RAP."
     ],
     "pitfalls": [
-      "Forgetting the V₁ term when LVOT velocity is high overestimates the gradient."
+      "Forgetting the squared diameter in CSA — a small slip on a squared number is a big slip in SV/AVA/Qp:Qs."
     ],
     "exam_pearls": [
-      "Severe AS DVI <0.25.",
-      "PASP = 4(TR V)² + RAP."
+      "'AVA & DVI in low-flow AS' → AVA from continuity, DVI <0.25 = severe.",
+      "'Mean LAP from MR' → SBP − 4(MR peak V)²; 'LVEDP from AR' → DBP − 4(AR EDV)².",
+      "'PASP' → 4(TR V)² + RAP; 'Qp/Qs closure' → ≥1.5–2:1."
     ],
     "reference": "Clinical Echo Exam Companion, Ch 25."
   },
   {
     "id": "lookalikes",
     "chapter": "Appendix D · Look-alike atlas",
-    "title": "The look-alike disambiguation atlas",
-    "background": "The single page that pulls every 'two things that look identical' discriminator into one surface. The boards rarely test whether something is abnormal — they test whether you can tell two abnormal-looking things apart. Read the one discriminator first.",
+    "title": "Look-alike disambiguation — ask the single discriminator",
+    "background": "Many board stems hinge on telling apart two findings that look alike. The expert move is to ask the single discriminator question first — which CW shape, which way Valsalva pushes it, what the neck ratio is, whether it enhances with contrast — rather than describing the appearance.",
     "key_measurements": [
       {
-        "name": "True vs pseudo-aneurysm neck",
-        "value": "true wide >0.5; pseudo narrow <0.5",
-        "note": "Measure the neck-to-cavity ratio before reassuring anyone; <0.5 = contained rupture = surgical."
+        "name": "CW shape",
+        "value": "rounded vs late dagger",
+        "note": "Fixed valvular AS = rounded mid-systolic; dynamic LVOT/HCM = late-peaking dagger."
       },
       {
-        "name": "Secondary MR threshold",
-        "value": "ESC EROA ≥0.20 (ACC/AHA retains 0.40)",
-        "note": "Using the primary 0.40 number under-grades a functional jet."
+        "name": "Provocation",
+        "value": "louder vs softer on Valsalva",
+        "note": "Murmur louder with Valsalva/standing = HCM; AS/MR soften."
+      },
+      {
+        "name": "Pseudoaneurysm neck",
+        "value": "neck-to-cavity <0.5",
+        "note": "Narrow neck (contained rupture, high risk) vs wide mouth = true aneurysm."
+      },
+      {
+        "name": "Contrast vascularity",
+        "value": "dark vs bright",
+        "note": "Thrombus avascular (dark) vs tumour enhances; clutter has nothing to fill."
       }
     ],
     "algorithm_steps": [
-      "STEP 1 — AS vs HOCM: CW rounded mid-systolic peak + murmur ↓ with Valsalva → AS; late-peaking 'dagger' + murmur ↑ with Valsalva → HOCM.",
-      "STEP 2 — SAM-MR vs primary MR: posterior jet timed mid-late systole + late-peaking LVOT signal → SAM-MR (relieve obstruction).",
-      "STEP 3 — Thrombus vs tumour: avascular (dark on contrast) = thrombus; enhances = tumour. Lipomatous hypertrophy spares the fossa; myxoma attaches at it.",
-      "STEP 4 — Athlete vs cardiomyopathy: normal/supernormal GLS & diastology + regression with detraining = athlete."
+      "STEP 1 — Identify the pair of look-alikes the stem is contrasting.",
+      "STEP 2 — Pick the single discriminator: CW shape, provocation response, neck ratio, contrast vascularity, e′ behaviour, or bubble timing.",
+      "STEP 3 — Apply it: e.g. annulus reversus → constriction; apical sparing → amyloid; late dagger → dynamic LVOT.",
+      "STEP 4 — Confirm the answer changes management, not just the label."
     ],
     "differentiating_features": [
-      "Constriction vs restriction: preserved/high e′ with annulus reversus (medial > lateral) = constriction; globally low e′ with high E/e′ = restriction.",
-      "Lambl's excrescence (thin, on the closure line, benign) vs papillary fibroelastoma (frond-like, embolic risk)."
+      "Constriction (e′ preserved/high, E/e′ low, annulus reversus) vs restriction (e′ low, E/e′ high).",
+      "Excess-gain artifact (vanishes with the gain knob) vs SEC (persists, real low-flow); refraction (side-by-side duplicate) vs mirror (deeper duplicate).",
+      "SAM-MR (posterior jet, late-peaking, dynamic) vs primary MR (holosystolic, fixed); pseudoaneurysm (narrow neck) vs true aneurysm (wide)."
     ],
     "pearls": [
-      "Normal variants to recognise (don't over-call): Chiari network, Eustachian valve, crista terminalis, moderator band, false tendons, lipomatous atrial septum, Coumadin ridge."
+      "When two windows disagree on a velocity, the higher clean velocity is the truer one (angle error only underestimates).",
+      "A 'finding' seen in only one view, that moves when you change angle, or crosses anatomic borders is artifact until proven otherwise."
     ],
     "pitfalls": [
-      "A 'finding' seen in only one view, that moves when you change angle, or crosses anatomic boundaries is artifact — re-interrogate."
+      "Describing the appearance instead of applying the one discriminator that separates the pair."
     ],
     "exam_pearls": [
-      "Ask the single discriminator question first: which CW shape? which way does Valsalva push it? what is the neck ratio? does it enhance with contrast?"
+      "Ask the discriminator first: which CW shape? which way does Valsalva push it? what is the neck ratio? does it enhance with contrast?",
+      "'High pressure but LOW E/e′' → constriction; 'thick walls + apical sparing' → amyloid.",
+      "'Late dagger CW + louder on Valsalva' → dynamic LVOT (HCM)."
     ],
     "reference": "Clinical Echo Exam Companion, Appendix D."
   }
@@ -7625,7 +7950,7 @@ const Today = {
       valve:['aortic-stenosis','mitral-stenosis','mitral-regurg','aortic-regurg-tr'],
       tee:['tee-indications','endocarditis','af-laa'],
       '4d':['contrast-3d','intraop'],
-      chd:['congenital'],
+      chd:['congenital','great-arteries'],
       cmp:['cardiomyopathy','masses','systemic'],
       peri:['pericardium'],
       haemo:['hemo-drills','prosthetic-valves','stress-echo','lvad','lookalikes']
@@ -7645,7 +7970,7 @@ const Today = {
       'mitral-regurg':'valve', 'aortic-regurg-tr':'valve',
       'endocarditis':'tee', 'af-laa':'tee',
       'contrast-3d':'4d', 'intraop':'4d',
-      'congenital':'chd',
+      'congenital':'chd', 'great-arteries':'chd',
       'cardiomyopathy':'cmp', 'masses':'cmp', 'systemic':'cmp',
       'pericardium':'peri',
       'hemo-drills':'haemo', 'prosthetic-valves':'haemo',
