@@ -3814,9 +3814,18 @@ const AI = {
       const reason = d.promptFeedback?.blockReason || 'no candidates returned';
       throw new Error('Gemini returned no content ('+reason+')');
     }
-    return (cand.content?.parts || [])
-      .map(p=>p.text||'')
-      .join('');
+    const text = (cand.content?.parts || []).map(p=>p.text||'').join('');
+    // If the model hit the output cap, the JSON is likely truncated. Flag it
+    // so callers can repair/retry rather than failing with a cryptic error.
+    if(cand.finishReason === 'MAX_TOKENS'){
+      const err = new Error('Gemini response hit the length limit (truncated)');
+      err.truncated = true; err.partial = text;
+      throw err;
+    }
+    if(cand.finishReason === 'SAFETY'){
+      throw new Error('Gemini blocked the response (safety filter) — try rephrasing or a different domain');
+    }
+    return text;
   },
 
   async _anthropic(prompt, json, temperature=0.15, maxTokens=4000){
@@ -3860,17 +3869,93 @@ const AI = {
 };
 
 /* ---- safe JSON extraction from model output ----------------
-   LLMs occasionally wrap JSON in ```fences``` or stray prose
-   even when told not to. This pulls the first {...} object out. */
+   LLMs occasionally wrap JSON in ```fences```, add stray prose, or
+   (most often) get cut off at the token limit leaving the JSON
+   unterminated. This:
+     1. strips code fences and any prose outside the JSON,
+     2. tries a straight parse,
+     3. if that fails, isolates the outermost {...} or [...] span,
+     4. as a last resort, REPAIRS a truncated tail by closing any
+        open string and balancing brackets, then parses.
+   Returns a parsed value, or throws if nothing salvageable. */
 function extractJSON(raw){
-  if(!raw) throw new Error('Empty AI response');
-  let t = raw.trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
-  try{ return JSON.parse(t); }catch(e){}
-  const s=t.indexOf('{'), e=t.lastIndexOf('}');
-  if(s>=0 && e>s){
-    try{ return JSON.parse(t.slice(s,e+1)); }catch(e2){}
+  if(!raw || !String(raw).trim()) throw new Error('Empty AI response');
+  let t = String(raw).trim();
+  // Remove leading/trailing code fences wherever they appear.
+  t = t.replace(/^[^[{]*?```(?:json)?\s*/i, '').replace(/\s*```[^\]}]*$/i, '').trim();
+  // Drop any prose before the first bracket / after the last one.
+  const first = Math.min(...['{','['].map(c=>{ const i=t.indexOf(c); return i<0?Infinity:i; }));
+  if(first!==Infinity) t = t.slice(first);
+
+  // 1) straight parse
+  try{ return JSON.parse(t); }catch(_){}
+
+  // 2) outermost balanced object/array
+  const open = t[0]==='[' ? '[' : '{';
+  const close = open==='[' ? ']' : '}';
+  const last = t.lastIndexOf(close);
+  if(last>0){
+    try{ return JSON.parse(t.slice(0, last+1)); }catch(_){}
+  }
+
+  // 3) repair a truncated tail: walk the text tracking string state and
+  //    bracket depth, then append the closers needed to make it valid.
+  const repaired = repairTruncatedJSON(t);
+  if(repaired){
+    try{ return JSON.parse(repaired); }catch(_){}
   }
   throw new Error('Could not parse AI response as JSON');
+}
+
+/* Best-effort repair of JSON cut off mid-stream. Closes an open string,
+   removes a dangling trailing comma / partial key, and appends the right
+   sequence of } and ] to balance. Good enough to recover the questions
+   that DID finish when a long array is truncated. */
+function repairTruncatedJSON(t){
+  let inStr=false, esc=false; const stack=[];
+  let lastComplete=-1; // index just after a top-of-array element boundary
+  for(let i=0;i<t.length;i++){
+    const ch=t[i];
+    if(inStr){
+      if(esc) esc=false;
+      else if(ch==='\\') esc=true;
+      else if(ch==='"') inStr=false;
+      continue;
+    }
+    if(ch==='"'){ inStr=true; continue; }
+    if(ch==='{'||ch==='['){ stack.push(ch); }
+    else if(ch==='}'||ch===']'){ stack.pop(); }
+    // Track a clean boundary: a closed element followed by a comma at depth
+    // inside the outermost array, so we can trim a half-written final item.
+    if(ch===',' && stack.length===1 && stack[0]==='[') lastComplete=i;
+  }
+  let s=t;
+  // If we ended inside a half-written object of an array, trim back to the
+  // last completed element so we don't keep a broken partial item.
+  if(stack.length>1 && lastComplete>0){
+    s=t.slice(0,lastComplete);
+    // rebuild the stack for the trimmed string
+    return closeOut(s);
+  }
+  return closeOut(s);
+
+  function closeOut(str){
+    let inS=false, e=false; const st=[];
+    for(let i=0;i<str.length;i++){
+      const c=str[i];
+      if(inS){ if(e)e=false; else if(c==='\\')e=true; else if(c==='"')inS=false; continue; }
+      if(c==='"'){inS=true;continue;}
+      if(c==='{'||c==='[')st.push(c);
+      else if(c==='}'||c===']')st.pop();
+    }
+    let out=str;
+    if(inS) out+='"';                 // close an open string
+    out=out.replace(/,\s*$/,'');      // drop trailing comma
+    // remove a dangling "key": with no value
+    out=out.replace(/,?\s*"[^"]*"\s*:\s*$/,'');
+    for(let i=st.length-1;i>=0;i--) out += (st[i]==='[' ? ']' : '}');
+    return out;
+  }
 }
 
 /* ---- validate one MCQ object from the model ---------------
@@ -4199,9 +4284,10 @@ const MCQ = {
     const orig = btn ? btn.innerHTML : '';
     if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…'; }
     try{
-      // Over-generate so that, after verification drops weak items, we
-      // still have enough to fill the requested count.
-      const askFor = Math.min(50, Math.ceil(count * 1.6) + 2);
+      // Over-generate modestly so verification can drop a few weak items
+      // while still filling the count — but not so many that the JSON gets
+      // truncated at the token limit. Cap tighter than before.
+      const askFor = Math.min(20, Math.ceil(count * 1.4) + 1);
 
       // Build the per-domain topic list to steer the prompt. 'all' picks
       // a spread across domains so a mixed set still feels like the bank.
@@ -4218,9 +4304,21 @@ const MCQ = {
             DOMAINS.flatMap(d=>d.topics).slice(0,18), style, askFor, diff)
         : buildFor(domId);
 
-      const raw = await AI.complete(prompt, {json:true, temperature:0.3, maxTokens:8000});
+      let raw;
+      try{
+        raw = await AI.complete(prompt, {json:true, temperature:0.3, maxTokens:8000});
+      }catch(e){
+        // If the model was cut off at the length limit, salvage whatever
+        // complete questions did come through rather than failing outright.
+        if(e && e.truncated && e.partial) raw = e.partial;
+        else throw e;
+      }
       const parsed = extractJSON(raw);
-      let items = Array.isArray(parsed.questions) ? parsed.questions : [];
+      let items = Array.isArray(parsed) ? parsed
+                : Array.isArray(parsed.questions) ? parsed.questions
+                : Array.isArray(parsed.mcqs) ? parsed.mcqs
+                : Array.isArray(parsed.items) ? parsed.items
+                : [];
 
       // Structural + self-consistency filter (reuse the existing guards).
       items = items.filter(q=> validMcq(q) && mcqSelfConsistent(q));
@@ -4230,8 +4328,14 @@ const MCQ = {
       // scratch with no knowledge of the marked key. Keep only matches.
       let verified = items;
       try{
-        const vraw = await AI.complete(buildVerifierPrompt(items), {json:true, temperature:0, maxTokens:4000});
-        const checks = (extractJSON(vraw).checks)||[];
+        let vraw;
+        try{
+          vraw = await AI.complete(buildVerifierPrompt(items), {json:true, temperature:0, maxTokens:4000});
+        }catch(ve){
+          if(ve && ve.truncated && ve.partial) vraw = ve.partial; else throw ve;
+        }
+        const vp = extractJSON(vraw);
+        const checks = Array.isArray(vp) ? vp : (vp.checks || vp.results || []);
         const byIdx = {};
         checks.forEach(c=>{ if(Number.isInteger(c.i)) byIdx[c.i]=c; });
         verified = items.filter((q,i)=>{
