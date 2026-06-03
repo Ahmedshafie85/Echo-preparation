@@ -3095,12 +3095,16 @@ const App = {
   /* Safeguard: if a real Gemini/Anthropic key ever gets pasted into the
      source of this file, warn loudly. Keys belong in Settings only. */
   guardAgainstHardcodedKey(){
-    let src = document.documentElement.innerHTML;
-    // The Firebase web apiKey is also an "AIza..." string but is safe to ship
-    // publicly — strip the known Firebase config key before scanning so it
-    // doesn't trigger a false positive.
-    try{ if(window.FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey) src = src.split(FIREBASE_CONFIG.apiKey).join(''); }catch(e){}
-    if(/AIza[A-Za-z0-9_-]{30,}/.test(src) || /sk-ant-[A-Za-z0-9_-]{20,}/.test(src)){
+    // The Firebase web apiKey is also an "AIza..." string, but unlike a
+    // Gemini/Anthropic key it is NOT a secret — Google designs it to ship
+    // publicly in client code (access is gated by Security Rules + Auth,
+    // not by hiding this string). So we scan for key-shaped literals and
+    // ignore the known-safe Firebase key.
+    const src = document.documentElement.innerHTML;
+    const firebaseKey = (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG.apiKey) || '';
+    const googleHits    = (src.match(/AIza[A-Za-z0-9_-]{30,}/g) || []).filter(k => k !== firebaseKey);
+    const anthropicHits =  src.match(/sk-ant-[A-Za-z0-9_-]{20,}/g) || [];
+    if(googleHits.length || anthropicHits.length){
       console.warn('%c⚠ API KEY DETECTED IN PAGE SOURCE','color:#df8b82;font-weight:700;font-size:14px;');
       console.warn('Remove it immediately and revoke it — keys must only be entered in Settings, never committed to the repo.');
       toast('⚠ An API key appears to be hardcoded — remove it from the file');
