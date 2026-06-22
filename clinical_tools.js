@@ -1,8 +1,4 @@
-/* Clinical calculators and cutoff library.
-   Source: Clinical Echocardiography V18 - Final Mayo Patch (2026),
-   especially Chapters 3, 7, 8, 14-16, 25-26 and Appendix C. */
-
-const CLINICAL_VALUES_SOURCE = 'Clinical Echocardiography V18 - Final Mayo Patch';
+/* Clinical calculators and cutoff library. */
 
 const CLINICAL_VALUE_SETS = [
   {
@@ -114,7 +110,7 @@ const CLINICAL_VALUE_SETS = [
       ['Severe AR','VC >0.6 cm; jet/LVOT >=65%; PHT <200 ms','Integrate, because PHT is compliance and pressure dependent.'],
       ['Quantitative severe AR','EROA >=0.30 cm2; RegVol >=60 mL','Confirm with chamber response and flow reversal.'],
       ['Most specific support','Holodiastolic flow reversal in descending/abdominal aorta','Especially useful for eccentric jets.'],
-      ['Standard intervention flags','Symptoms; EF <=50%; LVESD >50 mm; LVESDi >25 mm/m2','V18 also notes earlier thresholds in selected low-risk patients.'],
+      ['Standard intervention flags','Symptoms; EF <=50%; LVESD >50 mm; LVESDi >25 mm/m2','Earlier thresholds may apply in selected low-risk patients.'],
       ['Acute severe AR','Normal LV size does not exclude it','Look for short PHT, premature mitral closure and urgent mechanism assessment.']
     ]
   },
@@ -194,7 +190,7 @@ window.ClinicalTools = {
       const notes={
         general:'Use only for the general sinus-rhythm population. Do not force this pathway onto significant MR/MS, mitral repair or prosthesis, moderate/severe MAC, AF, transplant, noncardiac PH, constriction or LVAD.',
         af:'AF has no A wave and no formal Grade I-III assignment. The tool summarizes the available 2025 pressure markers across representative matched beats.',
-        mac:'For moderate/severe MAC, annular e\u2032 and E/e\u2032 are unreliable. V18 uses E/A first, then IVRT when E/A is 0.8-1.8.'
+        mac:'For moderate/severe MAC, annular e\u2032 and E/e\u2032 are unreliable. Use E/A first, then IVRT when E/A is 0.8-1.8.'
       };
       note.textContent=notes[this.population]||'';
     }
@@ -362,8 +358,8 @@ window.ClinicalTools = {
     const ea=this._num('ddMACEA');
     const ivrt=this._num('ddMACIVRT');
     let lap='Insufficient data', tone='neutral', detail='Enter E/A first.';
-    if(ea!=null && ea<0.8){ lap='Usually normal LAP'; tone='good'; detail='E/A <0.8 in the V18 moderate/severe MAC pathway.'; }
-    else if(ea!=null && ea>1.8){ lap='Elevated LAP'; tone='bad'; detail='E/A >1.8 in the V18 moderate/severe MAC pathway.'; }
+    if(ea!=null && ea<0.8){ lap='Usually normal LAP'; tone='good'; detail='E/A <0.8 in the moderate/severe MAC pathway.'; }
+    else if(ea!=null && ea>1.8){ lap='Elevated LAP'; tone='bad'; detail='E/A >1.8 in the moderate/severe MAC pathway.'; }
     else if(ea!=null && ea>=0.8 && ea<=1.8){
       if(ivrt==null){ detail='E/A is 0.8-1.8; enter IVRT to adjudicate.'; }
       else if(ivrt<80){ lap='Elevated LAP'; tone='bad'; detail='Intermediate E/A with IVRT <80 ms.'; }
@@ -382,7 +378,7 @@ window.ClinicalTools = {
     });
   },
 
-  _renderResult({headline,summaries,markers,interpretation,sourcePage}){
+  _renderResult({headline,summaries,markers,interpretation}){
     const result=this._el('ddResult');
     if(!result) return;
     const entered=markers.filter(m=>m.value!=null);
@@ -390,8 +386,7 @@ window.ClinicalTools = {
       <div class="ct-result-head"><span class="eyebrow">Calculated interpretation</span><h4>${this._esc(headline)}</h4></div>
       <div class="ct-summary-grid">${summaries.map(([label,value,tone])=>`<div><span>${this._esc(label)}</span><strong class="ct-tone-${tone}">${this._esc(value)}</strong></div>`).join('')}</div>
       <p class="ct-interpretation">${this._esc(interpretation)}</p>
-      ${entered.length?`<div class="ct-marker-list">${entered.map(m=>`<div class="ct-marker ${this._state(m.value)}"><i></i><span><strong>${this._esc(m.name)}</strong><small>${this._esc(m.text)}</small></span></div>`).join('')}</div>`:''}
-      <div class="ct-source"><strong>Source:</strong> ${CLINICAL_VALUES_SOURCE} - ${this._esc(sourcePage)}. Educational interpretation; confirm against the primary guideline and patient context.</div>`;
+      ${entered.length?`<div class="ct-marker-list">${entered.map(m=>`<div class="ct-marker ${this._state(m.value)}"><i></i><span><strong>${this._esc(m.name)}</strong><small>${this._esc(m.text)}</small></span></div>`).join('')}</div>`:''}`;
   },
 
   renderReference(){
@@ -400,8 +395,7 @@ window.ClinicalTools = {
     if(!select || !target) return;
     const set=CLINICAL_VALUE_SETS.find(s=>s.id===select.value) || CLINICAL_VALUE_SETS[0];
     target.innerHTML=`
-      <div class="ct-reference-head"><h4>${this._esc(set.title)}</h4><span>V18 p.${this._esc(set.page)}</span></div>
-      <div class="ct-value-table">${set.rows.map(([label,value,note])=>`<div class="ct-value-row"><div>${this._esc(label)}</div><strong>${this._esc(value)}</strong><small>${this._esc(note||'')}</small></div>`).join('')}</div>
-      <div class="ct-source"><strong>Source:</strong> ${CLINICAL_VALUES_SOURCE}, p.${this._esc(set.page)}. Thresholds must be integrated with anatomy, flow, loading conditions and current primary guidance.</div>`;
+      <div class="ct-reference-head"><h4>${this._esc(set.title)}</h4></div>
+      <div class="ct-value-table">${set.rows.map(([label,value,note])=>`<div class="ct-value-row"><div>${this._esc(label)}</div><strong>${this._esc(value)}</strong><small>${this._esc(note||'')}</small></div>`).join('')}</div>`;
   }
 };
