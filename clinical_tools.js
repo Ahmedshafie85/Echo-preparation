@@ -239,11 +239,12 @@ window.ClinicalTools = {
     const ivrt=this._num('ddIVRT');
     const dt=this._num('ddDT');
 
+    const eeDiagnosisHigh=ee==null?null:ee>14;
     const eeHigh=ee==null?null:ee>=14;
     const eaAbnormal=ea==null?null:(ea<=0.8 || ea>=2);
     const laviHigh=lavi==null?null:lavi>34;
     const larsLow=lars==null?null:lars<=18;
-    const diagnosisMarkers=[eeHigh,eaAbnormal,laviHigh,larsLow].filter(v=>v!=null);
+    const diagnosisMarkers=[eeDiagnosisHigh,eaAbnormal,laviHigh,larsLow].filter(v=>v!=null);
     const diagnosisPositive=diagnosisMarkers.filter(Boolean).length;
     let dysfunction='Insufficient data', dysfunctionTone='neutral';
     if(ePrime.value===true && diagnosisMarkers.length){
@@ -265,11 +266,15 @@ window.ClinicalTools = {
     let lap='Needs more data', lapTone='neutral';
     if(core.length===3 && corePositive===3){
       lap='Elevated'; lapTone='bad';
-    }else if(ePrime.value===true && ea!=null && ea<=0.8 && corePositive===1){
+    }else if(core.length===3 && corePositive===0){
       lap='Normal at rest'; lapTone='good';
-    }else if((corePositive>=2 && supportPositive>=1) || (corePositive===1 && supportPositive>=2)){
+    }else if(core.length===3 && ePrime.value===true && ea!=null && ea<=0.8 && corePositive===1){
+      lap='Normal at rest'; lapTone='good';
+    }else if(corePositive>=1 && supportPositive>=1){
       lap='Elevated'; lapTone='bad';
-    }else if(core.length>=2 && corePositive<=1 && supportNegative>=2){
+    }else if(corePositive>=1 && supportive.length>=1 && supportPositive===0){
+      lap='Normal at rest'; lapTone='good';
+    }else if(core.length>=2 && corePositive===0 && supportNegative>=1){
       lap='Normal at rest'; lapTone='good';
     }
 
@@ -331,7 +336,7 @@ window.ClinicalTools = {
       : ((tr!=null&&tr>2.8)||(pasp!=null&&pasp>35));
     const markers=[
       this._marker(`Mitral E${e==null?'':` ${e} cm/s`}`,e==null?null:e>=100,'High (>=100 cm/s)','Below 100 cm/s'),
-      this._marker(`Septal E/e\u2032${ee==null?'':` ${ee}`}`,ee==null?null:ee>11,'Elevated (>11)','Not elevated'),
+      this._marker(`Septal E/e\u2032${ee==null?'':` ${ee}`}`,ee==null?null:ee>=11,'Elevated (>=11)','Not elevated'),
       this._marker(pressureLabel,pressurePositive,'Pressure marker positive','Below threshold'),
       this._marker(`DT${dt==null?'':` ${dt} ms`}`,dt==null?null:dt<=160,'Short (<=160 ms)','Not shortened'),
       this._marker(`PV S/D${pvsd==null?'':` ${pvsd}`}`,pvsd==null?null:pvsd<1,'Reduced (<1)','Not reduced'),
